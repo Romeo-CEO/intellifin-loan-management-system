@@ -1,0 +1,6 @@
+@IntelliFin.IdentityService_HostAddress = http://localhost:5235
+
+GET {{IntelliFin.IdentityService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

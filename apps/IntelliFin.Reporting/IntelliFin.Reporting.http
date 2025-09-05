@@ -1,0 +1,6 @@
+@IntelliFin.Reporting_HostAddress = http://localhost:5109
+
+GET {{IntelliFin.Reporting_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

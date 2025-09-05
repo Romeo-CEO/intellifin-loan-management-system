@@ -1,0 +1,6 @@
+@IntelliFin.PmecService_HostAddress = http://localhost:5218
+
+GET {{IntelliFin.PmecService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,134 @@
+﻿name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  NODE_VERSION: '20.x'
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          SA_PASSWORD: Your_password123
+          ACCEPT_EULA: Y
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd="/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Your_password123 -Q 'SELECT 1'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+      rabbitmq:
+        image: rabbitmq:3-management
+        ports:
+          - 5672:5672
+          - 15672:15672
+        options: >-
+          --health-cmd="rabbitmq-diagnostics -q ping"
+          --health-interval=30s
+          --health-timeout=30s
+          --health-retries=3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: apps/IntelliFin.Frontend/package-lock.json
+
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore .NET dependencies
+        run: dotnet restore IntelliFin.sln
+
+      - name: Build .NET solution
+        run: dotnet build IntelliFin.sln -c Release --no-restore
+
+      - name: Install frontend dependencies
+        working-directory: apps/IntelliFin.Frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: apps/IntelliFin.Frontend
+        run: npm run build
+
+      - name: Lint frontend
+        working-directory: apps/IntelliFin.Frontend
+        run: npm run lint
+
+      - name: Test frontend
+        working-directory: apps/IntelliFin.Frontend
+        run: npm test -- --coverage --watchAll=false
+
+      - name: Run .NET tests with coverage
+        run: |
+          dotnet test IntelliFin.sln -c Release --no-build --verbosity normal `
+            --collect:"XPlat Code Coverage" `
+            --results-directory ./TestResults `
+            --logger trx `
+            --settings coverlet.runsettings
+
+      - name: Install ReportGenerator
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
+      - name: Generate coverage report
+        run: |
+          reportgenerator `
+            -reports:"./TestResults/**/coverage.cobertura.xml" `
+            -targetdir:"./TestResults/CoverageReport" `
+            -reporttypes:"Html;Cobertura;JsonSummary"
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ./TestResults/CoverageReport
+
+      - name: Check coverage threshold
+        shell: pwsh
+        run: |
+          $jsonPath = "./TestResults/CoverageReport/Summary.json"
+          if (Test-Path $jsonPath) {
+            $coverage = Get-Content $jsonPath | ConvertFrom-Json
+            $lineRate = [math]::Round($coverage.summary.linecoverage * 100, 2)
+            Write-Host "Line Coverage: $lineRate%"
+            if ($lineRate -lt 80) {
+              Write-Error "Coverage $lineRate% is below the required 80% threshold"
+              exit 1
+            }
+            Write-Host "Coverage threshold met: $lineRate% >= 80%"
+          } else {
+            Write-Warning "Coverage report not found, skipping threshold check"
+          }
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: ./TestResults/*.trx

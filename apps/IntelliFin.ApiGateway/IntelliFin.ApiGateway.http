@@ -1,0 +1,6 @@
+@IntelliFin.ApiGateway_HostAddress = http://localhost:5033
+
+GET {{IntelliFin.ApiGateway_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

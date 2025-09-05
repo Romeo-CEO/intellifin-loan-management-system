@@ -1,0 +1,6 @@
+@IntelliFin.CreditBureau_HostAddress = http://localhost:5214
+
+GET {{IntelliFin.CreditBureau_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
