@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="IntelliFin.Desktop.OfflineCenter.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:IntelliFin.Desktop.OfflineCenter.Views"
+    Title="IntelliFin CEO Offline Command Center"
+    FlyoutBehavior="Flyout">
+
+    <Shell.FlyoutHeader>
+        <Grid BackgroundColor="{StaticResource Primary}" HeightRequest="200">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            
+            <Image Source="intellifin_logo.png" 
+                   Grid.Row="0"
+                   Aspect="AspectFit"
+                   HeightRequest="80"
+                   Margin="20" />
+            
+            <Label Text="CEO Command Center" 
+                   Grid.Row="1"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   TextColor="White"
+                   HorizontalOptions="Center"
+                   Margin="0,0,0,20" />
+        </Grid>
+    </Shell.FlyoutHeader>
+
+    <FlyoutItem Title="Dashboard" Icon="dashboard.png">
+        <ShellContent Route="dashboard" ContentTemplate="{DataTemplate local:DashboardPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Loan Portfolio" Icon="loans.png">
+        <ShellContent Route="loans" ContentTemplate="{DataTemplate local:LoansPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Financial Overview" Icon="financial.png">
+        <ShellContent Route="financial" ContentTemplate="{DataTemplate local:FinancialPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Reports" Icon="reports.png">
+        <ShellContent Route="reports" ContentTemplate="{DataTemplate local:ReportsPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Settings" Icon="settings.png">
+        <ShellContent Route="settings" ContentTemplate="{DataTemplate local:SettingsPage}" />
+    </FlyoutItem>
+
+    <Shell.FlyoutFooter>
+        <Grid BackgroundColor="{StaticResource Light}" HeightRequest="100">
+            <StackLayout Orientation="Horizontal" HorizontalOptions="Center" VerticalOptions="Center">
+                <Label Text="●" TextColor="{StaticResource Success}" FontSize="12" VerticalOptions="Center" />
+                <Label Text="Online" FontSize="12" TextColor="{StaticResource TextSecondary}" Margin="5,0,0,0" />
+                <Label Text="Last Sync: 2 min ago" FontSize="10" TextColor="{StaticResource TextMuted}" Margin="10,0,0,0" />
+            </StackLayout>
+        </Grid>
+    </Shell.FlyoutFooter>
+
+</Shell>

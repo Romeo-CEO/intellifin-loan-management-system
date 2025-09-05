@@ -1,0 +1,203 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="IntelliFin.Desktop.OfflineCenter.Views.DashboardPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:IntelliFin.Desktop.OfflineCenter.ViewModels"
+             Title="{Binding Title}"
+             x:DataType="vm:DashboardViewModel">
+
+    <ScrollView Padding="20">
+        <StackLayout Spacing="20">
+
+            <!-- Header with Refresh -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Label Grid.Column="0" 
+                       Text="Executive Dashboard" 
+                       FontSize="24" 
+                       FontAttributes="Bold" 
+                       TextColor="{StaticResource Primary}" 
+                       VerticalOptions="Center" />
+
+                <Button Grid.Column="1" 
+                        Text="Refresh" 
+                        Command="{Binding RefreshCommand}" 
+                        BackgroundColor="{StaticResource Secondary}" 
+                        TextColor="White" 
+                        CornerRadius="5" 
+                        Padding="15,8" />
+            </Grid>
+
+            <!-- Key Metrics -->
+            <Frame BackgroundColor="White" Padding="20" CornerRadius="10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackLayout Grid.Column="0">
+                        <Label Text="Total Portfolio" FontSize="12" TextColor="{StaticResource TextSecondary}" />
+                        <Label Text="{Binding Summary.TotalPortfolioValue, StringFormat='ZMW {0:N0}'}" 
+                               FontSize="20" 
+                               FontAttributes="Bold" 
+                               TextColor="{StaticResource Primary}" />
+                        <Label Text="{Binding Summary.TotalActiveLoans, StringFormat='{0} Active Loans'}" 
+                               FontSize="10" 
+                               TextColor="{StaticResource TextMuted}" />
+                    </StackLayout>
+
+                    <StackLayout Grid.Column="1">
+                        <Label Text="Monthly Collections" FontSize="12" TextColor="{StaticResource TextSecondary}" />
+                        <Label Text="{Binding Summary.MonthlyCollections, StringFormat='ZMW {0:N0}'}" 
+                               FontSize="20" 
+                               FontAttributes="Bold" 
+                               TextColor="{StaticResource Success}" />
+                        <Label Text="This Month" FontSize="10" TextColor="{StaticResource TextMuted}" />
+                    </StackLayout>
+
+                    <StackLayout Grid.Column="2">
+                        <Label Text="Overdue Loans" FontSize="12" TextColor="{StaticResource TextSecondary}" />
+                        <Label Text="{Binding Summary.OverdueLoans}" 
+                               FontSize="20" 
+                               FontAttributes="Bold" 
+                               TextColor="{StaticResource Danger}" />
+                        <Label Text="{Binding Summary.OverdueAmount, StringFormat='ZMW {0:N0}'}" 
+                               FontSize="10" 
+                               TextColor="{StaticResource TextMuted}" />
+                    </StackLayout>
+
+                    <StackLayout Grid.Column="3">
+                        <Label Text="Portfolio at Risk" FontSize="12" TextColor="{StaticResource TextSecondary}" />
+                        <Label Text="{Binding Summary.PortfolioAtRisk, StringFormat='{0:F1}%'}" 
+                               FontSize="20" 
+                               FontAttributes="Bold" 
+                               TextColor="{StaticResource Warning}" />
+                        <Label Text="30+ Days" FontSize="10" TextColor="{StaticResource TextMuted}" />
+                    </StackLayout>
+                </Grid>
+            </Frame>
+
+            <!-- Recent Loans -->
+            <Frame BackgroundColor="White" Padding="20" CornerRadius="10">
+                <StackLayout>
+                    <Label Text="Recent Loans" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                    
+                    <CollectionView ItemsSource="{Binding RecentLoans}" HeightRequest="300">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Padding="0,10" x:DataType="models:LoanSummary">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackLayout Grid.Column="0">
+                                        <Label Text="{Binding ClientName}" FontSize="14" FontAttributes="Bold" />
+                                        <Label Text="{Binding LoanId}" FontSize="12" TextColor="{StaticResource TextSecondary}" />
+                                    </StackLayout>
+
+                                    <Label Grid.Column="1" 
+                                           Text="{Binding OutstandingBalance, StringFormat='ZMW {0:N0}'}" 
+                                           FontSize="14" 
+                                           FontAttributes="Bold" 
+                                           VerticalOptions="Center" />
+
+                                    <Label Grid.Column="2" 
+                                           Text="{Binding Status}" 
+                                           FontSize="12" 
+                                           Padding="8,4" 
+                                           BackgroundColor="{Binding Status, Converter={StaticResource StatusToColorConverter}}" 
+                                           TextColor="White" 
+                                           VerticalOptions="Center" />
+
+                                    <Label Grid.Column="3" 
+                                           Text="{Binding DaysPastDue, StringFormat='{0} DPD'}" 
+                                           FontSize="12" 
+                                           TextColor="{StaticResource TextSecondary}" 
+                                           VerticalOptions="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </StackLayout>
+            </Frame>
+
+            <!-- Recent Payments -->
+            <Frame BackgroundColor="White" Padding="20" CornerRadius="10">
+                <StackLayout>
+                    <Label Text="Recent Payments" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                    
+                    <CollectionView ItemsSource="{Binding RecentPayments}" HeightRequest="250">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Padding="0,10" x:DataType="models:OfflinePayment">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackLayout Grid.Column="0">
+                                        <Label Text="{Binding LoanId}" FontSize="14" FontAttributes="Bold" />
+                                        <Label Text="{Binding PaymentDate, StringFormat='{0:MMM dd, yyyy}'}" 
+                                               FontSize="12" 
+                                               TextColor="{StaticResource TextSecondary}" />
+                                    </StackLayout>
+
+                                    <Label Grid.Column="1" 
+                                           Text="{Binding Amount, StringFormat='ZMW {0:N2}'}" 
+                                           FontSize="14" 
+                                           FontAttributes="Bold" 
+                                           VerticalOptions="Center" />
+
+                                    <Label Grid.Column="2" 
+                                           Text="{Binding PaymentMethod}" 
+                                           FontSize="12" 
+                                           TextColor="{StaticResource TextSecondary}" 
+                                           VerticalOptions="Center" />
+
+                                    <Label Grid.Column="3" 
+                                           Text="{Binding Status}" 
+                                           FontSize="12" 
+                                           Padding="8,4" 
+                                           BackgroundColor="{Binding Status, Converter={StaticResource StatusToColorConverter}}" 
+                                           TextColor="White" 
+                                           VerticalOptions="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </StackLayout>
+            </Frame>
+
+            <!-- Connection Status -->
+            <Frame BackgroundColor="{Binding IsOnline, Converter={StaticResource BoolToBackgroundConverter}}" 
+                   Padding="15" 
+                   CornerRadius="8">
+                <StackLayout Orientation="Horizontal">
+                    <Label Text="●" 
+                           TextColor="{Binding IsOnline, Converter={StaticResource BoolToColorConverter}}" 
+                           FontSize="16" 
+                           VerticalOptions="Center" />
+                    <Label Text="{Binding IsOnline, Converter={StaticResource BoolToConnectionTextConverter}}" 
+                           FontSize="14" 
+                           TextColor="{StaticResource TextPrimary}" 
+                           Margin="10,0,0,0" 
+                           VerticalOptions="Center" />
+                </StackLayout>
+            </Frame>
+
+        </StackLayout>
+    </ScrollView>
+
+</ContentPage>

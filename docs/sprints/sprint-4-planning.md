@@ -16,7 +16,7 @@
 **Priority:** High
 **Assignee:** [To be assigned]
 
-**Description:** Enhance the IntelliFin.FinancialService with advanced reporting capabilities, real-time dashboards, and BoZ regulatory reporting automation.
+**Description:** Enhance the consolidated IntelliFin.FinancialService with advanced reporting capabilities, real-time dashboards, and BoZ regulatory reporting automation.
 
 **Acceptance Criteria:**
 - [ ] Real-time financial dashboards
@@ -42,7 +42,7 @@
 **Priority:** High
 **Assignee:** [To be assigned]
 
-**Description:** Optimize payment processing within the IntelliFin.FinancialService, including Tingg and PMEC integration enhancements, retry mechanisms, and transaction reconciliation.
+**Description:** Optimize payment processing within the consolidated IntelliFin.FinancialService, including Tingg and PMEC integration enhancements, retry mechanisms, and transaction reconciliation.
 
 **Acceptance Criteria:**
 - [ ] Tingg payment gateway optimization
@@ -68,7 +68,7 @@
 **Priority:** Medium
 **Assignee:** [To be assigned]
 
-**Description:** Implement SMS notification capabilities within the IntelliFin.CommunicationsService, including gateway integration, template management, and delivery tracking.
+**Description:** Implement SMS notification capabilities within the consolidated IntelliFin.CommunicationsService, including gateway integration, template management, and delivery tracking.
 
 **Acceptance Criteria:**
 - [ ] SMS gateway integration
@@ -208,14 +208,14 @@
 
 ## 🏗️ Microservices Architecture
 
-### IntelliFin.FinancialService
+### IntelliFin.FinancialService (Consolidated)
 - **Responsibility:** All financial operations, reporting, and payment processing
-- **Key Features:** GL, payments, collections, reporting, Tingg/PMEC integrations
+- **Key Features:** GL, payments, collections, advanced reporting, Tingg/PMEC integrations
 - **Integration Points:** Loan Origination Service, External payment gateways, Communications Service
 
-### IntelliFin.CommunicationsService
+### IntelliFin.CommunicationsService (Consolidated)
 - **Responsibility:** All communication channels and notifications
-- **Key Features:** SMS, email, in-app notifications, template management
+- **Key Features:** SMS, email, in-app notifications, template management, delivery tracking
 - **Integration Points:** All business services for notification triggers
 
 ## 🎯 Success Metrics

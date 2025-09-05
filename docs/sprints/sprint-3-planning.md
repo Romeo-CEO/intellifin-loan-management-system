@@ -16,7 +16,7 @@
 **Priority:** Critical
 **Assignee:** [To be assigned]
 
-**Description:** Implement the full application-to-approval workflow within the IntelliFin.LoanOriginationService. This includes the adaptive application forms, the Rules-Based Risk Grade calculation, and the Camunda workflow integration for approvals.
+**Description:** Implement the full application-to-approval workflow within the consolidated IntelliFin.LoanOriginationService. This includes adaptive application forms, Rules-Based Risk Grade calculation, and Camunda workflow integration for the complete origination process.
 
 **Acceptance Criteria:**
 - [ ] Dynamic loan application forms based on product type
@@ -42,7 +42,7 @@
 **Priority:** Critical
 **Assignee:** [To be assigned]
 
-**Description:** Implement the core GL, PMEC, and Tingg payment processing logic within the new, consolidated IntelliFin.FinancialService. This includes the immutable ledger, automated transaction posting, and basic disbursement/collection workflows.
+**Description:** Implement core GL, PMEC, and Tingg payment processing within the consolidated IntelliFin.FinancialService. This includes immutable ledger, automated transaction posting, and basic disbursement/collection workflows for complete financial operations.
 
 **Acceptance Criteria:**
 - [ ] BoZ-compliant General Ledger implementation

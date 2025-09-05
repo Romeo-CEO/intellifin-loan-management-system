@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="IntelliFin.Desktop.OfflineCenter.Views.SettingsPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Settings">
+
+    <ScrollView Padding="20">
+        <StackLayout Spacing="20">
+            <Label Text="Application Settings" 
+                   FontSize="24" 
+                   FontAttributes="Bold" 
+                   TextColor="{StaticResource Primary}" />
+            
+            <Frame BackgroundColor="White" Padding="20" CornerRadius="10">
+                <StackLayout Spacing="15">
+                    <Label Text="Synchronization Settings" FontSize="18" FontAttributes="Bold" />
+                    
+                    <StackLayout Orientation="Horizontal">
+                        <Label Text="Auto Sync Enabled" VerticalOptions="Center" />
+                        <Switch IsToggled="True" HorizontalOptions="EndAndExpand" />
+                    </StackLayout>
+                    
+                    <StackLayout Orientation="Horizontal">
+                        <Label Text="Sync Interval" VerticalOptions="Center" />
+                        <Picker HorizontalOptions="EndAndExpand" WidthRequest="150">
+                            <Picker.Items>
+                                <x:String>5 minutes</x:String>
+                                <x:String>15 minutes</x:String>
+                                <x:String>30 minutes</x:String>
+                                <x:String>1 hour</x:String>
+                            </Picker.Items>
+                        </Picker>
+                    </StackLayout>
+                </StackLayout>
+            </Frame>
+            
+            <Frame BackgroundColor="White" Padding="20" CornerRadius="10">
+                <StackLayout Spacing="15">
+                    <Label Text="Application Settings" FontSize="18" FontAttributes="Bold" />
+                    
+                    <Button Text="Clear Offline Data" 
+                            BackgroundColor="{StaticResource Danger}" 
+                            TextColor="White" 
+                            CornerRadius="5" />
+                    
+                    <Button Text="Export Data" 
+                            BackgroundColor="{StaticResource Secondary}" 
+                            TextColor="White" 
+                            CornerRadius="5" />
+                </StackLayout>
+            </Frame>
+        </StackLayout>
+    </ScrollView>
+
+</ContentPage>

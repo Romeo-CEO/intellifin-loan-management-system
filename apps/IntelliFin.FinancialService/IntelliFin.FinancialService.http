@@ -1,0 +1,56 @@
+﻿@IntelliFin.FinancialService_HostAddress = http://localhost:5300
+
+### Health Check
+GET {{IntelliFin.FinancialService_HostAddress}}/health
+Accept: application/json
+
+### Service Info
+GET {{IntelliFin.FinancialService_HostAddress}}/
+Accept: application/json
+
+### General Ledger - Get Account Balance
+GET {{IntelliFin.FinancialService_HostAddress}}/api/gl/accounts/1001/balance
+Accept: application/json
+
+### General Ledger - Post Journal Entry
+POST {{IntelliFin.FinancialService_HostAddress}}/api/gl/journal-entries
+Content-Type: application/json
+
+{
+  "debitAccountId": 1001,
+  "creditAccountId": 2001,
+  "amount": 1000.00,
+  "description": "Test journal entry",
+  "reference": "TEST-001"
+}
+
+### Collections - Get Account Status
+GET {{IntelliFin.FinancialService_HostAddress}}/api/collections/accounts/12345
+Accept: application/json
+
+### Collections - Calculate DPD
+GET {{IntelliFin.FinancialService_HostAddress}}/api/collections/accounts/12345/dpd
+Accept: application/json
+
+### PMEC - Verify Employee
+POST {{IntelliFin.FinancialService_HostAddress}}/api/pmec/verify-employee
+Content-Type: application/json
+
+{
+  "employeeId": "EMP001",
+  "nationalId": "123456789",
+  "ministry": "Ministry of Health"
+}
+
+### Payment Processing - Process Payment
+POST {{IntelliFin.FinancialService_HostAddress}}/api/payments/process
+Content-Type: application/json
+
+{
+  "loanId": "12345",
+  "amount": 500.00,
+  "paymentMethod": "mobile_money",
+  "phoneNumber": "+260971234567"
+}
+
+###

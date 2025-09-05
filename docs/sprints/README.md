@@ -158,16 +158,29 @@ This directory contains comprehensive sprint planning documentation for the Zamb
 
 The sprint planning is aligned with our final, consolidated microservices architecture:
 
-### Core Microservices
+### Core Microservices (Target Consolidated Architecture)
 - **IntelliFin.ApiGateway** - Centralized entry point and routing
 - **IntelliFin.IdentityService** - Authentication and authorization
 - **IntelliFin.ClientManagementService** - Customer management and KYC
 - **IntelliFin.LoanOriginationService** - Loan application and credit assessment (consolidated)
 - **IntelliFin.CreditBureauService** - Credit bureau integration (ACL)
-- **IntelliFin.FinancialService** - GL, payments, and collections (consolidated)
+- **IntelliFin.FinancialService** - GL, payments, and collections (consolidated from GeneralLedger + Collections + PmecService)
 - **IntelliFin.PmecAclService** - PMEC integration (ACL)
 - **IntelliFin.CommunicationsService** - All notifications and communications (consolidated)
 - **IntelliFin.ReportingService** - Reporting and compliance (consolidated)
+
+### Desktop Applications
+- **IntelliFin.Desktop.OfflineCenter** - .NET MAUI CEO Offline Command Center with offline data storage and synchronization capabilities
+
+### Current Implementation (Granular Microservices)
+- **IntelliFin.GeneralLedger** - General ledger operations (to be consolidated into FinancialService)
+- **IntelliFin.Collections** - Collections management (to be consolidated into FinancialService)
+- **IntelliFin.PmecService** - PMEC integration (to be consolidated into FinancialService)
+- **IntelliFin.Communications** - Communications service (already aligned)
+- **IntelliFin.Reporting** - Reporting service (already aligned)
+
+### Desktop Applications (Implemented)
+- **IntelliFin.Desktop.OfflineCenter** - .NET MAUI desktop application providing offline access to critical business data and operations for executive oversight
 - **IntelliFin.OfflineSyncService** - Offline operations and synchronization
 
 ### Architecture Benefits

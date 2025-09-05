@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="IntelliFin.Desktop.OfflineCenter.Views.FinancialPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Financial Overview">
+
+    <ScrollView Padding="20">
+        <StackLayout Spacing="20">
+            <Label Text="Financial Overview" 
+                   FontSize="24" 
+                   FontAttributes="Bold" 
+                   TextColor="{StaticResource Primary}" />
+            
+            <Frame BackgroundColor="White" Padding="20" CornerRadius="10">
+                <Label Text="Financial overview features will be implemented here. This includes GL operations, payment processing, collections management, and financial reporting." 
+                       FontSize="14" 
+                       TextColor="{StaticResource TextSecondary}" />
+            </Frame>
+        </StackLayout>
+    </ScrollView>
+
+</ContentPage>

@@ -16,7 +16,7 @@
 **Priority:** High
 **Assignee:** [To be assigned]
 
-**Description:** Implement email notification capabilities within the IntelliFin.CommunicationsService, including gateway integration, template management, and delivery tracking.
+**Description:** Implement email notification capabilities within the consolidated IntelliFin.CommunicationsService, including gateway integration, template management, and delivery tracking.
 
 **Acceptance Criteria:**
 - [ ] Email gateway integration (SMTP/SendGrid)
@@ -42,7 +42,7 @@
 **Priority:** Medium
 **Assignee:** [To be assigned]
 
-**Description:** Implement in-app notification capabilities within the IntelliFin.CommunicationsService, including real-time delivery, preferences management, and mobile integration.
+**Description:** Implement in-app notification capabilities within the consolidated IntelliFin.CommunicationsService, including real-time delivery, preferences management, and mobile integration.
 
 **Acceptance Criteria:**
 - [ ] Real-time notification delivery
@@ -68,7 +68,7 @@
 **Priority:** High
 **Assignee:** [To be assigned]
 
-**Description:** Implement BoZ prudential reporting capabilities within the IntelliFin.ReportingService, including automated data collection, report generation, and compliance monitoring.
+**Description:** Implement BoZ prudential reporting capabilities within the consolidated IntelliFin.ReportingService, including automated data collection, report generation, and compliance monitoring.
 
 **Acceptance Criteria:**
 - [ ] BoZ prudential reporting templates
@@ -208,14 +208,14 @@
 
 ## 🏗️ Microservices Architecture
 
-### IntelliFin.CommunicationsService
+### IntelliFin.CommunicationsService (Consolidated)
 - **Responsibility:** All communication channels and notifications
-- **Key Features:** SMS, email, in-app notifications, template management, delivery tracking
+- **Key Features:** SMS, email, in-app notifications, template management, delivery tracking, preferences management
 - **Integration Points:** All business services for notification triggers
 
-### IntelliFin.ReportingService
+### IntelliFin.ReportingService (Consolidated)
 - **Responsibility:** All reporting and compliance capabilities
-- **Key Features:** Prudential reporting, compliance monitoring, audit trails, regulatory integration
+- **Key Features:** Prudential reporting, compliance monitoring, audit trails, regulatory integration, BoZ reporting automation
 - **Integration Points:** All business services for data collection, Financial Service for financial data
 
 ## 🎯 Success Metrics
