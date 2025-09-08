@@ -11,7 +11,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntelliFin.IdentityService"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntelliFin.ClientManagement", "apps\IntelliFin.ClientManagement\IntelliFin.ClientManagement.csproj", "{4697F5BD-3643-4563-BF32-1F5D03CBAB2E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntelliFin.LoanOrigination", "apps\IntelliFin.LoanOrigination\IntelliFin.LoanOrigination.csproj", "{8B749B55-78E7-4AFF-B8F0-F49655758C31}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntelliFin.LoanOriginationService", "apps\IntelliFin.LoanOriginationService\IntelliFin.LoanOriginationService.csproj", "{8B749B55-78E7-4AFF-B8F0-F49655758C31}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntelliFin.CreditBureau", "apps\IntelliFin.CreditBureau\IntelliFin.CreditBureau.csproj", "{75D81748-DEED-436B-877C-7A0DB5F358BF}"
 EndProject

@@ -1,5 +1,6 @@
 ﻿using IntelliFin.FinancialService.Models;
 using IntelliFin.FinancialService.Services;
+using IntelliFin.Shared.DomainModels.Repositories;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -9,12 +10,16 @@ namespace IntelliFin.FinancialService.Tests.Services;
 public class GeneralLedgerServiceTests
 {
     private readonly Mock<ILogger<GeneralLedgerService>> _mockLogger;
+    private readonly Mock<IGLAccountRepository> _mockAccountRepository;
+    private readonly Mock<IGLEntryRepository> _mockEntryRepository;
     private readonly GeneralLedgerService _service;
 
     public GeneralLedgerServiceTests()
     {
         _mockLogger = new Mock<ILogger<GeneralLedgerService>>();
-        _service = new GeneralLedgerService(_mockLogger.Object);
+        _mockAccountRepository = new Mock<IGLAccountRepository>();
+        _mockEntryRepository = new Mock<IGLEntryRepository>();
+        _service = new GeneralLedgerService(_mockLogger.Object, _mockAccountRepository.Object, _mockEntryRepository.Object);
     }
 
     [Fact]

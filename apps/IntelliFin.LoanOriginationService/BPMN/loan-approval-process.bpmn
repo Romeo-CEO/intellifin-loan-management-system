@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.22.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.5.0">
+  <bpmn:process id="loanOriginationProcess" name="Loan Origination and Approval" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_LoanApplicationSubmitted" name="Loan Application Submitted">
+      <bpmn:outgoing>Flow_0j2x9x7</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_0j2x9x7" sourceRef="StartEvent_LoanApplicationSubmitted" targetRef="Task_InitialDataValidation" />
+    <bpmn:serviceTask id="Task_InitialDataValidation" name="Perform Initial Data Validation">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="initial-validation" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0j2x9x7</bpmn:incoming>
+      <bpmn:outgoing>Flow_1v2k73c</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_1v2k73c" sourceRef="Task_InitialDataValidation" targetRef="Gateway_ProductType" />
+    <bpmn:exclusiveGateway id="Gateway_ProductType" name="Product Type?">
+      <bpmn:incoming>Flow_1v2k73c</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPMEC</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToCollateral</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_ToPMEC" name="Payroll Loan" sourceRef="Gateway_ProductType" targetRef="Task_VerifyWithPMEC">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= productType = "PAYROLL"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToCollateral" name="Business Loan" sourceRef="Gateway_ProductType" targetRef="Task_IntakeCollateral">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= productType = "BUSINESS"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:serviceTask id="Task_VerifyWithPMEC" name="Verify Employee with PMEC">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="verify-pmec" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToPMEC</bpmn:incoming>
+      <bpmn:outgoing>Flow_1a8w39i</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_1a8w39i" sourceRef="Task_VerifyWithPMEC" targetRef="Gateway_JoinVerification" />
+    <bpmn:userTask id="Task_IntakeCollateral" name="Intake and Verify Collateral">
+      <bpmn:extensionElements>
+        <zeebe:formDefinition formKey="camunda-forms:bpmn:intakeCollateralForm" />
+        <zeebe:assignmentDefinition assignee="= loanOfficer" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToCollateral</bpmn:incoming>
+      <bpmn:outgoing>Flow_1l8h476</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_1l8h476" sourceRef="Task_IntakeCollateral" targetRef="Gateway_JoinVerification" />
+    <bpmn:exclusiveGateway id="Gateway_JoinVerification">
+      <bpmn:incoming>Flow_1a8w39i</bpmn:incoming>
+      <bpmn:incoming>Flow_1l8h476</bpmn:incoming>
+      <bpmn:outgoing>Flow_0j2z159</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0j2z159" sourceRef="Gateway_JoinVerification" targetRef="Task_CheckCreditHistory" />
+    <bpmn:serviceTask id="Task_CheckCreditHistory" name="Check Credit History (First-Time Only)">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="check-credit-history" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0j2z159</bpmn:incoming>
+      <bpmn:outgoing>Flow_0g3u532</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_0g3u532" sourceRef="Task_CheckCreditHistory" targetRef="Task_CalculateRiskGrade" />
+    <bpmn:businessRuleTask id="Task_CalculateRiskGrade" name="Calculate Risk Grade">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="riskGradeDecision" resultVariable="riskGrade" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0g3u532</bpmn:incoming>
+      <bpmn:outgoing>Flow_0u8e88f</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:sequenceFlow id="Flow_0u8e88f" sourceRef="Task_CalculateRiskGrade" targetRef="Task_UnderwriterReview" />
+    <bpmn:userTask id="Task_UnderwriterReview" name="Underwriter Review">
+      <bpmn:extensionElements>
+        <zeebe:formDefinition formKey="camunda-forms:bpmn:underwriterReviewForm" />
+        <zeebe:assignmentDefinition candidateGroups="underwriters" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0u8e88f</bpmn:incoming>
+      <bpmn:outgoing>Flow_0n7h0f5</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_0n7h0f5" sourceRef="Task_UnderwriterReview" targetRef="Gateway_ApprovalRouting" />
+    <bpmn:exclusiveGateway id="Gateway_ApprovalRouting" name="Determine Approval Path">
+      <bpmn:incoming>Flow_0n7h0f5</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCreditAnalyst</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToHeadOfCredit</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToDualApproval</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_ToCreditAnalyst" name="Low Risk" sourceRef="Gateway_ApprovalRouting" targetRef="Task_CreditAnalystApproval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= loanAmount &lt;= 50000 and (riskGrade = "A" or riskGrade = "B")</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToHeadOfCredit" name="Medium Risk" sourceRef="Gateway_ApprovalRouting" targetRef="Task_HeadOfCreditApproval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= (loanAmount &gt; 50000 and loanAmount &lt;= 250000) or riskGrade = "C"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToDualApproval" name="High Risk" sourceRef="Gateway_ApprovalRouting" targetRef="Task_HeadOfCreditFirstApproval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= loanAmount &gt; 250000 or riskGrade = "D" or riskGrade = "F"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:userTask id="Task_CreditAnalystApproval" name="Final Approval (Credit Analyst)">
+      <bpmn:extensionElements>
+        <zeebe:formDefinition formKey="camunda-forms:bpmn:approvalForm" />
+        <zeebe:assignmentDefinition candidateGroups="credit-analysts" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToCreditAnalyst</bpmn:incoming>
+      <bpmn:outgoing>Flow_1l83m6a</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_1l83m6a" sourceRef="Task_CreditAnalystApproval" targetRef="Gateway_JoinApprovals" />
+    <bpmn:userTask id="Task_HeadOfCreditApproval" name="Final Approval (Head of Credit)">
+      <bpmn:extensionElements>
+        <zeebe:formDefinition formKey="camunda-forms:bpmn:approvalForm" />
+        <zeebe:assignmentDefinition candidateGroups="head-of-credit" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToHeadOfCredit</bpmn:incoming>
+      <bpmn:outgoing>Flow_1k8j2f3</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_1k8j2f3" sourceRef="Task_HeadOfCreditApproval" targetRef="Gateway_JoinApprovals" />
+    <bpmn:userTask id="Task_HeadOfCreditFirstApproval" name="First Approval (Head of Credit)">
+      <bpmn:extensionElements>
+        <zeebe:formDefinition formKey="camunda-forms:bpmn:approvalForm" />
+        <zeebe:assignmentDefinition candidateGroups="head-of-credit" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToDualApproval</bpmn:incoming>
+      <bpmn:outgoing>Flow_0e7c39f</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_0e7c39f" sourceRef="Task_HeadOfCreditFirstApproval" targetRef="Task_CEOFinalApproval" />
+    <bpmn:userTask id="Task_CEOFinalApproval" name="Final Approval (CEO)">
+      <bpmn:extensionElements>
+        <zeebe:formDefinition formKey="camunda-forms:bpmn:approvalForm" />
+        <zeebe:assignmentDefinition candidateGroups="ceo" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0e7c39f</bpmn:incoming>
+      <bpmn:outgoing>Flow_1d1f1k3</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_1d1f1k3" sourceRef="Task_CEOFinalApproval" targetRef="Gateway_JoinApprovals" />
+    <bpmn:exclusiveGateway id="Gateway_JoinApprovals">
+      <bpmn:incoming>Flow_1l83m6a</bpmn:incoming>
+      <bpmn:incoming>Flow_1k8j2f3</bpmn:incoming>
+      <bpmn:incoming>Flow_1d1f1k3</bpmn:incoming>
+      <bpmn:outgoing>Flow_1g9r2k8</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_1g9r2k8" sourceRef="Gateway_JoinApprovals" targetRef="Task_NotifyStakeholders" />
+    <bpmn:serviceTask id="Task_NotifyStakeholders" name="Notify Stakeholders of Decision">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="notify-decision" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1g9r2k8</bpmn:incoming>
+      <bpmn:outgoing>Flow_1d3o8s6</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndEvent_LoanAuthorized" name="Loan Authorized for Disbursement">
+      <bpmn:incoming>Flow_1d3o8s6</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1d3o8s6" sourceRef="Task_NotifyStakeholders" targetRef="EndEvent_LoanAuthorized" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="loanOriginationProcess">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_LoanApplicationSubmitted">
+        <dc:Bounds x="179" y="482" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="156" y="525" width="82" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_12qbieg_di" bpmnElement="Task_InitialDataValidation">
+        <dc:Bounds x="270" y="460" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0i8j3ml_di" bpmnElement="Gateway_ProductType" isMarkerVisible="true">
+        <dc:Bounds x="425" y="475" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="419" y="445" width="62" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0s124e3_di" bpmnElement="Task_VerifyWithPMEC">
+        <dc:Bounds x="530" y="360" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0kqr7a9_di" bpmnElement="Task_IntakeCollateral">
+        <dc:Bounds x="530" y="560" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1t24b4u_di" bpmnElement="Gateway_JoinVerification" isMarkerVisible="true">
+        <dc:Bounds x="685" y="475" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0q8qmxv_di" bpmnElement="Task_CheckCreditHistory">
+        <dc:Bounds x="790" y="460" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_06w6210_di" bpmnElement="Task_CalculateRiskGrade">
+        <dc:Bounds x="950" y="460" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1q8n06w_di" bpmnElement="Task_UnderwriterReview">
+        <dc:Bounds x="1110" y="460" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0f1p1y1_di" bpmnElement="Gateway_ApprovalRouting" isMarkerVisible="true">
+        <dc:Bounds x="1275" y="475" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1255" y="445" width="90" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0l3od2p_di" bpmnElement="Task_CreditAnalystApproval">
+        <dc:Bounds x="1380" y="240" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0i7j16e_di" bpmnElement="Task_HeadOfCreditApproval">
+        <dc:Bounds x="1380" y="460" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1f5f2s4_di" bpmnElement="Task_HeadOfCreditFirstApproval">
+        <dc:Bounds x="1380" y="680" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_13m7pzh_di" bpmnElement="Task_CEOFinalApproval">
+        <dc:Bounds x="1540" y="680" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1211e0f_di" bpmnElement="Gateway_JoinApprovals" isMarkerVisible="true">
+        <dc:Bounds x="1705" y="475" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1t25kf8_di" bpmnElement="Task_NotifyStakeholders">
+        <dc:Bounds x="1810" y="460" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1h4w2h5_di" bpmnElement="EndEvent_LoanAuthorized">
+        <dc:Bounds x="1972" y="482" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1949" y="525" width="82" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0j2x9x7_di" bpmnElement="Flow_0j2x9x7">
+        <di:waypoint x="215" y="500" />
+        <di:waypoint x="270" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1v2k73c_di" bpmnElement="Flow_1v2k73c">
+        <di:waypoint x="370" y="500" />
+        <di:waypoint x="425" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_08q09p4_di" bpmnElement="Flow_ToPMEC">
+        <di:waypoint x="450" y="475" />
+        <di:waypoint x="450" y="400" />
+        <di:waypoint x="530" y="400" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="461" y="383" width="58" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_16c90ct_di" bpmnElement="Flow_ToCollateral">
+        <di:waypoint x="450" y="525" />
+        <di:waypoint x="450" y="600" />
+        <di:waypoint x="530" y="600" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="460" y="583" width="61" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1a8w39i_di" bpmnElement="Flow_1a8w39i">
+        <di:waypoint x="630" y="400" />
+        <di:waypoint x="710" y="400" />
+        <di:waypoint x="710" y="475" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1l8h476_di" bpmnElement="Flow_1l8h476">
+        <di:waypoint x="630" y="600" />
+        <di:waypoint x="710" y="600" />
+        <di:waypoint x="710" y="525" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0j2z159_di" bpmnElement="Flow_0j2z159">
+        <di:waypoint x="735" y="500" />
+        <di:waypoint x="790" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0g3u532_di" bpmnElement="Flow_0g3u532">
+        <di:waypoint x="890" y="500" />
+        <di:waypoint x="950" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0u8e88f_di" bpmnElement="Flow_0u8e88f">
+        <di:waypoint x="1050" y="500" />
+        <di:waypoint x="1110" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0n7h0f5_di" bpmnElement="Flow_0n7h0f5">
+        <di:waypoint x="1210" y="500" />
+        <di:waypoint x="1275" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0d2e5i6_di" bpmnElement="Flow_ToCreditAnalyst">
+        <di:waypoint x="1300" y="475" />
+        <di:waypoint x="1300" y="280" />
+        <di:waypoint x="1380" y="280" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1312" y="263" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1sxhv9n_di" bpmnElement="Flow_ToHeadOfCredit">
+        <di:waypoint x="1325" y="500" />
+        <di:waypoint x="1380" y="500" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1328" y="473" width="60" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_12m1x1b_di" bpmnElement="Flow_ToDualApproval">
+        <di:waypoint x="1300" y="525" />
+        <di:waypoint x="1300" y="720" />
+        <di:waypoint x="1380" y="720" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1312" y="703" width="45" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1l83m6a_di" bpmnElement="Flow_1l83m6a">
+        <di:waypoint x="1480" y="280" />
+        <di:waypoint x="1730" y="280" />
+        <di:waypoint x="1730" y="475" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1k8j2f3_di" bpmnElement="Flow_1k8j2f3">
+        <di:waypoint x="1480" y="500" />
+        <di:waypoint x="1705" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0e7c39f_di" bpmnElement="Flow_0e7c39f">
+        <di:waypoint x="1480" y="720" />
+        <di:waypoint x="1540" y="720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1d1f1k3_di" bpmnElement="Flow_1d1f1k3">
+        <di:waypoint x="1640" y="720" />
+        <di:waypoint x="1730" y="720" />
+        <di:waypoint x="1730" y="525" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1g9r2k8_di" bpmnElement="Flow_1g9r2k8">
+        <di:waypoint x="1755" y="500" />
+        <di:waypoint x="1810" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1d3o8s6_di" bpmnElement="Flow_1d3o8s6">
+        <di:waypoint x="1910" y="500" />
+        <di:waypoint x="1972" y="500" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -37,6 +37,7 @@ public class DeductionSubmissionRequest
 
 public class DeductionItem
 {
+    public string Id { get; set; } = string.Empty;
     public string EmployeeId { get; set; } = string.Empty;
     public string LoanId { get; set; } = string.Empty;
     public decimal Amount { get; set; }

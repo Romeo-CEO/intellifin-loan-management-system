@@ -10,8 +10,10 @@ public class GLAccount
     public string BranchId { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public decimal Balance { get; set; }
+    public bool IsContraAccount { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public DateTime LastModified { get; set; }
 }
 
 public class JournalEntry
@@ -22,8 +24,10 @@ public class JournalEntry
     public decimal Amount { get; set; }
     public string Currency { get; set; } = "ZMW";
     public DateTime ValueDate { get; set; }
+    public DateTime TransactionDate { get; set; }
     public string Reference { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string? BatchId { get; set; }
     public DateTime CreatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
 }
@@ -34,8 +38,11 @@ public class CreateJournalEntryRequest
     public int CreditAccountId { get; set; }
     public decimal Amount { get; set; }
     public string Description { get; set; } = string.Empty;
-    public string Reference { get; set; } = string.Empty;
+    public string? Reference { get; set; }
     public DateTime? ValueDate { get; set; }
+    public DateTime? TransactionDate { get; set; }
+    public string? BatchId { get; set; }
+    public string? CreatedBy { get; set; }
 }
 
 public class JournalEntryResult
@@ -43,6 +50,8 @@ public class JournalEntryResult
     public bool Success { get; set; }
     public int? JournalEntryId { get; set; }
     public string Message { get; set; } = string.Empty;
+    public string? Reference { get; set; }
+    public DateTime? PostedAt { get; set; }
     public List<string> Errors { get; set; } = new();
 }
 
@@ -76,6 +85,6 @@ public enum AccountType
     Asset,
     Liability,
     Equity,
-    Revenue,
+    Income,
     Expense
 }
