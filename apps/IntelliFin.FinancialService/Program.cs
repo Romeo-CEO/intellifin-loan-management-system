@@ -48,6 +48,15 @@ builder.Services.AddScoped<IReportingService, ReportingService>();
 builder.Services.AddScoped<IBozReportingService, BozReportingService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 
+// Add compliance monitoring services
+builder.Services.AddScoped<IComplianceMonitoringService, ComplianceMonitoringService>();
+builder.Services.AddScoped<IBozComplianceService, BozComplianceService>();
+
+// Add audit trail services
+builder.Services.AddScoped<IntelliFin.Shared.DomainModels.Services.IAuditService, IntelliFin.Shared.DomainModels.Services.AuditService>();
+builder.Services.AddSingleton<IntelliFin.Shared.DomainModels.Services.IAuditMonitoringService, IntelliFin.Shared.DomainModels.Services.AuditMonitoringService>();
+builder.Services.AddHostedService<IntelliFin.Shared.DomainModels.Services.AuditMonitoringService>();
+
 // Add JasperReports client with HttpClient factory and Polly resilience patterns
 builder.Services.AddHttpClient<IJasperReportsClient, JasperReportsClient>(client =>
 {

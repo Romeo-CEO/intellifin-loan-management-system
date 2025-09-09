@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:modeler="http://camunda.org/schema/modeler/1.0" xmlns:biodi="http://bpmn.io/schema/dmn/biodi/2.0" id="Definitions_0abc123" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.22.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.5.0">
+  <decision id="riskGradeDecision" name="Calculate Risk Grade">
+    <informationRequirement id="InformationRequirement_1">
+      <requiredInput href="#InputData_LoanAmount" />
+    </informationRequirement>
+    <informationRequirement id="InformationRequirement_2">
+      <requiredInput href="#InputData_CreditScore" />
+    </informationRequirement>
+    <informationRequirement id="InformationRequirement_3">
+      <requiredInput href="#InputData_DebtToIncomeRatio" />
+    </informationRequirement>
+    <informationRequirement id="InformationRequirement_4">
+      <requiredInput href="#InputData_ProductType" />
+    </informationRequirement>
+    <decisionTable id="DecisionTable_1" hitPolicy="FIRST">
+      <input id="Input_1" label="Loan Amount" biodi:width="120">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>loanAmount</text>
+        </inputExpression>
+      </input>
+      <input id="Input_2" label="Credit Score" biodi:width="120">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>creditScore</text>
+        </inputExpression>
+      </input>
+      <input id="Input_3" label="Debt to Income Ratio" biodi:width="150">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>debtToIncomeRatio</text>
+        </inputExpression>
+      </input>
+      <input id="Input_4" label="Product Type" biodi:width="120">
+        <inputExpression id="InputExpression_4" typeRef="string">
+          <text>productType</text>
+        </inputExpression>
+      </input>
+      <output id="Output_1" label="Risk Grade" name="riskGrade" typeRef="string" biodi:width="100" />
+      
+      <!-- Excellent Risk Grade (A) Rules -->
+      <rule id="DecisionRule_1">
+        <inputEntry id="UnaryTests_1">
+          <text>&lt;= 100000</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_2">
+          <text>&gt;= 750</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_3">
+          <text>&lt;= 0.3</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_4">
+          <text>"PAYROLL","BUSINESS"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_1">
+          <text>"A"</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- Good Risk Grade (B) Rules -->
+      <rule id="DecisionRule_2">
+        <inputEntry id="UnaryTests_5">
+          <text>&lt;= 150000</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_6">
+          <text>[650..749]</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_7">
+          <text>&lt;= 0.4</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_8">
+          <text>"PAYROLL","BUSINESS"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_2">
+          <text>"B"</text>
+        </outputEntry>
+      </rule>
+      
+      <rule id="DecisionRule_3">
+        <inputEntry id="UnaryTests_9">
+          <text>&lt;= 100000</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_10">
+          <text>&gt;= 700</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_11">
+          <text>&lt;= 0.35</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_12">
+          <text>"PAYROLL","BUSINESS"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_3">
+          <text>"B"</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- Fair Risk Grade (C) Rules -->
+      <rule id="DecisionRule_4">
+        <inputEntry id="UnaryTests_13">
+          <text>&lt;= 200000</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_14">
+          <text>[550..649]</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_15">
+          <text>&lt;= 0.5</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_16">
+          <text>"PAYROLL","BUSINESS"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_4">
+          <text>"C"</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- Poor Risk Grade (D) Rules -->
+      <rule id="DecisionRule_5">
+        <inputEntry id="UnaryTests_17">
+          <text>&lt;= 100000</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_18">
+          <text>[450..549]</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_19">
+          <text>&lt;= 0.4</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_20">
+          <text>"PAYROLL"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_5">
+          <text>"D"</text>
+        </outputEntry>
+      </rule>
+      
+      <rule id="DecisionRule_6">
+        <inputEntry id="UnaryTests_21">
+          <text>&lt;= 75000</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_22">
+          <text>[450..549]</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_23">
+          <text>&lt;= 0.45</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_24">
+          <text>"BUSINESS"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_6">
+          <text>"D"</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- Very Poor Risk Grade (E) Rules -->
+      <rule id="DecisionRule_7">
+        <inputEntry id="UnaryTests_25">
+          <text>&lt;= 50000</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_26">
+          <text>[350..449]</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_27">
+          <text>&lt;= 0.35</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_28">
+          <text>"PAYROLL"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_7">
+          <text>"E"</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- Unacceptable Risk Grade (F) Rules -->
+      <rule id="DecisionRule_8">
+        <inputEntry id="UnaryTests_29">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_30">
+          <text>&lt; 350</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_31">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_32">
+          <text>"PAYROLL","BUSINESS"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_8">
+          <text>"F"</text>
+        </outputEntry>
+      </rule>
+      
+      <rule id="DecisionRule_9">
+        <inputEntry id="UnaryTests_33">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_34">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_35">
+          <text>&gt; 0.6</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_36">
+          <text>"PAYROLL","BUSINESS"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_9">
+          <text>"F"</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- Default Rule - High Risk -->
+      <rule id="DecisionRule_Default">
+        <inputEntry id="UnaryTests_37">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_38">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_39">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_40">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_Default">
+          <text>"F"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  
+  <inputData id="InputData_LoanAmount" name="Loan Amount" />
+  <inputData id="InputData_CreditScore" name="Credit Score" />
+  <inputData id="InputData_DebtToIncomeRatio" name="Debt to Income Ratio" />
+  <inputData id="InputData_ProductType" name="Product Type" />
+  
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape id="DMNShape_1" dmnElementRef="riskGradeDecision">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="DMNShape_2" dmnElementRef="InputData_LoanAmount">
+        <dc:Bounds height="45" width="125" x="187" y="267" />
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="DMNShape_3" dmnElementRef="InputData_CreditScore">
+        <dc:Bounds height="45" width="125" x="337" y="267" />
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="DMNShape_4" dmnElementRef="InputData_DebtToIncomeRatio">
+        <dc:Bounds height="45" width="125" x="487" y="267" />
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="DMNShape_5" dmnElementRef="InputData_ProductType">
+        <dc:Bounds height="45" width="125" x="37" y="267" />
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="DMNEdge_1" dmnElementRef="InformationRequirement_1">
+        <di:waypoint x="250" y="267" />
+        <di:waypoint x="230" y="200" />
+        <di:waypoint x="230" y="180" />
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="DMNEdge_2" dmnElementRef="InformationRequirement_2">
+        <di:waypoint x="400" y="267" />
+        <di:waypoint x="270" y="200" />
+        <di:waypoint x="270" y="180" />
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="DMNEdge_3" dmnElementRef="InformationRequirement_3">
+        <di:waypoint x="550" y="267" />
+        <di:waypoint x="310" y="200" />
+        <di:waypoint x="310" y="180" />
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="DMNEdge_4" dmnElementRef="InformationRequirement_4">
+        <di:waypoint x="100" y="267" />
+        <di:waypoint x="190" y="200" />
+        <di:waypoint x="190" y="180" />
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

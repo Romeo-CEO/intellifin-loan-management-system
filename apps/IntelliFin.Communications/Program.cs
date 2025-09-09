@@ -2,6 +2,7 @@ using IntelliFin.Communications.Consumers;
 using IntelliFin.Communications.Models;
 using IntelliFin.Communications.Services;
 using IntelliFin.Communications.Providers;
+using IntelliFin.Communications.Hubs;
 using IntelliFin.Shared.Infrastructure.Messaging;
 using MassTransit;
 using Polly;
@@ -14,6 +15,9 @@ builder.Services.AddOpenApi();
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 builder.Services.AddHealthChecks();
+
+// Add SignalR
+builder.Services.AddSignalR();
 
 // Configure Redis caching
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -93,6 +97,17 @@ builder.Services.AddScoped<ISmsService, SmsService>();
 builder.Services.AddScoped<ISmsTemplateService, SmsTemplateService>();
 builder.Services.AddScoped<INotificationWorkflowService, NotificationWorkflowService>();
 
+// Register email services
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddScoped<IEmailGatewayService, SmtpEmailGatewayService>();
+builder.Services.AddScoped<IEmailSuppressionService, EmailSuppressionService>();
+
+// Register in-app notification services
+builder.Services.AddScoped<IInAppNotificationService, InAppNotificationService>();
+builder.Services.AddScoped<INotificationConnectionManager, NotificationConnectionManager>();
+builder.Services.AddScoped<INotificationDeliveryService, NotificationDeliveryService>();
+
 // Configure MassTransit with the consumer
 builder.Services.AddMassTransit(x =>
 {
@@ -125,5 +140,8 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 app.MapGet("/", () => Results.Ok(new { name = "IntelliFin.Communications", status = "OK" }));
+
+// Map SignalR hubs
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
