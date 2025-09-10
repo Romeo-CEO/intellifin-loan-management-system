@@ -57,33 +57,58 @@ public class AccessLevel : IEquatable<AccessLevel>
         return Name;
     }
 
-    public static bool operator ==(AccessLevel left, AccessLevel right)
+    public static bool operator ==(AccessLevel? left, AccessLevel? right)
     {
-        return Equals(left, right);
+        if (left is null)
+        {
+            return right is null;
+        }
+
+        return left.Equals(right);
     }
 
-    public static bool operator !=(AccessLevel left, AccessLevel right)
+    public static bool operator !=(AccessLevel? left, AccessLevel? right)
     {
-        return !Equals(left, right);
+        return !(left == right);
     }
 
-    public static bool operator >(AccessLevel left, AccessLevel right)
+    public static bool operator >(AccessLevel? left, AccessLevel? right)
     {
-        return left?.Value > right?.Value;
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        return left.Value > right.Value;
     }
 
-    public static bool operator <(AccessLevel left, AccessLevel right)
+    public static bool operator <(AccessLevel? left, AccessLevel? right)
     {
-        return left?.Value < right?.Value;
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        return left.Value < right.Value;
     }
 
-    public static bool operator >=(AccessLevel left, AccessLevel right)
+    public static bool operator >=(AccessLevel? left, AccessLevel? right)
     {
-        return left?.Value >= right?.Value;
+        if (left is null)
+        {
+            return right is null;
+        }
+
+        return left.Value >= right?.Value;
     }
 
-    public static bool operator <=(AccessLevel left, AccessLevel right)
+    public static bool operator <=(AccessLevel? left, AccessLevel? right)
     {
-        return left?.Value <= right?.Value;
+        if (left is null)
+        {
+            return right is null;
+        }
+
+        return left.Value <= right?.Value;
     }
 }

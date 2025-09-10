@@ -211,11 +211,7 @@ public class LoanApplicationService : ILoanApplicationService
             application.Status = "Submitted";
             application.SubmittedAt = DateTime.UtcNow;
             
-            // Get product details to determine type for workflow
-            var product = await _productService.GetProductAsync(application.ProductCode, cancellationToken);
-            var productType = DetermineProductType(product?.Code ?? application.ProductCode);
-            
-            var workflowInstanceId = await _workflowService.StartApprovalWorkflowAsync(applicationId, productType, application.RequestedAmount, cancellationToken);
+            var workflowInstanceId = await _workflowService.StartApprovalWorkflowAsync(applicationId, cancellationToken);
             application.WorkflowInstanceId = workflowInstanceId;
 
             // Parse application data for credit assessment
@@ -395,6 +391,25 @@ public class LoanApplicationService : ILoanApplicationService
         }
     }
 
+    public Task<ValidationResult> ValidateInitialApplicationAsync(LoanApplicationVariables variables, CancellationToken cancellationToken = default)
+    {
+        var errors = new List<string>();
+
+        if (variables.LoanAmount <= 0) errors.Add("Loan amount must be greater than zero");
+        if (string.IsNullOrWhiteSpace(variables.ProductType)) errors.Add("Product type is required");
+        else if (!IsValidProductType(variables.ProductType)) errors.Add("Product type must be either 'PAYROLL' or 'BUSINESS'");
+        if (string.IsNullOrWhiteSpace(variables.ApplicantNrc)) errors.Add("Applicant NRC is required");
+        if (string.IsNullOrWhiteSpace(variables.BranchId)) errors.Add("Branch ID is required");
+
+        var result = new ValidationResult
+        {
+            IsValid = !errors.Any(),
+            ErrorMessage = errors.Any() ? string.Join("; ", errors) : null
+        };
+
+        return Task.FromResult(result);
+    }
+
     private async Task<LoanApplicationResponse> MapToResponseAsync(IntelliFin.Shared.DomainModels.Entities.LoanApplication application, CancellationToken cancellationToken)
     {
         var product = await _productService.GetProductAsync(application.ProductCode, cancellationToken);
@@ -459,15 +474,9 @@ public class LoanApplicationService : ILoanApplicationService
         };
     }
 
-    private static string DetermineProductType(string productCode)
+    private static bool IsValidProductType(string productType)
     {
-        // Determine product type based on product code for BPMN workflow routing
-        return productCode.ToUpperInvariant() switch
-        {
-            var code when code.Contains("PAYROLL") || code.Contains("SALARY") || code.Contains("EMPLOYEE") => "PAYROLL",
-            var code when code.Contains("BUSINESS") || code.Contains("SME") || code.Contains("COMMERCIAL") => "BUSINESS", 
-            var code when code.Contains("PERSONAL") || code.Contains("CONSUMER") => "PERSONAL",
-            _ => "BUSINESS" // Default to business loan type
-        };
+        return productType.Equals("PAYROLL", StringComparison.OrdinalIgnoreCase) ||
+               productType.Equals("BUSINESS", StringComparison.OrdinalIgnoreCase);
     }
 }

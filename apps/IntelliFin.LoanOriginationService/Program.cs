@@ -6,6 +6,7 @@ using IntelliFin.Shared.DomainModels.Repositories;
 using Microsoft.EntityFrameworkCore;
 using MassTransit;
 using Zeebe.Client;
+using Zeebe.Client.Api.Builder;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,14 +43,13 @@ builder.Services.AddSingleton<IZeebeClient>(provider =>
     var configuration = provider.GetRequiredService<IConfiguration>();
     return ZeebeClient.Builder()
         .UseGatewayAddress(configuration["Zeebe:GatewayAddress"])
-        .UseAccessTokenSupplier(
-            ZeebeClient
-                .NewAccessTokenSupplier()
-                .AuthorizationServerUrl(configuration["Zeebe:AuthorizationServerUrl"])
-                .Audience(configuration["Zeebe:Audience"])
-                .ClientId(configuration["Zeebe:ClientId"])
-                .ClientSecret(configuration["Zeebe:ClientSecret"])
-                .Build())
+        .UseOAuthCredentials(new OAuthCredentials
+        {
+            AuthorizationServerUrl = configuration["Zeebe:AuthorizationServerUrl"],
+            Audience = configuration["Zeebe:Audience"],
+            ClientId = configuration["Zeebe:ClientId"],
+            ClientSecret = configuration["Zeebe:ClientSecret"]
+        })
         .Build();
 });
 

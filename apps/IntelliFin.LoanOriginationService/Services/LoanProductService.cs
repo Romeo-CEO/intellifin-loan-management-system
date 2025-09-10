@@ -119,30 +119,30 @@ public class LoanProductService : ILoanProductService
         _logger = logger;
     }
 
-    public async Task<LoanProduct?> GetProductAsync(string productCode, CancellationToken cancellationToken = default)
+    public Task<LoanProduct?> GetProductAsync(string productCode, CancellationToken cancellationToken = default)
     {
         try
         {
             _products.TryGetValue(productCode, out var product);
-            return await Task.FromResult(product);
+            return Task.FromResult(product);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving product {ProductCode}", productCode);
-            return null;
+            return Task.FromResult<LoanProduct?>(null);
         }
     }
 
-    public async Task<IEnumerable<LoanProduct>> GetActiveProductsAsync(CancellationToken cancellationToken = default)
+    public Task<IEnumerable<LoanProduct>> GetActiveProductsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            return await Task.FromResult(_products.Values.Where(p => p.IsActive).OrderBy(p => p.Name));
+            return Task.FromResult(_products.Values.Where(p => p.IsActive).OrderBy(p => p.Name));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active products");
-            return Enumerable.Empty<LoanProduct>();
+            return Task.FromResult(Enumerable.Empty<LoanProduct>());
         }
     }
 
@@ -178,7 +178,7 @@ public class LoanProductService : ILoanProductService
                     var value = applicationData[field.Name]?.ToString() ?? string.Empty;
                     if (!string.IsNullOrEmpty(value))
                     {
-                        var regex = new System.Text.RegularExpressions.Regex(field.ValidationPattern);
+                        var regex = new System.Text.RegularExpressions.Regex(field.ValidationPattern!);
                         if (!regex.IsMatch(value))
                         {
                             result.Errors.Add(new ValidationError

@@ -1,118 +1,82 @@
 using IntelliFin.LoanOriginationService.Models;
-using System.Net.Http.Json;
+using System.Text.Json;
+using Zeebe.Client;
+using Zeebe.Client.Api.Responses;
 
 namespace IntelliFin.LoanOriginationService.Services;
 
 public class WorkflowService : IWorkflowService
 {
     private readonly ILogger<WorkflowService> _logger;
-    private readonly HttpClient _camundaClient;
+    private readonly IZeebeClient _zeebeClient;
 
-    public WorkflowService(ILogger<WorkflowService> logger, HttpClient httpClient)
+    public WorkflowService(ILogger<WorkflowService> logger, IZeebeClient zeebeClient)
     {
         _logger = logger;
-        _camundaClient = httpClient;
-
-        if (_camundaClient.BaseAddress == null)
-        {
-            _camundaClient.BaseAddress = new Uri("http://localhost:8080/engine-rest/");
-        }
+        _zeebeClient = zeebeClient;
     }
 
     public async Task<string> StartApprovalWorkflowAsync(Guid applicationId, CancellationToken cancellationToken = default)
     {
-        return await StartApprovalWorkflowAsync(applicationId, "UNKNOWN", 0, cancellationToken);
-    }
-
-    public async Task<string> StartApprovalWorkflowAsync(Guid applicationId, string productType, decimal loanAmount, CancellationToken cancellationToken = default)
-    {
-        var camundaRequest = new CamundaProcessInstance
-        {
-            ProcessDefinitionKey = "loanOriginationProcess",
-            BusinessKey = applicationId.ToString(),
-            Variables = new Dictionary<string, object>
-            {
-                ["applicationId"] = new { value = applicationId.ToString(), type = "String" },
-                ["productType"] = new { value = productType, type = "String" },
-                ["loanAmount"] = new { value = loanAmount, type = "Double" }
-            }
-        };
-
-        var processInstance = await StartCamundaProcessAsync(camundaRequest, cancellationToken);
-        return processInstance?.Id ?? string.Empty;
-    }
-
-    [Obsolete("Human task completion is now handled directly by Camunda Tasklist API. This method is deprecated.")]
-    public async Task<bool> CompleteWorkflowTaskAsync(string taskId, WorkflowDecision decision, CancellationToken cancellationToken = default)
-    {
-        _logger.LogWarning("CompleteWorkflowTaskAsync is deprecated. Human tasks should be completed via Camunda Tasklist API.");
-        return false;
-    }
-
-    [Obsolete("Workflow steps are now tracked via Camunda History API. Use Camunda REST API directly for historical data.")]
-    public async Task<List<WorkflowStep>> GetWorkflowStepsAsync(Guid applicationId, CancellationToken cancellationToken = default)
-    {
-        _logger.LogWarning("GetWorkflowStepsAsync is deprecated. Use Camunda History API directly.");
-        return new List<WorkflowStep>();
-    }
-
-    [Obsolete("Current workflow step should be queried via Camunda Tasklist API directly.")]
-    public async Task<string?> GetCurrentWorkflowStepAsync(Guid applicationId, CancellationToken cancellationToken = default)
-    {
-        _logger.LogWarning("GetCurrentWorkflowStepAsync is deprecated. Use Camunda Tasklist API directly.");
-        return null;
-    }
-
-    [Obsolete("Task reassignment is now handled directly by Camunda Tasklist API. This method is deprecated.")]
-    public async Task<bool> ReassignWorkflowTaskAsync(string taskId, string newAssignee, CancellationToken cancellationToken = default)
-    {
-        _logger.LogWarning("ReassignWorkflowTaskAsync is deprecated. Use Camunda Tasklist API directly for task management.");
-        return false;
-    }
-
-    private async Task<CamundaProcessInstanceResponse?> StartCamundaProcessAsync(CamundaProcessInstance request, CancellationToken cancellationToken)
-    {
         try
         {
-            var response = await _camundaClient.PostAsJsonAsync($"process-definition/key/{request.ProcessDefinitionKey}/start", request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError("Failed to start Camunda process. Status: {StatusCode}. Response: {ErrorResponse}", response.StatusCode, errorContent);
-                return null;
-            }
-            return await response.Content.ReadFromJsonAsync<CamundaProcessInstanceResponse>(cancellationToken: cancellationToken);
+            _logger.LogInformation("Starting Camunda workflow for application {ApplicationId}", applicationId);
+
+            // In a real scenario, you would pass variables needed by the workflow
+            // For example: .Variables(new { applicationId = applicationId.ToString(), loanAmount = 50000 });
+
+            var processInstance = await _zeebeClient.NewCreateProcessInstanceCommand()
+                .BpmnProcessId("loanOriginationProcess") // This MUST match the ID in your BPMN file
+                .LatestVersion()
+                .Variables(JsonSerializer.Serialize(new { applicationId = applicationId.ToString() }))
+                .WithResult()
+                .Send(cancellationToken);
+
+            _logger.LogInformation("Successfully started process instance {ProcessInstanceKey} for application {ApplicationId}", 
+                processInstance.ProcessInstanceKey, applicationId);
+
+            return processInstance.ProcessInstanceKey.ToString();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error starting Camunda process for business key {BusinessKey}", request.BusinessKey);
-            return null;
+            _logger.LogError(ex, "Error starting Camunda workflow for application {ApplicationId}", applicationId);
+            // Depending on business requirements, you might want to re-throw or handle this differently
+            throw;
         }
     }
 
-    private async Task<bool> CompleteCamundaTaskAsync(string taskId, CamundaTaskRequest request, CancellationToken cancellationToken)
+    [Obsolete("User tasks are now managed via the Camunda Tasklist API/UI. This method is no longer used.")]
+    public Task<bool> CompleteWorkflowTaskAsync(string taskId, WorkflowDecision decision, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var response = await _camundaClient.PostAsJsonAsync($"task/{taskId}/complete", request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError("Failed to complete Camunda task {TaskId}. Status: {StatusCode}. Response: {ErrorResponse}", taskId, response.StatusCode, errorContent);
-                return false;
-            }
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error completing Camunda task {TaskId}", taskId);
-            return false;
-        }
+        _logger.LogWarning("CompleteWorkflowTaskAsync is obsolete and should not be called.");
+        return Task.FromResult(false);
     }
 
+    [Obsolete("Workflow history is now viewed in Camunda Operate. Querying history requires the Operate API, not the Zeebe client.")]
+    public Task<List<WorkflowStep>> GetWorkflowStepsAsync(Guid applicationId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("GetWorkflowStepsAsync is obsolete and should not be called.");
+        return Task.FromResult(new List<WorkflowStep>());
+    }
+
+    [Obsolete("The concept of a single 'current step' is managed by Camunda. Active user tasks are found via the Tasklist API.")]
+    public Task<string?> GetCurrentWorkflowStepAsync(Guid applicationId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("GetCurrentWorkflowStepAsync is obsolete and should not be called.");
+        return Task.FromResult<string?>(null);
+    }
+
+    [Obsolete("Task reassignment is now managed via the Camunda Tasklist API/UI.")]
+    public Task<bool> ReassignWorkflowTaskAsync(string taskId, string newAssignee, CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("ReassignWorkflowTaskAsync is obsolete and should not be called.");
+        return Task.FromResult(false);
+    }
+
+    [Obsolete("This method is no longer applicable as the workflow is driven by events and workers in Camunda.")]
     public Task<bool> AdvanceWorkflowAsync(Guid applicationId, string nextStep, CancellationToken cancellationToken = default)
     {
-        _logger.LogWarning("AdvanceWorkflowAsync is deprecated. Workflow is now driven by Camunda.");
+        _logger.LogWarning("AdvanceWorkflowAsync is obsolete and should not be called.");
         return Task.FromResult(false);
     }
 }

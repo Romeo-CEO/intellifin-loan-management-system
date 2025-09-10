@@ -13,6 +13,7 @@ public interface ILoanApplicationService
     Task<LoanApplicationResponse> ApproveApplicationAsync(Guid applicationId, string approvedBy, CancellationToken cancellationToken = default);
     Task<LoanApplicationResponse> RejectApplicationAsync(Guid applicationId, string rejectedBy, string reason, CancellationToken cancellationToken = default);
     Task<RuleEngineResult> ValidateApplicationAsync(Guid applicationId, CancellationToken cancellationToken = default);
+    Task<ValidationResult> ValidateInitialApplicationAsync(LoanApplicationVariables variables, CancellationToken cancellationToken = default);
 }
 
 public interface ICreditAssessmentService
@@ -37,7 +38,6 @@ public interface ILoanProductService
 public interface IWorkflowService
 {
     Task<string> StartApprovalWorkflowAsync(Guid applicationId, CancellationToken cancellationToken = default);
-    Task<string> StartApprovalWorkflowAsync(Guid applicationId, string productType, decimal loanAmount, CancellationToken cancellationToken = default);
     
     [Obsolete("Human task completion is now handled directly by Camunda Tasklist API. This method is deprecated.")]
     Task<bool> CompleteWorkflowTaskAsync(string taskId, WorkflowDecision decision, CancellationToken cancellationToken = default);

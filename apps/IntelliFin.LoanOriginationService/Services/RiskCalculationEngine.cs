@@ -162,7 +162,7 @@ public class RiskCalculationEngine : IRiskCalculationEngine
         }
     }
 
-    public async Task<List<RiskFactor>> ExtractRiskFactorsAsync(
+    public Task<List<RiskFactor>> ExtractRiskFactorsAsync(
         LoanApplication application, 
         CreditBureauData? bureauData, 
         CancellationToken cancellationToken = default)
@@ -243,13 +243,13 @@ public class RiskCalculationEngine : IRiskCalculationEngine
             });
         }
 
-        return factors;
+        return Task.FromResult(factors);
     }
 
-    public async Task<RiskGrade> DetermineRiskGradeAsync(decimal score, CancellationToken cancellationToken = default)
+    public Task<RiskGrade> DetermineRiskGradeAsync(decimal score, CancellationToken cancellationToken = default)
     {
         // BoZ-aligned risk grading based on credit score bands
-        return score switch
+        return Task.FromResult(score switch
         {
             >= 750 => RiskGrade.A, // Excellent
             >= 650 => RiskGrade.B, // Good  
@@ -257,10 +257,10 @@ public class RiskCalculationEngine : IRiskCalculationEngine
             >= 450 => RiskGrade.D, // Poor
             >= 350 => RiskGrade.E, // Very Poor
             _ => RiskGrade.F        // Unacceptable
-        };
+        });
     }
 
-    public async Task<bool> PassesMinimumCriteriaAsync(
+    public Task<bool> PassesMinimumCriteriaAsync(
         LoanApplication application, 
         CreditBureauData? bureauData, 
         CancellationToken cancellationToken = default)
@@ -272,22 +272,21 @@ public class RiskCalculationEngine : IRiskCalculationEngine
             {
                 _logger.LogInformation("Application {ApplicationId} fails minimum criteria: {Reason}", 
                     application.Id, rule.Reason);
-                return false;
+                return Task.FromResult(false);
             }
         }
 
-        return true;
+        return Task.FromResult(true);
     }
 
-    public async Task<decimal> CalculateScoreAsync(List<RiskFactor> factors, CancellationToken cancellationToken = default)
+    public Task<decimal> CalculateScoreAsync(List<RiskFactor> factors, CancellationToken cancellationToken = default)
     {
         var baseScore = 500m; // Starting point
         var totalContribution = factors.Sum(f => f.Contribution);
-        
         var finalScore = baseScore + totalContribution;
         
         // Ensure score is within bounds
-        return Math.Max(_scoringModel.MinScore, Math.Min(_scoringModel.MaxScore, finalScore));
+        return Task.FromResult(Math.Max(_scoringModel.MinScore, Math.Min(_scoringModel.MaxScore, finalScore)));
     }
 
     // Helper methods
@@ -380,7 +379,7 @@ public class RiskCalculationEngine : IRiskCalculationEngine
                 new List<string> { "Significant risk - recommend decline", "Consider secured loan option" }),
             RiskGrade.E => (false, 0, 0.25m, 
                 new List<string> { "High risk - decline", "Refer to financial counseling" }),
-            RiskGrade.F => (false, 0, 0m, 
+            RiskGrade.F => (false, 0, 0m,
                 new List<string> { "Unacceptable risk - decline" })
         };
 
