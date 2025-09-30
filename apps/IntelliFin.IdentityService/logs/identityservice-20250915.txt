@@ -1,0 +1,7 @@
+2025-09-15 11:52:08.911 +02:00 [INF] Starting IntelliFin Identity Service
+2025-09-15 11:52:09.590 +02:00 [INF] IntelliFin Identity Service configured successfully
+2025-09-15 11:52:09.617 +02:00 [INF] User profile is available. Using 'C:\Users\israe\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2025-09-15 11:52:09.776 +02:00 [INF] Now listening on: http://localhost:5235
+2025-09-15 11:52:09.779 +02:00 [INF] Application started. Press Ctrl+C to shut down.
+2025-09-15 11:52:09.780 +02:00 [INF] Hosting environment: Development
+2025-09-15 11:52:09.780 +02:00 [INF] Content root path: D:\Projects\Intellifin Loan Management System\apps\IntelliFin.IdentityService
