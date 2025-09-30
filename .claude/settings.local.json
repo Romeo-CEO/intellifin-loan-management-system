@@ -6,7 +6,12 @@
       "Bash(dotnet clean:*)",
       "Bash(dotnet restore:*)",
       "WebSearch",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(find:*)",
+      "Bash(dotnet run:*)",
+      "Bash(grep:*)",
+      "Bash(md-tree:*)",
+      "Bash(pwsh:*)"
     ],
     "deny": [],
     "ask": []

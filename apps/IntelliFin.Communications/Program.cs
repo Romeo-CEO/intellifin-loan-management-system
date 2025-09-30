@@ -3,10 +3,13 @@ using IntelliFin.Communications.Models;
 using IntelliFin.Communications.Services;
 using IntelliFin.Communications.Providers;
 using IntelliFin.Communications.Hubs;
+using IntelliFin.Shared.DomainModels.Data;
+using IntelliFin.Shared.DomainModels.Repositories;
 using IntelliFin.Shared.Infrastructure.Messaging;
 using MassTransit;
 using Polly;
 using Polly.Extensions.Http;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +27,16 @@ builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
 });
+
+// Configure Entity Framework and Database Context
+builder.Services.AddDbContext<LmsDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Register repository services
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+
+// Register event routing service
+builder.Services.AddScoped<IEventRoutingService, EventRoutingService>();
 
 // Configure SMS provider settings
 builder.Services.Configure<Dictionary<SmsProvider, SmsProviderSettings>>(options =>
@@ -108,10 +121,12 @@ builder.Services.AddScoped<IInAppNotificationService, InAppNotificationService>(
 builder.Services.AddScoped<INotificationConnectionManager, NotificationConnectionManager>();
 builder.Services.AddScoped<INotificationDeliveryService, NotificationDeliveryService>();
 
-// Configure MassTransit with the consumer
+// Configure MassTransit with the consumers
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<LoanApplicationCreatedConsumer>();
+    x.AddConsumer<LoanStatusChangedConsumer>();
+    x.AddConsumer<PaymentDueReminderConsumer>();
     x.SetKebabCaseEndpointNameFormatter();
 
     x.UsingRabbitMq((context, cfg) =>

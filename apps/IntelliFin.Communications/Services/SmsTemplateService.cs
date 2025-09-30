@@ -119,7 +119,7 @@ public class SmsTemplateService : ISmsTemplateService
                 return "Template not found";
             }
 
-            return await RenderTemplateContentAsync(template.Template, templateData, cancellationToken);
+            return await RenderTemplateContentAsync(template.Content, templateData, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -175,7 +175,7 @@ public class SmsTemplateService : ISmsTemplateService
         {
             template.Id = Guid.NewGuid().ToString();
             template.CreatedAt = DateTime.UtcNow;
-            template.UpdatedAt = DateTime.UtcNow;
+            template.LastModified = DateTime.UtcNow;
 
             // Validate template
             if (!await ValidateTemplateAsync(template, cancellationToken))
@@ -206,7 +206,7 @@ public class SmsTemplateService : ISmsTemplateService
     {
         try
         {
-            template.UpdatedAt = DateTime.UtcNow;
+            template.LastModified = DateTime.UtcNow;
 
             // Validate template
             if (!await ValidateTemplateAsync(template, cancellationToken))
@@ -222,7 +222,7 @@ public class SmsTemplateService : ISmsTemplateService
 
             // Invalidate related caches
             await _cache.RemoveAsync("sms:templates:all", cancellationToken);
-            await _cache.RemoveAsync($"sms:template:type:{template.NotificationType}:{template.Language}", cancellationToken);
+            // Note: SmsTemplate does not carry type/language metadata in this model; skipping type/language cache invalidation.
 
             _logger.LogInformation("SMS template updated: {TemplateId}", template.Id);
             return template;
@@ -248,7 +248,7 @@ public class SmsTemplateService : ISmsTemplateService
 
             // Invalidate related caches
             await _cache.RemoveAsync("sms:templates:all", cancellationToken);
-            await _cache.RemoveAsync($"sms:template:type:{template.NotificationType}:{template.Language}", cancellationToken);
+            // Note: SmsTemplate does not carry type/language metadata in this model; skipping type/language cache invalidation.
 
             _logger.LogInformation("SMS template deleted: {TemplateId}", templateId);
             return true;
@@ -265,14 +265,14 @@ public class SmsTemplateService : ISmsTemplateService
         try
         {
             if (string.IsNullOrWhiteSpace(template.Name) || 
-                string.IsNullOrWhiteSpace(template.Template))
+                string.IsNullOrWhiteSpace(template.Content))
             {
                 return false;
             }
 
             // Check for valid variable syntax
             var variablePattern = @"\{\{([^}]+)\}\}";
-            var matches = Regex.Matches(template.Template, variablePattern);
+            var matches = Regex.Matches(template.Content, variablePattern);
             
             foreach (Match match in matches)
             {
@@ -284,7 +284,7 @@ public class SmsTemplateService : ISmsTemplateService
             }
 
             // Validate template length (allow for variable expansion)
-            var estimatedLength = template.Template.Length + (matches.Count * 20); // Assume 20 chars per variable
+            var estimatedLength = template.Content.Length + (matches.Count * 20); // Assume 20 chars per variable
             if (estimatedLength > MaxSmsLength * 2) // Allow some buffer
             {
                 _logger.LogWarning("Template may be too long after variable expansion: {TemplateId}", template.Id);
@@ -354,13 +354,12 @@ public class SmsTemplateService : ISmsTemplateService
                 {
                     Id = "loan_status_en",
                     Name = "Loan Application Status",
-                    NotificationType = SmsNotificationType.LoanApplicationStatus,
-                    Template = "IntelliFin: Your loan application {{applicationNumber}} status: {{status}}. {{message}}",
-                    Language = "en",
-                    RequiredFields = ["applicationNumber", "status", "message"],
+                    Content = "IntelliFin: Your loan application {{applicationNumber}} status: {{status}}. {{message}}",
+                    Parameters = new List<string>{"applicationNumber", "status", "message"},
+                    Category = SmsCategory.Transactional,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    LastModified = DateTime.UtcNow
                 }
             },
             [SmsNotificationType.PaymentReminder] = new()
@@ -369,13 +368,12 @@ public class SmsTemplateService : ISmsTemplateService
                 {
                     Id = "payment_reminder_en",
                     Name = "Payment Reminder",
-                    NotificationType = SmsNotificationType.PaymentReminder,
-                    Template = "IntelliFin: Payment of ZMW {{amount}} due on {{dueDate}} for loan {{loanNumber}}. Please pay to avoid late fees.",
-                    Language = "en",
-                    RequiredFields = ["amount", "dueDate", "loanNumber"],
+                    Content = "IntelliFin: Payment of ZMW {{amount}} due on {{dueDate}} for loan {{loanNumber}}. Please pay to avoid late fees.",
+                    Parameters = new List<string>{"amount", "dueDate", "loanNumber"},
+                    Category = SmsCategory.Reminder,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    LastModified = DateTime.UtcNow
                 }
             },
             [SmsNotificationType.PaymentConfirmation] = new()
@@ -384,13 +382,12 @@ public class SmsTemplateService : ISmsTemplateService
                 {
                     Id = "payment_confirmation_en",
                     Name = "Payment Confirmation",
-                    NotificationType = SmsNotificationType.PaymentConfirmation,
-                    Template = "IntelliFin: Payment received! ZMW {{amount}} for loan {{loanNumber}} on {{paymentDate}}. Balance: ZMW {{remainingBalance}}",
-                    Language = "en",
-                    RequiredFields = ["amount", "loanNumber", "paymentDate", "remainingBalance"],
+                    Content = "IntelliFin: Payment received! ZMW {{amount}} for loan {{loanNumber}} on {{paymentDate}}. Balance: ZMW {{remainingBalance}}",
+                    Parameters = new List<string>{"amount", "loanNumber", "paymentDate", "remainingBalance"},
+                    Category = SmsCategory.Transactional,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    LastModified = DateTime.UtcNow
                 }
             },
             [SmsNotificationType.OverduePayment] = new()
@@ -399,13 +396,12 @@ public class SmsTemplateService : ISmsTemplateService
                 {
                     Id = "overdue_payment_en",
                     Name = "Overdue Payment",
-                    NotificationType = SmsNotificationType.OverduePayment,
-                    Template = "IntelliFin: URGENT - Payment of ZMW {{amount}} for loan {{loanNumber}} is {{daysOverdue}} days overdue. Please pay immediately.",
-                    Language = "en",
-                    RequiredFields = ["amount", "loanNumber", "daysOverdue"],
+                    Content = "IntelliFin: URGENT - Payment of ZMW {{amount}} for loan {{loanNumber}} is {{daysOverdue}} days overdue. Please pay immediately.",
+                    Parameters = new List<string>{"amount", "loanNumber", "daysOverdue"},
+                    Category = SmsCategory.Alert,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    LastModified = DateTime.UtcNow
                 }
             },
             [SmsNotificationType.LoanApproval] = new()
@@ -414,13 +410,12 @@ public class SmsTemplateService : ISmsTemplateService
                 {
                     Id = "loan_approval_en",
                     Name = "Loan Approval",
-                    NotificationType = SmsNotificationType.LoanApproval,
-                    Template = "IntelliFin: Congratulations! Your loan application {{applicationNumber}} for ZMW {{amount}} has been approved.",
-                    Language = "en",
-                    RequiredFields = ["applicationNumber", "amount"],
+                    Content = "IntelliFin: Congratulations! Your loan application {{applicationNumber}} for ZMW {{amount}} has been approved.",
+                    Parameters = new List<string>{"applicationNumber", "amount"},
+                    Category = SmsCategory.Transactional,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    LastModified = DateTime.UtcNow
                 }
             },
             [SmsNotificationType.LoanDisbursement] = new()
@@ -429,13 +424,12 @@ public class SmsTemplateService : ISmsTemplateService
                 {
                     Id = "loan_disbursement_en",
                     Name = "Loan Disbursement",
-                    NotificationType = SmsNotificationType.LoanDisbursement,
-                    Template = "IntelliFin: ZMW {{amount}} has been disbursed to your account. Loan Number: {{loanNumber}}. Thank you for choosing IntelliFin!",
-                    Language = "en",
-                    RequiredFields = ["amount", "loanNumber"],
+                    Content = "IntelliFin: ZMW {{amount}} has been disbursed to your account. Loan Number: {{loanNumber}}. Thank you for choosing IntelliFin!",
+                    Parameters = new List<string>{"amount", "loanNumber"},
+                    Category = SmsCategory.Transactional,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    LastModified = DateTime.UtcNow
                 }
             },
             [SmsNotificationType.PmecDeductionStatus] = new()
@@ -444,13 +438,12 @@ public class SmsTemplateService : ISmsTemplateService
                 {
                     Id = "pmec_deduction_en",
                     Name = "PMEC Deduction Status",
-                    NotificationType = SmsNotificationType.PmecDeductionStatus,
-                    Template = "IntelliFin: PMEC deduction {{status}} for ZMW {{amount}} on {{deductionDate}}. Loan {{loanNumber}} balance: ZMW {{balance}}",
-                    Language = "en",
-                    RequiredFields = ["status", "amount", "deductionDate", "loanNumber", "balance"],
+                    Content = "IntelliFin: PMEC deduction {{status}} for ZMW {{amount}} on {{deductionDate}}. Loan {{loanNumber}} balance: ZMW {{balance}}",
+                    Parameters = new List<string>{"status", "amount", "deductionDate", "loanNumber", "balance"},
+                    Category = SmsCategory.Transactional,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    LastModified = DateTime.UtcNow
                 }
             },
             [SmsNotificationType.AccountBalance] = new()
@@ -459,13 +452,12 @@ public class SmsTemplateService : ISmsTemplateService
                 {
                     Id = "account_balance_en",
                     Name = "Account Balance",
-                    NotificationType = SmsNotificationType.AccountBalance,
-                    Template = "IntelliFin: Account balance as of {{date}}: ZMW {{balance}}. Next payment due: {{nextDueDate}}",
-                    Language = "en",
-                    RequiredFields = ["date", "balance", "nextDueDate"],
+                    Content = "IntelliFin: Account balance as of {{date}}: ZMW {{balance}}. Next payment due: {{nextDueDate}}",
+                    Parameters = new List<string>{"date", "balance", "nextDueDate"},
+                    Category = SmsCategory.Transactional,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    LastModified = DateTime.UtcNow
                 }
             }
         };

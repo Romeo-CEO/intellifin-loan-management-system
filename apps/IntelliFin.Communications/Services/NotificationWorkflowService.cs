@@ -395,7 +395,7 @@ public class NotificationWorkflowService : INotificationWorkflowService
             _logger.LogInformation("Handling retry for failed notification {NotificationId}", notificationId);
 
             var deliveryStatus = await _smsService.GetDeliveryStatusAsync(notificationId, cancellationToken);
-            if (deliveryStatus?.Status == SmsDeliveryStatus.Failed)
+            if (deliveryStatus?.Status == SmsStatus.Failed)
             {
                 // This would typically implement retry logic based on the failure reason
                 _logger.LogInformation("Notification {NotificationId} queued for retry", notificationId);

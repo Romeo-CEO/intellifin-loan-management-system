@@ -1,6 +1,7 @@
 using IntelliFin.IdentityService.Models;
 using IntelliFin.Shared.DomainModels.Entities;
 using IntelliFin.Shared.DomainModels.Enums;
+using Microsoft.Extensions.Logging;
 
 namespace IntelliFin.IdentityService.Services;
 
@@ -71,6 +72,7 @@ public class RoleService : IRoleService
         }
     };
 
+    private static readonly List<RoleRule> _roleRules = new();
     private static readonly Dictionary<string, List<string>> _userRoles = new();
 
     public RoleService(ILogger<RoleService> logger)
@@ -372,6 +374,80 @@ public class RoleService : IRoleService
                 AddChildRoles(child, hierarchy);
             }
         }
+    }
+
+    // Additional methods for rule management (updated to match IRoleService signatures)
+    public Task<Role?> GetRoleAsync(string roleId, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        // tenantId is currently unused in the in-memory implementation
+        return Task.FromResult(_roles.FirstOrDefault(r => r.Id == roleId));
+    }
+
+    public Task<IEnumerable<RoleRule>> GetRoleRulesAsync(string roleId, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        var rules = _roleRules.Where(r => r.RoleId == roleId && r.IsActive).ToArray();
+        return Task.FromResult<IEnumerable<RoleRule>>(rules);
+    }
+
+    public Task<RoleRule> AddRuleToRoleAsync(string roleId, RoleRule rule, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        var role = _roles.FirstOrDefault(r => r.Id == roleId);
+        if (role == null)
+            throw new InvalidOperationException($"Role with ID {roleId} not found");
+
+        rule.Id ??= Guid.NewGuid().ToString();
+        rule.RoleId = roleId;
+        rule.AssignedAt = DateTime.UtcNow;
+        rule.IsActive = true;
+
+        _roleRules.Add(rule);
+        _logger.LogInformation("Added rule {RuleType} to role {RoleId} by {AssignedBy}", rule.RuleType, roleId, rule.AssignedBy);
+        
+        return Task.FromResult(rule);
+    }
+
+    public Task<RoleRule> UpdateRoleRuleAsync(string roleId, string ruleId, RoleRule rule, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        var role = _roles.FirstOrDefault(r => r.Id == roleId);
+        if (role == null)
+            throw new InvalidOperationException($"Role with ID {roleId} not found");
+
+        var existingRule = _roleRules.FirstOrDefault(r => r.RoleId == roleId && r.Id == ruleId);
+        if (existingRule == null)
+            throw new InvalidOperationException($"Rule {ruleId} not found for role {roleId}");
+
+        existingRule.RuleValue = rule.RuleValue;
+        existingRule.UpdatedBy = rule.UpdatedBy;
+        existingRule.UpdatedAt = DateTime.UtcNow;
+
+        _logger.LogInformation("Updated rule {RuleId} for role {RoleId} by {UpdatedBy}", ruleId, roleId, existingRule.UpdatedBy);
+        
+        return Task.FromResult(existingRule);
+    }
+
+    public Task<RoleRule?> GetRoleRuleAsync(string roleId, string ruleId, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        var rule = _roleRules.FirstOrDefault(r => r.RoleId == roleId && r.Id == ruleId);
+        return Task.FromResult(rule);
+    }
+
+    public Task<bool> RemoveRuleFromRoleAsync(string roleId, string ruleId, string removedBy, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        var role = _roles.FirstOrDefault(r => r.Id == roleId);
+        if (role == null)
+            return Task.FromResult(false);
+
+        var rule = _roleRules.FirstOrDefault(r => r.RoleId == roleId && r.Id == ruleId);
+        if (rule == null)
+            return Task.FromResult(false);
+
+        rule.IsActive = false;
+        rule.RemovedBy = removedBy;
+        rule.RemovedAt = DateTime.UtcNow;
+
+        _logger.LogInformation("Removed rule {RuleId} from role {RoleId} by {RemovedBy}", ruleId, roleId, removedBy);
+        
+        return Task.FromResult(true);
     }
 
     private int CalculateRoleLevel(string? parentRoleId)

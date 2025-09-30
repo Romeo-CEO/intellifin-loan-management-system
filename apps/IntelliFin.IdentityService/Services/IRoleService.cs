@@ -16,4 +16,12 @@ public interface IRoleService
     Task<bool> DeactivateRoleAsync(string roleId, string deactivatedBy, CancellationToken cancellationToken = default);
     Task<IEnumerable<Role>> GetUserRolesAsync(string userId, CancellationToken cancellationToken = default);
     Task<bool> HasRoleAsync(string userId, string roleName, CancellationToken cancellationToken = default);
+
+    // Additional methods for rule management
+    Task<Role?> GetRoleAsync(string roleId, Guid tenantId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<RoleRule>> GetRoleRulesAsync(string roleId, Guid tenantId, CancellationToken cancellationToken = default);
+    Task<RoleRule> AddRuleToRoleAsync(string roleId, RoleRule rule, Guid tenantId, CancellationToken cancellationToken = default);
+    Task<RoleRule> UpdateRoleRuleAsync(string roleId, string ruleId, RoleRule rule, Guid tenantId, CancellationToken cancellationToken = default);
+    Task<RoleRule?> GetRoleRuleAsync(string roleId, string ruleId, Guid tenantId, CancellationToken cancellationToken = default);
+    Task<bool> RemoveRuleFromRoleAsync(string roleId, string ruleId, string removedBy, Guid tenantId, CancellationToken cancellationToken = default);
 }

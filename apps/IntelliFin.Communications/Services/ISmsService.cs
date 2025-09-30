@@ -6,7 +6,7 @@ public interface ISmsService
 {
     Task<SmsNotificationResponse> SendSmsAsync(SmsNotificationRequest request, CancellationToken cancellationToken = default);
     
-    Task<SendSmsResponse> SendBulkSmsAsync(BulkSmsRequest request, CancellationToken cancellationToken = default);
+    Task<BulkSmsResponse> SendBulkSmsAsync(BulkSmsRequest request, CancellationToken cancellationToken = default);
     
     Task<SmsNotificationResponse> SendTemplatedSmsAsync(string templateId, string phoneNumber, 
         Dictionary<string, object> templateData, SmsNotificationType notificationType, 

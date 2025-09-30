@@ -162,6 +162,22 @@ public class JwtTokenService : IJwtTokenService
 
             var claims = principal.Claims.ToList();
             
+            // Extract rule-based claims
+            var standardClaimTypes = new HashSet<string>
+            {
+                ClaimTypes.NameIdentifier, ClaimTypes.Name, ClaimTypes.Email,
+                ClaimTypes.GivenName, ClaimTypes.Surname, ClaimTypes.Role,
+                "permission", "branch_id", "tenant_id", "session_id", "device_id",
+                "auth_time", "auth_level", "ip_address", JwtRegisteredClaimNames.Jti,
+                JwtRegisteredClaimNames.Iat, JwtRegisteredClaimNames.Exp,
+                JwtRegisteredClaimNames.Nbf, JwtRegisteredClaimNames.Iss,
+                JwtRegisteredClaimNames.Aud
+            };
+
+            var ruleClaims = claims
+                .Where(c => !standardClaimTypes.Contains(c.Type))
+                .ToDictionary(c => c.Type, c => c.Value);
+            
             return new UserClaims
             {
                 UserId = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value ?? string.Empty,
@@ -172,10 +188,12 @@ public class JwtTokenService : IJwtTokenService
                 Roles = claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToArray(),
                 Permissions = claims.Where(c => c.Type == "permission").Select(c => c.Value).ToArray(),
                 BranchId = claims.FirstOrDefault(c => c.Type == "branch_id")?.Value,
+                TenantId = claims.FirstOrDefault(c => c.Type == "tenant_id")?.Value,
                 SessionId = claims.FirstOrDefault(c => c.Type == "session_id")?.Value,
                 DeviceId = claims.FirstOrDefault(c => c.Type == "device_id")?.Value,
                 AuthenticationLevel = claims.FirstOrDefault(c => c.Type == "auth_level")?.Value ?? "basic",
-                IpAddress = claims.FirstOrDefault(c => c.Type == "ip_address")?.Value
+                IpAddress = claims.FirstOrDefault(c => c.Type == "ip_address")?.Value,
+                Rules = ruleClaims
             };
         }
         catch (Exception ex)

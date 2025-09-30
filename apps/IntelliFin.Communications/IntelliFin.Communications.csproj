@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\libs\IntelliFin.Shared.Infrastructure\IntelliFin.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\libs\IntelliFin.Shared.DomainModels\IntelliFin.Shared.DomainModels.csproj" />
   </ItemGroup>
 
 </Project>

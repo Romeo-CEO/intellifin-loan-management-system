@@ -40,6 +40,16 @@ public class LmsDbContext : DbContext
     // System-Assisted Manual Verification
     public DbSet<DocumentVerification> DocumentVerifications => Set<DocumentVerification>();
 
+    // Communication System Entities (Epic 1)
+    public DbSet<NotificationLog> NotificationLogs => Set<NotificationLog>();
+    public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
+    public DbSet<EventProcessingStatus> EventProcessingStatus => Set<EventProcessingStatus>();
+    public DbSet<EventRoutingRule> EventRoutingRules => Set<EventRoutingRule>();
+    public DbSet<EventRoutingLog> EventRoutingLogs => Set<EventRoutingLog>();
+    public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
+    public DbSet<PerformanceLog> PerformanceLogs => Set<PerformanceLog>();
+    public DbSet<HealthCheckLog> HealthCheckLogs => Set<HealthCheckLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Client>(b =>
@@ -403,7 +413,104 @@ public class LmsDbContext : DbContext
             new UserRole { UserId = "user-admin", RoleId = "role-ceo", AssignedBy = "system", AssignedAt = now }
         );
 
+        // Communication System Entity Configurations (Epic 1)
+        modelBuilder.Entity<NotificationLog>(b =>
+        {
+            b.ToTable("NotificationLogs");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.EventId).IsRequired();
+            b.Property(x => x.RecipientId).HasMaxLength(100).IsRequired();
+            b.Property(x => x.RecipientType).HasMaxLength(50).IsRequired();
+            b.Property(x => x.Channel).HasMaxLength(20).IsRequired();
+            b.Property(x => x.Subject).HasMaxLength(500);
+            b.Property(x => x.Content).IsRequired();
+            b.Property(x => x.FailureReason).HasMaxLength(1000);
+            b.Property(x => x.ExternalId).HasMaxLength(100);
+            b.Property(x => x.CreatedBy).HasMaxLength(100).IsRequired();
+            b.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+
+            b.HasOne(x => x.Template)
+             .WithMany(t => t.NotificationLogs)
+             .HasForeignKey(x => x.TemplateId)
+             .OnDelete(DeleteBehavior.SetNull);
+
+            b.HasIndex(x => x.RecipientId);
+            b.HasIndex(x => x.EventId);
+            b.HasIndex(x => x.Status);
+            b.HasIndex(x => x.CreatedAt);
+            b.HasIndex(x => new { x.RecipientId, x.CreatedAt });
+            b.HasIndex(x => new { x.BranchId, x.CreatedAt });
+        });
+
+        modelBuilder.Entity<NotificationTemplate>(b =>
+        {
+            b.ToTable("NotificationTemplates");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            b.Property(x => x.Category).HasMaxLength(50).IsRequired();
+            b.Property(x => x.Channel).HasMaxLength(20).IsRequired();
+            b.Property(x => x.Language).HasMaxLength(10).IsRequired();
+            b.Property(x => x.Subject).HasMaxLength(500);
+            b.Property(x => x.Content).IsRequired();
+            b.Property(x => x.CreatedBy).HasMaxLength(100).IsRequired();
+            b.Property(x => x.UpdatedBy).HasMaxLength(100);
+
+            b.HasIndex(x => new { x.Name, x.Version }).IsUnique();
+            b.HasIndex(x => new { x.Category, x.Channel, x.IsActive });
+            b.HasIndex(x => x.CreatedAt);
+        });
+
+        modelBuilder.Entity<EventProcessingStatus>(b =>
+        {
+            b.ToTable("EventProcessingStatus");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.EventId).IsRequired();
+            b.Property(x => x.EventType).HasMaxLength(100).IsRequired();
+            b.Property(x => x.ProcessingResult).HasMaxLength(20).IsRequired();
+
+            b.HasIndex(x => x.EventId).IsUnique();
+            b.HasIndex(x => x.EventType);
+            b.HasIndex(x => x.ProcessedAt);
+            b.HasIndex(x => x.ProcessingResult);
+        });
+
+        // Event Routing Entity Configurations (Epic 1)
+        modelBuilder.Entity<EventRoutingRule>(b =>
+        {
+            b.ToTable("EventRoutingRules");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.EventType).HasMaxLength(100).IsRequired();
+            b.Property(x => x.ConsumerType).HasMaxLength(100).IsRequired();
+            b.Property(x => x.Priority).IsRequired();
+            b.Property(x => x.Conditions).HasMaxLength(1000);
+            b.Property(x => x.Description).HasMaxLength(500);
+            b.Property(x => x.CreatedAt).IsRequired();
+            b.Property(x => x.UpdatedAt).IsRequired();
+
+            b.HasIndex(x => new { x.EventType, x.IsActive });
+            b.HasIndex(x => x.ConsumerType);
+            b.HasIndex(x => x.Priority);
+            b.HasIndex(x => x.CreatedAt);
+        });
+
+        modelBuilder.Entity<EventRoutingLog>(b =>
+        {
+            b.ToTable("EventRoutingLogs");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.EventId).IsRequired();
+            b.Property(x => x.EventType).HasMaxLength(100).IsRequired();
+            b.Property(x => x.SourceService).HasMaxLength(100).IsRequired();
+            b.Property(x => x.Destinations).HasMaxLength(1000);
+            b.Property(x => x.RouteTimestamp).IsRequired();
+            b.Property(x => x.CorrelationId).HasMaxLength(200);
+            b.Property(x => x.ErrorMessage).HasMaxLength(500);
+
+            b.HasIndex(x => x.EventId).IsUnique();
+            b.HasIndex(x => x.EventType);
+            b.HasIndex(x => new { x.SourceService, x.RouteTimestamp });
+            b.HasIndex(x => x.RouteTimestamp);
+        });
+
         base.OnModelCreating(modelBuilder);
     }
 }
-

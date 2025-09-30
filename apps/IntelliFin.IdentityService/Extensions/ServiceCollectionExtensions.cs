@@ -1,8 +1,10 @@
 using IntelliFin.IdentityService.Configuration;
+using IntelliFin.IdentityService.Models;
 using IntelliFin.IdentityService.Services;
 using IntelliFin.Shared.DomainModels.Data;
 using IntelliFin.Shared.DomainModels.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
@@ -51,6 +53,39 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAccountLockoutService, AccountLockoutService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IUserService, UserService>();
+
+        // Permission Catalog Services
+        services.AddScoped<IPermissionCatalogService, PermissionCatalogService>();
+        services.AddScoped<ITenantResolver, TenantResolver>();
+        services.AddHttpContextAccessor();
+        services.AddMemoryCache();
+
+        // Role Composition Services
+        services.AddScoped<IRoleCompositionService, RoleCompositionService>();
+        services.AddScoped<IRoleTemplateService, RoleTemplateService>();
+
+        // Permission-Role Bridge Services
+        services.AddScoped<IPermissionRoleBridgeService, PermissionRoleBridgeService>();
+
+        // Rule-Based Authorization Services
+        services.AddScoped<IRuleEngineService, RuleEngineService>();
+        services.AddScoped<IRuleTemplateService, RuleTemplateService>();
+        services.AddScoped<IUserRuleService, UserRuleService>();
+
+        // ASP.NET Identity for role management
+        services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
+        {
+            options.Password.RequireDigit = true;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequireUppercase = true;
+            options.Password.RequiredLength = 8;
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+            options.User.RequireUniqueEmail = true;
+        })
+        .AddEntityFrameworkStores<LmsDbContext>()
+        .AddDefaultTokenProviders();
 
         // JWT Authentication
         var jwtConfig = configuration.GetSection("Jwt").Get<JwtConfiguration>() ?? new JwtConfiguration();

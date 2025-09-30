@@ -12,11 +12,17 @@ public class UserClaims
     public string[] Roles { get; set; } = Array.Empty<string>();
     public string[] Permissions { get; set; } = Array.Empty<string>();
     public string? BranchId { get; set; }
+    public string? TenantId { get; set; }
     public string? SessionId { get; set; }
     public string? DeviceId { get; set; }
     public DateTime AuthenticatedAt { get; set; }
     public string AuthenticationLevel { get; set; } = "basic";
     public string? IpAddress { get; set; }
+    
+    /// <summary>
+    /// Rule-based authorization claims with values (e.g., "loan_approval_limit": "50000")
+    /// </summary>
+    public Dictionary<string, string> Rules { get; set; } = new();
 
     public List<Claim> ToClaims()
     {
@@ -39,6 +45,11 @@ public class UserClaims
             claims.Add(new Claim("branch_id", BranchId));
         }
 
+        if (!string.IsNullOrEmpty(TenantId))
+        {
+            claims.Add(new Claim("tenant_id", TenantId));
+        }
+
         foreach (var role in Roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
@@ -47,6 +58,12 @@ public class UserClaims
         foreach (var permission in Permissions)
         {
             claims.Add(new Claim("permission", permission));
+        }
+
+        // Add rule-based claims for runtime evaluation
+        foreach (var rule in Rules)
+        {
+            claims.Add(new Claim(rule.Key, rule.Value));
         }
 
         return claims;
