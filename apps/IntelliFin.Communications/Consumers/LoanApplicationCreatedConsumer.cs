@@ -1,28 +1,34 @@
+using System.Globalization;
+using IntelliFin.Communications.Models;
+using IntelliFin.Communications.Services;
+using IntelliFin.Shared.DomainModels.Data;
 using IntelliFin.Shared.DomainModels.Entities;
 using IntelliFin.Shared.DomainModels.Repositories;
-using IntelliFin.Shared.DomainModels.Data;
 using IntelliFin.Shared.Infrastructure.Messaging.Contracts;
-using IntelliFin.Communications.Services;
-using IntelliFin.Communications.Models;
-using Microsoft.Extensions.Logging;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace IntelliFin.Communications.Consumers;
 
 public class LoanApplicationCreatedConsumer : BaseNotificationConsumer<LoanApplicationCreated>
 {
-private readonly LmsDbContext _dbContext;
-   private readonly IInAppNotificationService _inAppNotificationService;
+    private const decimal HighValueThreshold = 100_000m;
 
-public LoanApplicationCreatedConsumer(
-INotificationRepository notificationRepository,
-LmsDbContext dbContext,
-IInAppNotificationService inAppNotificationService,
-    ILogger<LoanApplicationCreatedConsumer> logger)
-: base(notificationRepository, logger)
-{
+    private readonly LmsDbContext _dbContext;
+    private readonly ISmsService _smsService;
+    private readonly IInAppNotificationService _inAppNotificationService;
+
+    public LoanApplicationCreatedConsumer(
+        INotificationRepository notificationRepository,
+        LmsDbContext dbContext,
+        ISmsService smsService,
+        IInAppNotificationService inAppNotificationService,
+        ILogger<LoanApplicationCreatedConsumer> logger)
+        : base(notificationRepository, logger)
+    {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _smsService = smsService ?? throw new ArgumentNullException(nameof(smsService));
         _inAppNotificationService = inAppNotificationService ?? throw new ArgumentNullException(nameof(inAppNotificationService));
     }
 
@@ -30,319 +36,321 @@ IInAppNotificationService inAppNotificationService,
         LoanApplicationCreated eventData,
         ConsumeContext<LoanApplicationCreated> context)
     {
+        var cancellationToken = context.CancellationToken;
+        var branchId = GetBranchId(eventData);
+
         _logger.LogInformation(
-            "Processing loan application created event {EventId} for application {ApplicationId}, client {ClientId}",
-            eventData.EventId, eventData.ApplicationId, eventData.ClientId);
-
-        // Build notification targets for different recipients
-        var targets = await BuildNotificationTargetsAsync(eventData);
-
-        // Convert targets to notification requests
-        var notificationRequests = BuildNotificationRequests(
+            "Processing LoanApplicationCreated event {EventId} for application {ApplicationId} (branch {BranchId})",
             eventData.EventId,
-            targets,
-            "LoanOrigination");
+            eventData.ApplicationId,
+            branchId);
 
-        // Process each notification request
-        foreach (var request in notificationRequests)
+        await ProcessCustomerNotificationAsync(eventData, branchId, cancellationToken);
+        await ProcessLoanOfficerNotificationAsync(eventData, branchId, cancellationToken);
+
+        if (eventData.RequestedAmount >= HighValueThreshold)
         {
-            await ProcessNotificationRequestAsync(request);
+            await ProcessBranchManagerNotificationAsync(eventData, branchId, cancellationToken);
         }
 
         _logger.LogInformation(
-            "Successfully processed {Count} notifications for loan application {ApplicationId}",
-            notificationRequests.Count, eventData.ApplicationId);
+            "LoanApplicationCreated event {EventId} processed successfully",
+            eventData.EventId);
     }
 
-    private async Task<List<NotificationTarget>> BuildNotificationTargetsAsync(
-        LoanApplicationCreated eventData)
+    private async Task ProcessCustomerNotificationAsync(
+        LoanApplicationCreated eventData,
+        int branchId,
+        CancellationToken cancellationToken)
     {
-        var targets = new List<NotificationTarget>();
-
-        // 1. SMS notification to customer
-        var customerTarget = await CreateCustomerNotificationTargetAsync(eventData);
-        targets.Add(customerTarget);
-
-        // 2. In-app notification to assigned loan officer
-        var officerTarget = await CreateLoanOfficerNotificationTargetAsync(eventData);
-        if (officerTarget != null)
+        var message = BuildCustomerMessage(eventData);
+        var request = new NotificationRequest
         {
-            targets.Add(officerTarget);
-        }
-
-        // 3. High-value loan notification to branch manager (if applicable)
-        var managerTarget = await CreateBranchManagerNotificationTargetAsync(eventData);
-        if (managerTarget != null)
-        {
-            targets.Add(managerTarget);
-        }
-
-        return targets;
-    }
-
-    private async Task<NotificationTarget> CreateCustomerNotificationTargetAsync(
-        LoanApplicationCreated eventData)
-    {
-        // Get customer details from database
-        var client = await _dbContext.Clients.FirstOrDefaultAsync(c => c.Id == eventData.ClientId);
-        if (client == null)
-        {
-            throw new InvalidOperationException($"Client {eventData.ClientId} not found");
-        }
-
-        // Get application details
-        var application = await _dbContext.LoanApplications
-            .Include(a => a.Product)
-            .FirstOrDefaultAsync(a => a.Id == eventData.ApplicationId);
-
-        // Build personalization data for customer SMS
-        var personalizationData = new
-        {
-            CustomerName = $"{client.FirstName} {client.LastName}",
-            ApplicationRef = eventData.ApplicationId.ToString(),
-            Amount = $"K {eventData.Amount:N2}",
-            NextSteps = "Please visit your branch to complete documentation",
-            ProcessingTime = "48 hours",
-            ProductName = application?.Product?.Name ?? "Loan",
-            Branch = "Lusaka Main" // TODO: Get from application branch
-        };
-
-        return new NotificationTarget
-        {
+            EventId = eventData.EventId,
             RecipientId = eventData.ClientId.ToString(),
             RecipientType = "Customer",
-            PreferredChannel = "SMS",
+            Channel = "SMS",
+            TemplateCategory = "LoanOrigination",
+            TemplateName = "loan-application-created-customer",
+            Subject = "Loan application received",
             Priority = NotificationPriority.Normal,
-            PersonalizationData = personalizationData,
-            TemplateName = "loan-application-confirmation-customer",
-            BranchId = 1 // TODO: Get from application
+            PersonalizationContext = new Dictionary<string, object>
+            {
+                ["CustomerName"] = eventData.CustomerName,
+                ["ApplicationId"] = eventData.ApplicationId,
+                ["RequestedAmount"] = eventData.RequestedAmount,
+                ["ProductType"] = eventData.ProductType
+            },
+            BranchId = branchId
         };
+
+        var log = await CreateNotificationLogAsync(request, message);
+
+        if (string.IsNullOrWhiteSpace(eventData.CustomerPhone))
+        {
+            log.Status = NotificationStatus.Failed;
+            log.FailureReason = "Customer phone number not supplied";
+            await _notificationRepository.CreateAsync(log, cancellationToken);
+            _logger.LogWarning(
+                "Loan application {ApplicationId} could not send SMS notification because the phone number is missing",
+                eventData.ApplicationId);
+            return;
+        }
+
+        log = await _notificationRepository.CreateAsync(log, cancellationToken);
+
+        var smsResponse = await _smsService.SendSmsAsync(new SmsNotificationRequest
+        {
+            PhoneNumber = eventData.CustomerPhone,
+            Message = message,
+            NotificationType = SmsNotificationType.LoanApplicationStatus,
+            ClientId = eventData.ClientId.ToString(),
+            LoanId = eventData.ApplicationId.ToString(),
+            TemplateData = new Dictionary<string, object>
+            {
+                ["CustomerName"] = eventData.CustomerName,
+                ["ApplicationRef"] = eventData.ApplicationId.ToString(),
+                ["RequestedAmount"] = eventData.RequestedAmount
+            }
+        }, cancellationToken);
+
+        var status = MapSmsStatus(smsResponse.Status);
+        var failureReason = status == NotificationStatus.Failed ? smsResponse.ErrorMessage : null;
+        var gatewayResponse = smsResponse.ProviderMessageId ?? smsResponse.NotificationId;
+
+        await _notificationRepository.UpdateStatusAsync(
+            log.Id,
+            status,
+            gatewayResponse,
+            failureReason,
+            cancellationToken);
+
+        _logger.LogInformation(
+            "Customer SMS notification processed for application {ApplicationId} with status {Status}",
+            eventData.ApplicationId,
+            status);
     }
 
-    private async Task<NotificationTarget?> CreateLoanOfficerNotificationTargetAsync(
-        LoanApplicationCreated eventData)
+    private async Task ProcessLoanOfficerNotificationAsync(
+        LoanApplicationCreated eventData,
+        int branchId,
+        CancellationToken cancellationToken)
     {
-        try
+        var officerId = await ResolveLoanOfficerAsync(branchId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(officerId))
         {
-            // Get loan application with product details
-            var application = await _dbContext.LoanApplications
-                .Include(a => a.Product)
-                .FirstOrDefaultAsync(a => a.Id == eventData.ApplicationId);
+            _logger.LogWarning(
+                "No active loan officer found for branch {BranchId}. Officer notification skipped for application {ApplicationId}",
+                branchId,
+                eventData.ApplicationId);
+            return;
+        }
 
-            if (application == null)
-            {
-                _logger.LogWarning("Loan application {ApplicationId} not found", eventData.ApplicationId);
-                return null;
-            }
-
-            // Get client details
-            var client = await _dbContext.Clients.FirstOrDefaultAsync(c => c.Id == eventData.ClientId);
-            if (client == null)
-            {
-                _logger.LogWarning("Client {ClientId} not found for application {ApplicationId}",
-                    eventData.ClientId, eventData.ApplicationId);
-                return null;
-            }
-
-            // TODO: Implement logic to determine assigned loan officer
-            // For now, assign to default officer
-            var assignedOfficerId = "user-officer-default"; // TODO: Real assignment logic
-
-            // Build personalization data for loan officer
-            var personalizationData = new
-            {
-                CustomerName = $"{client.FirstName} {client.LastName}",
-                ApplicationRef = eventData.ApplicationId.ToString(),
-                Product = application.Product?.Name ?? "Unknown Product",
-                Amount = $"K {eventData.Amount:N2}",
-                UrgentFlag = eventData.Amount > 100000, // Highlight high-value applications
-                NextAction = "Review application and contact customer",
-                DueDate = DateTime.Today.AddDays(2).ToString("dd MMM yyyy")
-            };
-
-            var priority = eventData.Amount > 100000
+        var message = BuildOfficerMessage(eventData);
+        var request = new NotificationRequest
+        {
+            EventId = eventData.EventId,
+            RecipientId = officerId,
+            RecipientType = "LoanOfficer",
+            Channel = "InApp",
+            TemplateCategory = "LoanOrigination",
+            TemplateName = "loan-application-created-officer",
+            Subject = "New loan application submitted",
+            Priority = eventData.RequestedAmount >= HighValueThreshold
                 ? NotificationPriority.High
-                : NotificationPriority.Normal;
-
-            return new NotificationTarget
+                : NotificationPriority.Normal,
+            PersonalizationContext = new Dictionary<string, object>
             {
-                RecipientId = assignedOfficerId,
-                RecipientType = "LoanOfficer",
-                PreferredChannel = "InApp",
-                Priority = priority,
-                PersonalizationData = personalizationData,
-                TemplateName = "loan-application-assigned-officer",
-                BranchId = 1 // TODO: Determine from application/branch logic
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to create loan officer notification target for application {ApplicationId}",
-                eventData.ApplicationId);
-            return null;
-        }
-    }
-
-    private async Task<NotificationTarget?> CreateBranchManagerNotificationTargetAsync(
-        LoanApplicationCreated eventData)
-    {
-        // Only create notification for high-value loans (K100,000+)
-        if (eventData.Amount < 100000)
-        {
-            return null;
-        }
-
-        try
-        {
-            // Get loan application details
-            var application = await _dbContext.LoanApplications
-                .Include(a => a.Product)
-                .FirstOrDefaultAsync(a => a.Id == eventData.ApplicationId);
-
-            if (application == null)
-            {
-                _logger.LogWarning("Loan application {ApplicationId} not found for high-value notification",
-                    eventData.ApplicationId);
-                return null;
-            }
-
-            // Get client details
-            var client = await _dbContext.Clients.FirstOrDefaultAsync(c => c.Id == eventData.ClientId);
-
-            // TODO: Implement branch manager lookup based on branch
-            var branchManagerId = "user-manager-default"; // TODO: Real lookup logic
-
-            // Build personalization data for branch manager
-            var personalizationData = new
-            {
-                CustomerName = client != null ? $"{client.FirstName} {client.LastName}" : "Unknown Customer",
-                ApplicationRef = eventData.ApplicationId.ToString(),
-                HighValueAmount = $"K {eventData.Amount:N2}",
-                Product = application.Product?.Name ?? "Unknown Product",
-                RiskLevel = eventData.Amount > 500000 ? "High Risk" : "Medium Risk",
-                RequiresApproval = eventData.Amount > 500000,
-                ApprovalThreshold = "K 500,000.00",
-                AssignedOfficer = "Pending Assignment" // TODO: Add officer assignment
-            };
-
-            return new NotificationTarget
-            {
-                RecipientId = branchManagerId,
-                RecipientType = "BranchManager",
-                PreferredChannel = "InApp",
-                Priority = NotificationPriority.High,
-                PersonalizationData = personalizationData,
-                TemplateName = "high-value-loan-application-manager",
-                BranchId = 1 // TODO: Determine from application/branch logic
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to create branch manager notification target for application {ApplicationId}",
-                eventData.ApplicationId);
-            return null;
-        }
-    }
-
-    private async Task ProcessNotificationRequestAsync(NotificationRequest request)
-    {
-        try
-        {
-            // Generate notification content based on template
-            var content = await GenerateNotificationContentAsync(request);
-
-            // Create notification log entry
-            var notificationLog = await CreateNotificationLogAsync(request, content);
-
-            // Save to database
-            await _notificationRepository.CreateAsync(notificationLog);
-
-            // Attempt channel delivery where possible
-            if (string.Equals(request.Channel, "InApp", StringComparison.OrdinalIgnoreCase))
-            {
-                var inAppReq = new CreateInAppNotificationRequest
-                {
-                    UserId = request.RecipientId,
-                    Title = request.Subject ?? $"{request.TemplateCategory} Update",
-                    Message = content,
-                    Type = InAppNotificationType.Info,
-                    Priority = request.Priority switch
-                    {
-                        NotificationPriority.Critical => InAppNotificationPriority.Critical,
-                        NotificationPriority.High => InAppNotificationPriority.High,
-                        NotificationPriority.Low => InAppNotificationPriority.Low,
-                        _ => InAppNotificationPriority.Normal
-                    },
-                    Category = InAppNotificationCategory.LoanApplication,
-                    SourceId = request.EventId.ToString(),
-                    SourceType = request.TemplateCategory
-                };
-
-                var response = await _inAppNotificationService.SendNotificationAsync(inAppReq);
-                if (response.Success)
-                {
-                    await _notificationRepository.UpdateStatusAsync(notificationLog.Id, NotificationStatus.Sent, gatewayResponse: "InApp:OK");
-                }
-                else
-                {
-                    await _notificationRepository.UpdateStatusAsync(notificationLog.Id, NotificationStatus.Failed, failureReason: "InApp delivery failed");
-                }
-            }
-            else if (string.Equals(request.Channel, "SMS", StringComparison.OrdinalIgnoreCase))
-            {
-                // Phone resolution not available in current domain model; mark as queued for external sender
-                await _notificationRepository.UpdateStatusAsync(notificationLog.Id, NotificationStatus.Queued, gatewayResponse: "Queued:AwaitingPhoneResolution");
-            }
-
-            _logger.LogInformation(
-                "Created notification log for event {EventId}, recipient {RecipientId}, channel {Channel}",
-                request.EventId, request.RecipientId, request.Channel);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "Failed to process notification request for event {EventId}, recipient {RecipientId}: {Error}",
-                request.EventId, request.RecipientId, ex.Message);
-            throw;
-        }
-    }
-
-    private async Task<string> GenerateNotificationContentAsync(NotificationRequest request)
-    {
-        // For now, use basic template rendering
-        // TODO: Integrate with full template engine when available
-
-        return request.PersonalizationContext switch
-        {
-            // Customer SMS template
-            var data when request.TemplateName == "loan-application-confirmation-customer" =>
-                $"Dear {GetProperty(data, "CustomerName")}, your loan application {GetProperty(data, "ApplicationRef")} for {GetProperty(data, "Amount")} has been received. Processing time: {GetProperty(data, "ProcessingTime")}. {GetProperty(data, "NextSteps")}. IntelliFin MicroFinance.",
-
-            // Officer InApp template
-            var data when request.TemplateName == "loan-application-assigned-officer" =>
-                $"New loan application assigned: {GetProperty(data, "ApplicationRef")} for {GetProperty(data, "CustomerName")}. Amount: {GetProperty(data, "Amount")}. Product: {GetProperty(data, "Product")}. {GetProperty(data, "NextAction")}.",
-
-            // Branch Manager InApp template
-            var data when request.TemplateName == "high-value-loan-application-manager" =>
-                $"HIGH VALUE: Loan application {GetProperty(data, "ApplicationRef")} for {GetProperty(data, "HighValueAmount")}. Requires review. {(GetProperty(data, "RequiresApproval") == "True" ? "Approval required for amounts above threshold." : "")}",
-
-            // Default fallback
-            _ => $"Loan application notification created for {request.RecipientId}."
+                ["CustomerName"] = eventData.CustomerName,
+                ["ApplicationId"] = eventData.ApplicationId,
+                ["RequestedAmount"] = eventData.RequestedAmount,
+                ["ProductType"] = eventData.ProductType,
+                ["BranchId"] = branchId
+            },
+            BranchId = branchId
         };
+
+        var log = await _notificationRepository.CreateAsync(
+            await CreateNotificationLogAsync(request, message),
+            cancellationToken);
+
+        var response = await _inAppNotificationService.SendNotificationAsync(new CreateInAppNotificationRequest
+        {
+            UserId = officerId,
+            Title = "New loan application",
+            Message = message,
+            Category = InAppNotificationCategory.LoanApplication,
+            Priority = request.Priority switch
+            {
+                NotificationPriority.High => InAppNotificationPriority.High,
+                NotificationPriority.Critical => InAppNotificationPriority.Critical,
+                NotificationPriority.Low => InAppNotificationPriority.Low,
+                _ => InAppNotificationPriority.Normal
+            },
+            SourceId = eventData.ApplicationId.ToString(),
+            SourceType = "LoanApplication",
+            Metadata = new Dictionary<string, string>
+            {
+                ["eventId"] = eventData.EventId.ToString(),
+                ["branchId"] = branchId.ToString(CultureInfo.InvariantCulture)
+            }
+        }, cancellationToken);
+
+        await _notificationRepository.UpdateStatusAsync(
+            log.Id,
+            response.Success ? NotificationStatus.Sent : NotificationStatus.Failed,
+            response.NotificationId,
+            response.ErrorMessage,
+            cancellationToken);
     }
 
-    private string GetProperty(object data, string propertyName)
+    private async Task ProcessBranchManagerNotificationAsync(
+        LoanApplicationCreated eventData,
+        int branchId,
+        CancellationToken cancellationToken)
     {
-        if (data == null) return string.Empty;
+        var managerId = await ResolveBranchManagerAsync(branchId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(managerId))
+        {
+            _logger.LogWarning(
+                "No branch manager found for branch {BranchId}. High value notification queued for audit only",
+                branchId);
+            return;
+        }
 
-        var property = data.GetType().GetProperty(propertyName);
-        return property?.GetValue(data)?.ToString() ?? string.Empty;
+        var message = BuildBranchManagerMessage(eventData, branchId);
+        var request = new NotificationRequest
+        {
+            EventId = eventData.EventId,
+            RecipientId = managerId,
+            RecipientType = "BranchManager",
+            Channel = "InApp",
+            TemplateCategory = "LoanOrigination",
+            TemplateName = "loan-application-created-branch-manager",
+            Subject = "High value loan application",
+            Priority = NotificationPriority.High,
+            PersonalizationContext = new Dictionary<string, object>
+            {
+                ["CustomerName"] = eventData.CustomerName,
+                ["ApplicationId"] = eventData.ApplicationId,
+                ["RequestedAmount"] = eventData.RequestedAmount,
+                ["BranchId"] = branchId
+            },
+            BranchId = branchId
+        };
+
+        var log = await _notificationRepository.CreateAsync(
+            await CreateNotificationLogAsync(request, message),
+            cancellationToken);
+
+        var response = await _inAppNotificationService.SendNotificationAsync(new CreateInAppNotificationRequest
+        {
+            UserId = managerId,
+            Title = "High value loan application",
+            Message = message,
+            Category = InAppNotificationCategory.LoanApplication,
+            Priority = InAppNotificationPriority.Critical,
+            SourceId = eventData.ApplicationId.ToString(),
+            SourceType = "LoanApplication",
+            Metadata = new Dictionary<string, string>
+            {
+                ["eventId"] = eventData.EventId.ToString(),
+                ["branchId"] = branchId.ToString(CultureInfo.InvariantCulture)
+            }
+        }, cancellationToken);
+
+        await _notificationRepository.UpdateStatusAsync(
+            log.Id,
+            response.Success ? NotificationStatus.Sent : NotificationStatus.Failed,
+            response.NotificationId,
+            response.ErrorMessage,
+            cancellationToken);
+    }
+
+    private async Task<string?> ResolveLoanOfficerAsync(int branchId, CancellationToken cancellationToken)
+    {
+        var branchFilter = branchId > 0 ? branchId.ToString(CultureInfo.InvariantCulture) : null;
+
+        var officer = await _dbContext.UserRoles
+            .Include(r => r.Role)
+            .AsNoTracking()
+            .Where(r => r.IsActive && (branchFilter == null || r.BranchId == null || r.BranchId == branchFilter))
+            .Where(r => r.Role.Name == "LoanOfficer")
+            .OrderBy(r => r.AssignedAt)
+            .Select(r => r.UserId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return officer ?? (branchId > 0 ? $"loan-officer-{branchId}" : null);
+    }
+
+    private async Task<string?> ResolveBranchManagerAsync(int branchId, CancellationToken cancellationToken)
+    {
+        if (branchId <= 0)
+        {
+            return "branch-manager-default";
+        }
+
+        var branchKey = branchId.ToString(CultureInfo.InvariantCulture);
+
+        var manager = await _dbContext.UserRoles
+            .Include(r => r.Role)
+            .AsNoTracking()
+            .Where(r => r.IsActive && r.BranchId == branchKey && r.Role.Name == "BranchManager")
+            .OrderBy(r => r.AssignedAt)
+            .Select(r => r.UserId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return manager ?? $"branch-manager-{branchId}";
+    }
+
+    private static string BuildCustomerMessage(LoanApplicationCreated eventData)
+    {
+        var amount = eventData.RequestedAmount.ToString("N2", CultureInfo.InvariantCulture);
+        return string.Format(
+            CultureInfo.InvariantCulture,
+            "Dear {0}, we received your loan application {1} for K{2}. Our team will contact you within 48 hours.",
+            string.IsNullOrWhiteSpace(eventData.CustomerName) ? "Customer" : eventData.CustomerName,
+            eventData.ApplicationId,
+            amount);
+    }
+
+    private static string BuildOfficerMessage(LoanApplicationCreated eventData)
+    {
+        var amount = eventData.RequestedAmount.ToString("N2", CultureInfo.InvariantCulture);
+        return string.Format(
+            CultureInfo.InvariantCulture,
+            "New loan application {0} from {1} for K{2}. Review details and contact the customer.",
+            eventData.ApplicationId,
+            string.IsNullOrWhiteSpace(eventData.CustomerName) ? "customer" : eventData.CustomerName,
+            amount);
+    }
+
+    private static string BuildBranchManagerMessage(LoanApplicationCreated eventData, int branchId)
+    {
+        var amount = eventData.RequestedAmount.ToString("N2", CultureInfo.InvariantCulture);
+        return string.Format(
+            CultureInfo.InvariantCulture,
+            "Branch {0}: High value loan application {1} from {2} for K{3}. Please review for approval.",
+            branchId,
+            eventData.ApplicationId,
+            string.IsNullOrWhiteSpace(eventData.CustomerName) ? "customer" : eventData.CustomerName,
+            amount);
+    }
+
+    private static NotificationStatus MapSmsStatus(SmsDeliveryStatus status)
+    {
+        return status switch
+        {
+            SmsDeliveryStatus.Sent or SmsDeliveryStatus.Pending => NotificationStatus.Sent,
+            SmsDeliveryStatus.Delivered => NotificationStatus.Delivered,
+            SmsDeliveryStatus.Retry => NotificationStatus.Queued,
+            SmsDeliveryStatus.Failed or SmsDeliveryStatus.OptedOut => NotificationStatus.Failed,
+            _ => NotificationStatus.Pending
+        };
     }
 
     protected override int GetBranchId(LoanApplicationCreated eventData)
     {
-        // TODO: Implement proper branch determination from event data
-        // For now, return default branch
-        return 1;
+        return eventData.BranchId > 0 ? eventData.BranchId : base.GetBranchId(eventData);
     }
 }
