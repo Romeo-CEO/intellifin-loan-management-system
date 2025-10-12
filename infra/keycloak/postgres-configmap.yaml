@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-postgresql-config
+  namespace: keycloak
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: keycloak
+  annotations:
+    app.intellifin.com/managed-by: gitops
+    checksum/backups: "v1"
+data:
+  postgresql.conf: |
+    listen_addresses = '*'
+    max_connections = 200
+    shared_buffers = '1GB'
+    effective_cache_size = '3GB'
+    maintenance_work_mem = '256MB'
+    checkpoint_completion_target = 0.9
+    wal_buffers = '16MB'
+    default_statistics_target = 100
+    synchronous_commit = 'off'
+    wal_level = 'logical'
+    archive_mode = on
+    archive_command = 'test ! -f /var/lib/postgresql/data/wal_archive/%f && cp %p /var/lib/postgresql/data/wal_archive/%f'
+    max_wal_senders = 5
+    wal_keep_size = '512MB'
+    hot_standby = on
+  init-replication.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    if [[ -z "${REPLICATION_PASSWORD:-}" ]]; then
+      echo "REPLICATION_PASSWORD environment variable must be provided" >&2
+      exit 1
+    fi
+    if [[ -z "${METRICS_PASSWORD:-}" ]]; then
+      echo "METRICS_PASSWORD environment variable must be provided" >&2
+      exit 1
+    fi
+    psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER}" \
+      -v repl_password="${REPLICATION_PASSWORD}" \
+      -v metrics_password="${METRICS_PASSWORD}" <<-'SQL'
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'keycloak_repl') THEN
+          EXECUTE format('CREATE ROLE keycloak_repl WITH REPLICATION LOGIN PASSWORD %L', :'repl_password');
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'keycloak_metrics') THEN
+          EXECUTE format('CREATE ROLE keycloak_metrics WITH LOGIN PASSWORD %L', :'metrics_password');
+        END IF;
+      END;
+      $$;
+SQL

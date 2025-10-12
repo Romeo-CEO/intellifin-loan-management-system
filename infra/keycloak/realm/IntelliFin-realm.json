@@ -1,0 +1,302 @@
+{
+  "id": "IntelliFin",
+  "realm": "IntelliFin",
+  "enabled": true,
+  "displayName": "IntelliFin Loan Management System",
+  "displayNameHtml": "<span class=\"intellifin-brand\">IntelliFin Loan Management System</span>",
+  "loginTheme": "intellifin",
+  "emailTheme": "intellifin",
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "en"
+  ],
+  "defaultLocale": "en",
+  "registrationAllowed": false,
+  "rememberMe": true,
+  "verifyEmail": true,
+  "resetPasswordAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyCodeReusable": false,
+  "browserFlow": "browser",
+  "resetCredentialsFlow": "reset credentials",
+  "clientAuthenticationFlow": "clients",
+  "directGrantFlow": "direct grant",
+  "dockerAuthenticationFlow": "docker auth",
+  "defaultSignatureAlgorithm": "RS256",
+  "webAuthnPolicyRpEntityName": "IntelliFin Loan Management System",
+  "webAuthnPolicySignatureAlgorithms": [
+    "ES256",
+    "RS256"
+  ],
+  "smtpServer": {
+    "host": "smtp.intellifin.local",
+    "port": "587",
+    "from": "no-reply@intellifin.local",
+    "fromDisplayName": "IntelliFin Support",
+    "replyTo": "support@intellifin.local",
+    "starttls": "true",
+    "auth": "true"
+  },
+  "browserSecurityHeaders": {
+    "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    "contentSecurityPolicyReportOnly": "",
+    "xContentTypeOptions": "nosniff",
+    "xRobotsTag": "none",
+    "xFrameOptions": "SAMEORIGIN",
+    "xXSSProtection": "1; mode=block",
+    "strictTransportSecurity": "max-age=31536000; includeSubDomains"
+  },
+  "securityDefenses": {
+    "headers": {
+      "xContentTypeOptions": "nosniff",
+      "xRobotsTag": "none",
+      "xFrameOptions": "SAMEORIGIN",
+      "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+      "xXSSProtection": "1; mode=block"
+    }
+  },
+  "requiredCredentials": [
+    "password"
+  ],
+  "requiredActions": [
+    {
+      "alias": "VERIFY_EMAIL",
+      "name": "Verify Email",
+      "providerId": "VERIFY_EMAIL",
+      "enabled": true,
+      "defaultAction": true,
+      "priority": 10
+    },
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": true,
+      "defaultAction": true,
+      "priority": 20
+    },
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Update Password",
+      "providerId": "UPDATE_PASSWORD",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 30
+    }
+  ],
+  "defaultRoles": [
+    "uma_authorization",
+    "offline_access"
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "system-administrator",
+        "description": "Full administration rights for IntelliFin realm",
+        "composite": true,
+        "clientRole": false,
+        "containerId": "IntelliFin",
+        "attributes": {},
+        "composites": {
+          "client": {
+            "realm-management": [
+              "manage-realm",
+              "manage-users",
+              "view-users",
+              "view-realm",
+              "view-identity-providers",
+              "view-events",
+              "manage-identity-providers",
+              "manage-authorization",
+              "manage-events",
+              "query-groups",
+              "query-users",
+              "query-clients",
+              "view-clients",
+              "manage-clients"
+            ]
+          }
+        }
+      },
+      {
+        "name": "audit-viewer",
+        "description": "Read-only access to realm audit events",
+        "composite": true,
+        "clientRole": false,
+        "containerId": "IntelliFin",
+        "attributes": {},
+        "composites": {
+          "client": {
+            "realm-management": [
+              "view-events",
+              "view-realm",
+              "view-identity-providers",
+              "view-clients",
+              "view-users"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "groups": [
+    {
+      "name": "System Administrators",
+      "path": "/System Administrators",
+      "realmRoles": [
+        "system-administrator"
+      ],
+      "attributes": {
+        "owner": [
+          "System Administration"
+        ]
+      }
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "admin-service",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "secret": "",
+      "rootUrl": "https://admin.intellifin.local",
+      "baseUrl": "https://admin.intellifin.local",
+      "redirectUris": [
+        "https://admin.intellifin.local/*"
+      ],
+      "webOrigins": [
+        "https://admin.intellifin.local"
+      ],
+      "adminUrl": "https://admin.intellifin.local",
+      "attributes": {
+        "access.token.lifespan": "300",
+        "use.refresh.tokens": "true",
+        "client_credentials.use_refresh_token": "false",
+        "tls.client_certificate_bound_access_tokens": "false",
+        "saml.assertion.signature": "false",
+        "saml.force.post.binding": "false",
+        "saml.encrypt": "false",
+        "exclude.session.state.from.auth.response": "false"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "email",
+        "roles",
+        "offline_access"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "microprofile-jwt"
+      ]
+    },
+    {
+      "clientId": "api-gateway",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "redirectUris": [],
+      "webOrigins": [],
+      "attributes": {
+        "access.token.lifespan": "60",
+        "client_credentials.use_refresh_token": "false",
+        "tls.client_certificate_bound_access_tokens": "false"
+      },
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "roles"
+      ],
+      "optionalClientScopes": [
+        "microprofile-jwt"
+      ]
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "audit-events",
+      "description": "Expose audit claims for downstream services",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "audit-trail",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "audit:accessLevel",
+            "jsonType.label": "String",
+            "user.attribute": "audit_access_level",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "defaultDefaultClientScopes": [
+    "roles",
+    "profile",
+    "email",
+    "web-origins"
+  ],
+  "defaultOptionalClientScopes": [
+    "offline_access",
+    "address",
+    "phone",
+    "microprofile-jwt",
+    "audit-events"
+  ],
+  "attributes": {
+    "failureFactor": "5",
+    "displayName": "IntelliFin Loan Management System",
+    "permanentLockout": "false",
+    "emailTheme": "intellifin",
+    "loginTheme": "intellifin",
+    "adminEventsDetailsEnabled": "true",
+    "adminEventsEnabled": "true"
+  },
+  "components": {
+    "org.keycloak.authentication.AuthenticatorFactory": [
+      {
+        "id": "otp-auth",
+        "providerId": "auth-otp-form",
+        "subType": "browser",
+        "subComponents": {},
+        "config": {}
+      }
+    ]
+  }
+}

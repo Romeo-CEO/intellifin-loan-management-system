@@ -1,0 +1,151 @@
+:root {
+  --intellifin-primary: #0B6B62;
+  --intellifin-primary-dark: #095d55;
+  --intellifin-ink: #0D1B2A;
+  --intellifin-accent: #14B8A6;
+  --intellifin-background: #F8FAFC;
+  --intellifin-surface: #FFFFFF;
+  --intellifin-border: #E5E7EB;
+  --intellifin-error: #DC2626;
+}
+
+body.login-pf {
+  font-family: "Inter", "SF Pro Text", Roboto, "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  background: var(--intellifin-background);
+  color: var(--intellifin-ink);
+}
+
+#kc-logo-wrapper {
+  padding: 32px 0 16px;
+}
+
+#kc-logo {
+  width: 220px;
+  height: auto;
+}
+
+.login-pf-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, rgba(11, 107, 98, 0.12), rgba(20, 184, 166, 0.16));
+}
+
+#kc-form-card {
+  background: var(--intellifin-surface);
+  border-radius: 16px;
+  border: 1px solid rgba(13, 27, 42, 0.05);
+  box-shadow: 0 16px 32px rgba(13, 27, 42, 0.12);
+  padding: 40px 48px;
+  max-width: 420px;
+  width: 100%;
+}
+
+#kc-page-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--intellifin-ink);
+}
+
+.intellifin-subtitle {
+  font-size: 16px;
+  color: #334155;
+  margin-bottom: 24px;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: #334155;
+  margin-bottom: 8px;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"] {
+  border-radius: 10px;
+  border: 1px solid var(--intellifin-border);
+  padding: 14px 16px;
+  font-size: 15px;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus {
+  border-color: var(--intellifin-accent);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.25);
+}
+
+#kc-login {
+  background: var(--intellifin-primary);
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.3px;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+#kc-login:hover {
+  background: var(--intellifin-primary-dark);
+  transform: translateY(-1px);
+}
+
+#kc-login:focus {
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.35);
+}
+
+.alert-error {
+  border-radius: 10px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  color: var(--intellifin-ink);
+  font-size: 14px;
+}
+
+.login-pf-settings {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.login-pf-settings a {
+  color: #2563EB;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.login-pf-settings a:hover {
+  text-decoration: underline;
+}
+
+#kc-social-providers ul {
+  display: flex;
+  gap: 12px;
+}
+
+#kc-social-providers ul li a {
+  border-radius: 12px;
+  border: 1px solid var(--intellifin-border);
+  padding: 12px;
+  color: var(--intellifin-ink);
+  transition: background 0.2s ease;
+}
+
+#kc-social-providers ul li a:hover {
+  background: rgba(14, 184, 166, 0.08);
+}
+
+@media (max-width: 768px) {
+  #kc-form-card {
+    border-radius: 0;
+    box-shadow: none;
+    height: 100vh;
+    max-width: none;
+  }
+}
