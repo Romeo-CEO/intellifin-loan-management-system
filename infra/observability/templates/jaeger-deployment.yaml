@@ -1,0 +1,82 @@
+{{- if .Values.jaeger.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "observability.fullname" . }}-jaeger
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger
+spec:
+  replicas: {{ .Values.jaeger.replicas }}
+  selector:
+    matchLabels:
+      {{- include "observability.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: jaeger
+  template:
+    metadata:
+      labels:
+        {{- include "observability.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: jaeger
+    spec:
+      initContainers:
+        - name: init-badger-dirs
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - mkdir -p /badger/key /badger/data
+          volumeMounts:
+            - name: jaeger-storage
+              mountPath: /badger
+      containers:
+        - name: jaeger
+          image: "{{ .Values.jaeger.image.repository }}:{{ .Values.jaeger.image.tag }}"
+          imagePullPolicy: {{ .Values.jaeger.image.pullPolicy }}
+          env:
+            {{- range .Values.jaeger.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          {{- if and (eq .Values.jaeger.storage.type "memory") (.Values.jaeger.storage.options.memory.maxTraces) }}
+          args:
+            - "--memory.max-traces={{ .Values.jaeger.storage.options.memory.maxTraces }}"
+          {{- end }}
+          ports:
+            - name: otlp-grpc
+              containerPort: {{ .Values.jaeger.service.otlpGrpcPort }}
+            - name: otlp-http
+              containerPort: {{ .Values.jaeger.service.otlpHttpPort }}
+            - name: collector-grpc
+              containerPort: {{ .Values.jaeger.service.collectorGrpcPort }}
+            - name: collector-http
+              containerPort: {{ .Values.jaeger.service.collectorHttpPort }}
+            - name: query-http
+              containerPort: {{ .Values.jaeger.service.queryHttpPort }}
+            - name: admin
+              containerPort: {{ .Values.jaeger.service.adminPort }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: query-http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /
+              port: admin
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.jaeger.resources | nindent 12 }}
+          volumeMounts:
+            - name: jaeger-storage
+              mountPath: /badger
+      volumes:
+        - name: jaeger-storage
+          {{- if .Values.jaeger.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "observability.fullname" . }}-jaeger
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

@@ -1,0 +1,26 @@
+{{- if and .Values.loki.enabled .Values.kubePrometheusStack.enabled .Values.loki.metrics.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "observability.fullname" . }}-loki
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "observability.monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: loki
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "observability.loki.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - interval: {{ .Values.loki.metrics.serviceMonitor.interval }}
+      port: http
+      path: /metrics
+      scheme: http
+{{- with .Values.loki.metrics.serviceMonitor.additionalLabels }}
+  additionalLabels:
+    {{- toYaml . | nindent 4 }}
+{{- end }}
+{{- end }}

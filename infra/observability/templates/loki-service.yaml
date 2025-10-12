@@ -1,0 +1,21 @@
+{{- if .Values.loki.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "observability.fullname" . }}-loki
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: loki
+spec:
+  type: {{ .Values.loki.service.type }}
+  selector:
+    {{- include "observability.loki.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.loki.service.httpPort }}
+      targetPort: http
+    - name: grpc
+      port: {{ .Values.loki.service.grpcPort }}
+      targetPort: grpc
+{{- end }}

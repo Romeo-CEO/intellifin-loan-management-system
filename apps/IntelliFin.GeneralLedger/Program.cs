@@ -1,4 +1,7 @@
+using IntelliFin.Shared.Observability;
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenTelemetryInstrumentation(builder.Configuration);
 
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();

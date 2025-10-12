@@ -1,0 +1,17 @@
+{{- if .Values.promtail.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "observability.fullname" . }}-promtail
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: promtail
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "observability.fullname" . }}-promtail
+subjects:
+  - kind: ServiceAccount
+    name: {{ default (printf "%s-promtail" (include "observability.fullname" .)) .Values.promtail.serviceAccount.name }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

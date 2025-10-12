@@ -2,6 +2,7 @@ using IntelliFin.IdentityService.Models;
 using IntelliFin.IdentityService.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using System.Net;
 
 namespace IntelliFin.IdentityService.Controllers;
@@ -129,15 +130,17 @@ public class AuthController : ControllerBase
             };
 
             var accessToken = await _jwtTokenService.GenerateAccessTokenAsync(userClaims, cancellationToken);
-            var refreshToken = await _jwtTokenService.GenerateRefreshTokenAsync(userClaims.UserId, request.DeviceId ?? string.Empty, cancellationToken);
+            var refreshTokenResult = await _jwtTokenService.GenerateRefreshTokenAsync(userClaims.UserId, request.DeviceId ?? string.Empty, cancellationToken: cancellationToken);
 
             var response = new TokenResponse
             {
                 AccessToken = accessToken,
-                RefreshToken = refreshToken,
+                RefreshToken = refreshTokenResult.Token,
                 ExpiresIn = 3600, // 1 hour in seconds
                 IssuedAt = DateTime.UtcNow,
                 ExpiresAt = DateTime.UtcNow.AddHours(1),
+                RefreshTokenFamilyId = refreshTokenResult.FamilyId,
+                RefreshTokenExpiresAt = refreshTokenResult.ExpiresAt,
                 User = new UserInfo
                 {
                     Id = userClaims.UserId,
@@ -180,10 +183,13 @@ public class AuthController : ControllerBase
                 return BadRequest(ModelState);
             }
 
-            var tokenResponse = await _jwtTokenService.RefreshTokensAsync(request, cancellationToken);
+            request.IpAddress ??= HttpContext.Connection.RemoteIpAddress?.ToString();
+            request.UserAgent ??= HttpContext.Request.Headers.UserAgent.ToString();
+
+            var rotationResult = await _jwtTokenService.RefreshTokensAsync(request, cancellationToken);
 
             // Get user information to generate new tokens
-            var user = await _userService.GetUserByIdAsync(tokenResponse.User.Id, cancellationToken);
+            var user = await _userService.GetUserByIdAsync(rotationResult.UserId, cancellationToken);
             if (user == null)
             {
                 return Unauthorized(new ProblemDetails
@@ -198,13 +204,16 @@ public class AuthController : ControllerBase
             var userRoles = await _userService.GetUserRolesAsync(user.Id, cancellationToken);
             var userPermissions = await _userService.GetUserPermissionsAsync(user.Id, cancellationToken);
 
+            var deviceId = string.IsNullOrEmpty(request.DeviceId) ? rotationResult.DeviceId : request.DeviceId;
+            request.DeviceId = deviceId;
+
             // Create new session
             var session = await _sessionService.CreateSessionAsync(
                 userId: user.Id,
                 username: user.Username,
-                deviceId: request.DeviceId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                userAgent: HttpContext.Request.Headers.UserAgent.ToString(),
+                deviceId: deviceId,
+                ipAddress: request.IpAddress,
+                userAgent: request.UserAgent,
                 cancellationToken: cancellationToken);
 
             // Generate new tokens
@@ -219,26 +228,38 @@ public class AuthController : ControllerBase
                 Permissions = userPermissions.ToArray(),
                 BranchId = user.BranchId,
                 SessionId = session.SessionId,
-                DeviceId = request.DeviceId,
+                DeviceId = deviceId,
                 AuthenticatedAt = DateTime.UtcNow,
-                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString()
+                IpAddress = request.IpAddress
             };
 
             var newAccessToken = await _jwtTokenService.GenerateAccessTokenAsync(userClaims, cancellationToken);
-            var newRefreshToken = await _jwtTokenService.GenerateRefreshTokenAsync(user.Id, request.DeviceId ?? string.Empty, cancellationToken);
 
             var response = new RefreshTokenResponse
             {
                 AccessToken = newAccessToken,
-                RefreshToken = newRefreshToken,
+                RefreshToken = rotationResult.RefreshToken,
                 ExpiresIn = 3600, // 1 hour in seconds
                 IssuedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddHours(1)
+                ExpiresAt = DateTime.UtcNow.AddHours(1),
+                RefreshTokenFamilyId = rotationResult.FamilyId,
+                RefreshTokenExpiresAt = rotationResult.RefreshTokenExpiresAt,
+                TokensRotated = true
             };
 
             _logger.LogInformation("Tokens refreshed successfully for user {UserId}", user.Id);
 
             return Ok(response);
+        }
+        catch (SecurityTokenException ex)
+        {
+            _logger.LogWarning(ex, "Refresh token rotation rejected: {Message}", ex.Message);
+            return Unauthorized(new ProblemDetails
+            {
+                Title = "Invalid Refresh Token",
+                Detail = ex.Message,
+                Status = (int)HttpStatusCode.Unauthorized
+            });
         }
         catch (Exception ex)
         {
@@ -246,6 +267,50 @@ public class AuthController : ControllerBase
             return Problem(
                 title: "Refresh Error",
                 detail: "An error occurred during token refresh",
+                statusCode: (int)HttpStatusCode.InternalServerError);
+        }
+    }
+
+    [HttpPost("revoke")]
+    [ProducesResponseType((int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(ProblemDetails), (int)HttpStatusCode.BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), (int)HttpStatusCode.NotFound)]
+    public async Task<IActionResult> RevokeRefreshTokenFamilyAsync([FromBody] RevokeTokenRequest request, CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        try
+        {
+            var result = await _jwtTokenService.RevokeRefreshTokenFamilyAsync(request.RefreshToken, cancellationToken);
+
+            if (result == null)
+            {
+                return NotFound(new ProblemDetails
+                {
+                    Title = "Refresh token not found",
+                    Detail = "No refresh token family matched the supplied token",
+                    Status = (int)HttpStatusCode.NotFound
+                });
+            }
+
+            _logger.LogInformation("Refresh token family {FamilyId} revoked with {Count} tokens", result.FamilyId, result.RevokedTokens.Count);
+
+            return Ok(new
+            {
+                message = "Refresh token family revoked",
+                familyId = result.FamilyId,
+                revokedTokens = result.RevokedTokens.Count
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error revoking refresh token family");
+            return Problem(
+                title: "Revocation Error",
+                detail: "An error occurred while revoking the refresh token family",
                 statusCode: (int)HttpStatusCode.InternalServerError);
         }
     }

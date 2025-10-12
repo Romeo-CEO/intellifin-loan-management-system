@@ -10,4 +10,6 @@ public class RefreshTokenResponse
     public DateTime ExpiresAt { get; set; }
     public string[] Scope { get; set; } = Array.Empty<string>();
     public bool TokensRotated { get; set; } = true;
+    public string RefreshTokenFamilyId { get; set; } = string.Empty;
+    public DateTime RefreshTokenExpiresAt { get; set; }
 }

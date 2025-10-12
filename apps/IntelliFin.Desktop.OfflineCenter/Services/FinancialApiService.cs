@@ -1,4 +1,6 @@
 ﻿using IntelliFin.Desktop.OfflineCenter.Models;
+using Microsoft.Maui.Storage;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -6,9 +8,11 @@ namespace IntelliFin.Desktop.OfflineCenter.Services;
 
 public class FinancialApiService : IFinancialApiService
 {
+    private const string RefreshTokenStorageKey = "IntelliFin.RefreshToken";
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerOptions _jsonOptions;
     private string? _authToken;
+    private string? _refreshToken;
 
     public FinancialApiService()
     {
@@ -46,27 +50,83 @@ public class FinancialApiService : IFinancialApiService
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<AuthResponse>(_jsonOptions);
-                _authToken = result?.Token;
-                
+                _authToken = result?.AccessToken;
+                _refreshToken = result?.RefreshToken;
+
                 if (!string.IsNullOrEmpty(_authToken))
                 {
-                    _httpClient.DefaultRequestHeaders.Authorization = 
-                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _authToken);
-                    return true;
+                    _httpClient.DefaultRequestHeaders.Authorization =
+                        new AuthenticationHeaderValue("Bearer", _authToken);
                 }
+
+                if (!string.IsNullOrEmpty(_refreshToken))
+                {
+                    await PersistRefreshTokenAsync(_refreshToken);
+                }
+
+                return !string.IsNullOrEmpty(_authToken) && !string.IsNullOrEmpty(_refreshToken);
             }
+
+            await ClearTokensAsync();
             return false;
         }
         catch
         {
+            await ClearTokensAsync();
             return false;
         }
     }
 
     public async Task LogoutAsync()
     {
-        _authToken = null;
-        _httpClient.DefaultRequestHeaders.Authorization = null;
+        await ClearTokensAsync();
+    }
+
+    public async Task<bool> RefreshSessionAsync(string? deviceId = null)
+    {
+        try
+        {
+            var refreshToken = await GetStoredRefreshTokenAsync();
+            if (string.IsNullOrEmpty(refreshToken))
+            {
+                return false;
+            }
+
+            var refreshRequest = new RefreshRequest
+            {
+                RefreshToken = refreshToken,
+                DeviceId = deviceId
+            };
+
+            var response = await _httpClient.PostAsJsonAsync("/api/auth/refresh", refreshRequest, _jsonOptions);
+            if (!response.IsSuccessStatusCode)
+            {
+                await ClearTokensAsync();
+                return false;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<RefreshResponse>(_jsonOptions);
+            if (result == null || string.IsNullOrEmpty(result.AccessToken) || string.IsNullOrEmpty(result.RefreshToken))
+            {
+                await ClearTokensAsync();
+                return false;
+            }
+
+            _authToken = result.AccessToken;
+            _refreshToken = result.RefreshToken;
+
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", _authToken);
+
+            await PersistRefreshTokenAsync(_refreshToken);
+
+            return true;
+        }
+        catch
+        {
+            await ClearTokensAsync();
+            return false;
+        }
     }
 
     public async Task<IEnumerable<OfflineLoan>> FetchLoansAsync()
@@ -311,11 +371,84 @@ public class FinancialApiService : IFinancialApiService
             return false;
         }
     }
+
+    private async Task PersistRefreshTokenAsync(string refreshToken)
+    {
+        try
+        {
+            await SecureStorage.Default.SetAsync(RefreshTokenStorageKey, refreshToken);
+        }
+        catch
+        {
+            Preferences.Set(RefreshTokenStorageKey, refreshToken);
+        }
+    }
+
+    private async Task<string?> GetStoredRefreshTokenAsync()
+    {
+        if (!string.IsNullOrEmpty(_refreshToken))
+        {
+            return _refreshToken;
+        }
+
+        try
+        {
+            var stored = await SecureStorage.Default.GetAsync(RefreshTokenStorageKey);
+            if (!string.IsNullOrEmpty(stored))
+            {
+                _refreshToken = stored;
+                return stored;
+            }
+        }
+        catch
+        {
+            var stored = Preferences.Get(RefreshTokenStorageKey, null);
+            _refreshToken = stored;
+            return stored;
+        }
+
+        return null;
+    }
+
+    private Task ClearTokensAsync()
+    {
+        _authToken = null;
+        _refreshToken = null;
+        _httpClient.DefaultRequestHeaders.Authorization = null;
+
+        try
+        {
+            SecureStorage.Default.Remove(RefreshTokenStorageKey);
+        }
+        catch
+        {
+            Preferences.Remove(RefreshTokenStorageKey);
+        }
+
+        return Task.CompletedTask;
+    }
 }
 
 public class AuthResponse
 {
-    public string Token { get; set; } = string.Empty;
+    public string AccessToken { get; set; } = string.Empty;
     public string RefreshToken { get; set; } = string.Empty;
     public DateTime ExpiresAt { get; set; }
+    public DateTime RefreshTokenExpiresAt { get; set; }
+    public string RefreshTokenFamilyId { get; set; } = string.Empty;
+}
+
+public class RefreshResponse
+{
+    public string AccessToken { get; set; } = string.Empty;
+    public string RefreshToken { get; set; } = string.Empty;
+    public DateTime ExpiresAt { get; set; }
+    public DateTime RefreshTokenExpiresAt { get; set; }
+    public string RefreshTokenFamilyId { get; set; } = string.Empty;
+}
+
+internal class RefreshRequest
+{
+    public string RefreshToken { get; set; } = string.Empty;
+    public string? DeviceId { get; set; }
 }

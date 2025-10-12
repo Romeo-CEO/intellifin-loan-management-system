@@ -1,3 +1,4 @@
+using IntelliFin.Shared.Observability;
 ﻿using IntelliFin.FinancialService.Services;
 using IntelliFin.Shared.Infrastructure.Messaging;
 using IntelliFin.Shared.DomainModels.Data;
@@ -10,6 +11,8 @@ using Polly;
 using Polly.Extensions.Http;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenTelemetryInstrumentation(builder.Configuration);
 
 // Add services to the container
 builder.Services.AddOpenApi();

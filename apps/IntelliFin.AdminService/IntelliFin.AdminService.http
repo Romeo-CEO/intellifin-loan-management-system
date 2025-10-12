@@ -1,0 +1,13 @@
+@host = https://localhost:7188
+
+### Health
+GET {{host}}/health
+
+### Readiness
+GET {{host}}/health/ready
+
+### Metrics
+GET {{host}}/metrics
+
+### Version
+GET {{host}}/api/admin/version

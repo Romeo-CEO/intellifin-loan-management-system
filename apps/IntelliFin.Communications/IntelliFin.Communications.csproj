@@ -26,4 +26,8 @@
     <ProjectReference Include="..\..\libs\IntelliFin.Shared.DomainModels\IntelliFin.Shared.DomainModels.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\libs\IntelliFin.Shared.Observability\IntelliFin.Shared.Observability.csproj" />
+  </ItemGroup>
+
 </Project>

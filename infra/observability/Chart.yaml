@@ -1,0 +1,25 @@
+apiVersion: v2
+name: observability-stack
+description: Helm chart for IntelliFin observability baseline (Jaeger + OpenTelemetry Collector + Prometheus/Grafana + Loki)
+version: 0.3.0
+appVersion: "1.0.0"
+type: application
+keywords:
+  - intellifin
+  - observability
+  - jaeger
+  - opentelemetry
+  - prometheus
+  - grafana
+  - loki
+maintainers:
+  - name: IntelliFin Platform Team
+    email: platform@intellifin.example
+sources:
+  - https://github.com/intellifin/platform
+dependencies:
+  - name: kube-prometheus-stack
+    alias: kubePrometheusStack
+    version: "55.5.0"
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: kubePrometheusStack.enabled

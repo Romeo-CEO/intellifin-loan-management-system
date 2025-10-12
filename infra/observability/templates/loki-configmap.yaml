@@ -1,0 +1,69 @@
+{{- if .Values.loki.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "observability.fullname" . }}-loki-config
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: loki
+  namespace: {{ .Release.Namespace }}
+data:
+  loki-config.yaml: |
+    auth_enabled: false
+    server:
+      http_listen_port: {{ .Values.loki.service.httpPort }}
+      grpc_listen_port: {{ .Values.loki.service.grpcPort }}
+      log_level: info
+    memberlist:
+      join_members:
+        - {{ include "observability.fullname" . }}-loki-gossip.{{ .Release.Namespace }}.svc.cluster.local:7946
+      abort_if_cluster_join_fails: false
+      bind_port: 7946
+    common:
+      path: /var/loki
+      ring:
+        kvstore:
+          store: memberlist
+    schema_config:
+      configs:
+        - from: "2024-01-01"
+          store: boltdb-shipper
+          object_store: s3
+          schema: v11
+          index:
+            prefix: loki_index_
+            period: 24h
+    storage_config:
+      aws:
+        s3: {{ printf "%s://%s" (ternary "http" "https" .Values.loki.minio.insecure) .Values.loki.minio.endpoint | quote }}
+        s3forcepathstyle: true
+        region: {{ .Values.loki.minio.region }}
+        bucketnames: {{ .Values.loki.minio.bucket }}
+        access_key_id: ${MINIO_ACCESS_KEY_ID}
+        secret_access_key: ${MINIO_SECRET_ACCESS_KEY}
+        insecure: {{ .Values.loki.minio.insecure | default false }}
+      boltdb_shipper:
+        shared_store: s3
+        active_index_directory: /var/loki/index
+        cache_location: /var/loki/cache
+    compactor:
+      working_directory: {{ .Values.loki.compactor.workingDirectory }}
+      shared_store: s3
+      retention_enabled: true
+      compactor_ring:
+        kvstore:
+          store: memberlist
+    limits_config:
+      retention_period: {{ .Values.loki.retentionPeriod }}
+      max_query_series: 5000
+      ingestion_rate_mb: 8
+      ingestion_burst_size_mb: 32
+      max_global_streams_per_user: 5000
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+    chunk_store_config:
+      max_look_back_period: {{ .Values.loki.retentionPeriod }}
+    table_manager:
+      retention_deletes_enabled: true
+      retention_period: {{ .Values.loki.retentionPeriod }}
+{{- end }}

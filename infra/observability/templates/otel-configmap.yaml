@@ -1,0 +1,34 @@
+{{- if .Values.otelCollector.enabled }}
+{{- $config := deepCopy .Values.otelCollector.config }}
+{{- if not ($config.exporters) }}
+{{- $_ := set $config "exporters" (dict) }}
+{{- end }}
+{{- if not ($config.exporters.jaeger) }}
+{{- $_ := set $config.exporters "jaeger" (dict) }}
+{{- end }}
+{{- $existingEndpoint := "" }}
+{{- if $config.exporters.jaeger.endpoint }}
+{{- $existingEndpoint = $config.exporters.jaeger.endpoint }}
+{{- end }}
+{{- $defaultEndpoint := printf "dns:///%s-jaeger:%d" (include "observability.fullname" .) .Values.jaeger.service.collectorGrpcPort }}
+{{- $_ := set $config.exporters.jaeger "endpoint" (default $defaultEndpoint $existingEndpoint) }}
+{{- if not ($config.exporters.loki) }}
+{{- $_ := set $config.exporters "loki" (dict) }}
+{{- end }}
+{{- $existingLokiEndpoint := "" }}
+{{- if $config.exporters.loki.endpoint }}
+{{- $existingLokiEndpoint = $config.exporters.loki.endpoint }}
+{{- end }}
+{{- $defaultLokiEndpoint := printf "http://%s-loki:%d/loki/api/v1/push" (include "observability.fullname" .) .Values.loki.service.httpPort }}
+{{- $_ := set $config.exporters.loki "endpoint" (default $defaultLokiEndpoint $existingLokiEndpoint) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "observability.fullname" . }}-otel-config
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+data:
+  collector-config.yaml: |
+    {{- toYaml $config | nindent 4 }}
+{{- end }}

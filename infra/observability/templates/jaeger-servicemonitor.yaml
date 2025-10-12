@@ -1,0 +1,21 @@
+{{- if and .Values.jaeger.enabled .Values.jaeger.metrics.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "observability.fullname" . }}-jaeger
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger
+    {{- with .Values.jaeger.metrics.serviceMonitor.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "observability.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: jaeger
+  endpoints:
+    - port: admin
+      path: /metrics
+      interval: {{ .Values.jaeger.metrics.serviceMonitor.interval }}
+{{- end }}

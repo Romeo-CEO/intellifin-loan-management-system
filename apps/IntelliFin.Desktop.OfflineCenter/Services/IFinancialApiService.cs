@@ -10,6 +10,7 @@ public interface IFinancialApiService
     // Authentication
     Task<bool> AuthenticateAsync(string username, string password);
     Task LogoutAsync();
+    Task<bool> RefreshSessionAsync(string? deviceId = null);
     
     // Data Synchronization
     Task<IEnumerable<OfflineLoan>> FetchLoansAsync();

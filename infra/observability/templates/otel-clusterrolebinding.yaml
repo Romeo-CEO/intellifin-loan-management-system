@@ -1,0 +1,17 @@
+{{- if .Values.otelCollector.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "observability.fullname" . }}-otel
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "observability.fullname" . }}-otel
+subjects:
+  - kind: ServiceAccount
+    name: {{ default (printf "%s-otel" (include "observability.fullname" .)) .Values.otelCollector.serviceAccount.name }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

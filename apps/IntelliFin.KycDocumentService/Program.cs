@@ -5,6 +5,7 @@ using Minio;
 using Serilog;
 using Azure.AI.FormRecognizer.DocumentAnalysis;
 using Azure.Identity;
+using IntelliFin.Shared.Observability;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -17,6 +18,8 @@ try
     Log.Information("Starting IntelliFin KYC Document Service");
 
     var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenTelemetryInstrumentation(builder.Configuration);
 
     // Add Serilog
     builder.Host.UseSerilog();

@@ -1,0 +1,17 @@
+1. Admin Service URL:
+{{- if .Values.ingress.enabled }}
+  https://{{ (index .Values.ingress.hosts 0).host }}
+{{- else }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "admin-service.fullname" . }} 8080:{{ .Values.service.port }}
+{{- end }}
+
+2. Health Checks:
+  Liveness:  GET /health
+  Readiness: GET /health/ready
+  Metrics:   GET /metrics
+
+3. Database connection secret:
+  {{ .Values.database.secretName }} (key: {{ .Values.database.connectionStringKey }})
+
+4. Keycloak client secret:
+  {{ .Values.keycloak.secretName }} (key: {{ .Values.keycloak.clientSecretKey }})

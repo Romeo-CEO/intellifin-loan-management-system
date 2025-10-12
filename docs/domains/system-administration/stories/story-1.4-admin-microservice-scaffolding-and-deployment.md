@@ -60,3 +60,20 @@ CREATE TABLE UserIdMapping (
 - **IV1**: Admin Service deployed to `admin` namespace with 3 replicas
 - **IV2**: API Gateway routes `/api/admin/*` to Admin Service
 - **IV3**: Admin Service connects to SQL Server and Keycloak
+
+---
+
+## Implementation Notes (Sprint 1)
+- Delivered the `IntelliFin.AdminService` ASP.NET Core 9 minimal API with OpenAPI, Prometheus metrics, and JSON health check responses.
+- Added Entity Framework Core context, initial migration, and automatic migration execution guarded by configuration.
+- Implemented Keycloak reachability health check leveraging the Admin REST discovery document.
+- Produced container build + Cosign signing script (`scripts/build-admin-service-image.sh`) alongside a multi-stage Dockerfile.
+- Authored a Helm chart (`infra/admin-service`) deploying three replicas with readiness/liveness probes, secret-based configuration, optional ServiceMonitor, and PodDisruptionBudget.
+- Extended API Gateway reverse proxy configuration so `/api/admin/*` routes to the Admin Service backend.
+
+## Operational Checklist
+1. Build & sign image: `IMAGE_TAG=1.0.0 scripts/build-admin-service-image.sh`
+2. Apply database/Keycloak secrets in the `admin` namespace.
+3. Install/upgrade Helm release: `helm upgrade --install admin-service infra/admin-service -n admin --set image.tag=1.0.0`
+4. Validate probes & metrics: `kubectl get pods -n admin`, curl `/health`, `/health/ready`, `/metrics`.
+5. Confirm API Gateway routing by calling `/api/admin/version` through the gateway.

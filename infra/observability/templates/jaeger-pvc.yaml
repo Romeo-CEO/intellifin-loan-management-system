@@ -1,0 +1,19 @@
+{{- if and .Values.jaeger.enabled .Values.jaeger.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "observability.fullname" . }}-jaeger
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger
+spec:
+  accessModes:
+    {{- range .Values.jaeger.persistence.accessModes }}
+    - {{ . }}
+    {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.jaeger.persistence.size }}
+  {{- if .Values.jaeger.persistence.storageClassName }}
+  storageClassName: {{ .Values.jaeger.persistence.storageClassName }}
+  {{- end }}

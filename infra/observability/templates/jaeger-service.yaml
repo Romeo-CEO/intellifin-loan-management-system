@@ -1,0 +1,33 @@
+{{- if .Values.jaeger.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "observability.fullname" . }}-jaeger
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger
+spec:
+  type: {{ .Values.jaeger.service.type }}
+  selector:
+    {{- include "observability.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger
+  ports:
+    - name: otlp-grpc
+      port: {{ .Values.jaeger.service.otlpGrpcPort }}
+      targetPort: otlp-grpc
+    - name: otlp-http
+      port: {{ .Values.jaeger.service.otlpHttpPort }}
+      targetPort: otlp-http
+    - name: collector-grpc
+      port: {{ .Values.jaeger.service.collectorGrpcPort }}
+      targetPort: collector-grpc
+    - name: collector-http
+      port: {{ .Values.jaeger.service.collectorHttpPort }}
+      targetPort: collector-http
+    - name: query-http
+      port: {{ .Values.jaeger.service.queryHttpPort }}
+      targetPort: query-http
+    - name: admin
+      port: {{ .Values.jaeger.service.adminPort }}
+      targetPort: admin
+{{- end }}

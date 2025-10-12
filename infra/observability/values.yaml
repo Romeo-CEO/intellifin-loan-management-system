@@ -1,0 +1,408 @@
+nameOverride: ""
+fullnameOverride: ""
+
+jaeger:
+  enabled: true
+  image:
+    repository: jaegertracing/all-in-one
+    tag: "1.51"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations: {}
+    hosts:
+      - host: jaeger.intellifin.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: jaeger-tls
+        hosts:
+          - jaeger.intellifin.local
+  service:
+    type: ClusterIP
+    otlpGrpcPort: 4317
+    otlpHttpPort: 4318
+    collectorGrpcPort: 14250
+    collectorHttpPort: 14268
+    queryHttpPort: 16686
+    adminPort: 14269
+  storage:
+    type: badger
+    options:
+      badger:
+        directory: /badger/data
+        ephemeral: false
+        spanStoreTtl: 168h
+        maintenanceInterval: 24h
+        # automatically compact storage daily
+        ephemeralBadger: false
+      memory:
+        maxTraces: 100000
+  persistence:
+    enabled: true
+    storageClassName: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 20Gi
+  env:
+    - name: COLLECTOR_OTLP_ENABLED
+      value: "true"
+    - name: SPAN_STORAGE_TYPE
+      value: "badger"
+    - name: BADGER_EPHEMERAL
+      value: "false"
+    - name: BADGER_DIRECTORY_KEY
+      value: /badger/key
+    - name: BADGER_DIRECTORY_VALUE
+      value: /badger/data
+    - name: BADGER_SPAN_STORE_TTL
+      value: 168h
+    - name: BADGER_MAINTENANCE_INTERVAL
+      value: 24h
+  metrics:
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      additionalLabels: {}
+
+otelCollector:
+  enabled: true
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.103.1"
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    create: true
+    name: ""
+  ports:
+    otlpGrpc: 4317
+    otlpHttp: 4318
+    metrics: 8888
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  tolerations: []
+  nodeSelector: {}
+  affinity: {}
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      batch:
+        send_batch_size: 512
+        timeout: 5s
+      memory_limiter:
+        check_interval: 5s
+        limit_mib: 400
+        spike_limit_mib: 200
+    exporters:
+      jaeger:
+        endpoint: ""
+        tls:
+          insecure: true
+      loki:
+        endpoint: ""
+        tenant_id: intellifin
+        default_labels_enabled:
+          exporter: false
+          job: false
+        labels:
+          resource:
+            service.name: service_name
+            service.namespace: service_namespace
+          attributes:
+            severityText: severity_text
+            traceId: trace_id
+            spanId: span_id
+        tls:
+          insecure: true
+      prometheus:
+        endpoint: 0.0.0.0:8888
+        namespace: intellifin
+        const_labels:
+          app: observability
+    service:
+      telemetry:
+        logs:
+          level: "info"
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [jaeger]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheus]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [loki]
+  metrics:
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      additionalLabels: {}
+
+loki:
+  enabled: true
+  image:
+    repository: grafana/loki
+    tag: "2.9.3"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  serviceAccount:
+    create: true
+    name: ""
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraEnv: []
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  service:
+    type: ClusterIP
+    httpPort: 3100
+    grpcPort: 9096
+  persistence:
+    enabled: true
+    storageClassName: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 50Gi
+  retentionPeriod: 2160h  # 90 days
+  compactor:
+    workingDirectory: /var/loki/compactor
+  minio:
+    endpoint: minio.intellifin.local:9000
+    region: us-east-1
+    bucket: intellifin-loki
+    insecure: true
+    existingSecret: loki-minio
+    accessKeyField: accesskey
+    secretKeyField: secretkey
+    accessKey: ""
+    secretKey: ""
+  metrics:
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      additionalLabels: {}
+
+promtail:
+  enabled: true
+  image:
+    repository: grafana/promtail
+    tag: "2.9.3"
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    create: true
+    name: ""
+  tenantID: intellifin
+  positionsPath: /run/promtail/positions.yaml
+  logLevel: info
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+  tolerations: []
+  nodeSelector: {}
+  affinity: {}
+  extraEnv: []
+  pipeline:
+    nrcExpression: '(?P<nrc>\\d{6}/\\d{2}/\\d{1})'
+    phoneExpression: '(?P<phone>\\+260\\d{9})'
+
+kubePrometheusStack:
+  enabled: true
+  global:
+    rbac:
+      pspEnabled: false
+  prometheusOperator:
+    enabled: true
+  alertmanager:
+    enabled: true
+    ingress:
+      enabled: false
+    alertmanagerSpec:
+      replicas: 1
+      retention: 120h
+    config:
+      global:
+        resolve_timeout: 5m
+      route:
+        receiver: "default"
+        group_by: ['alertname', 'cluster', 'service']
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 3h
+        routes:
+          - match:
+              severity: critical
+            receiver: "critical"
+            repeat_interval: 30m
+      receivers:
+        - name: "default"
+          webhook_configs:
+            - url: http://notification-gateway.intellifin.svc.cluster.local/api/alerts
+              send_resolved: true
+        - name: "critical"
+          webhook_configs:
+            - url: http://notification-gateway.intellifin.svc.cluster.local/api/alerts/critical
+              send_resolved: true
+  prometheus:
+    enabled: true
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    prometheusSpec:
+      retention: 30d
+      scrapeInterval: 15s
+      evaluationInterval: 15s
+      enableAdminAPI: true
+      serviceMonitorSelector: {}
+      podMonitorSelector: {}
+      ruleSelector: {}
+      ruleNamespaceSelector: {}
+      additionalScrapeConfigs: []
+      resources:
+        requests:
+          cpu: 500m
+          memory: 2Gi
+        limits:
+          cpu: "2"
+          memory: 4Gi
+  kube-state-metrics:
+    enabled: true
+  nodeExporter:
+    enabled: true
+  grafana:
+    enabled: true
+    defaultDashboardsEnabled: false
+    adminUser: admin
+    adminPassword: admin123
+    service:
+      type: ClusterIP
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      hosts:
+        - grafana.intellifin.local
+      tls:
+        - secretName: grafana-tls
+          hosts:
+            - grafana.intellifin.local
+    extraSecretMounts:
+      - name: grafana-keycloak-secret
+        secretName: grafana-keycloak-secret
+        defaultMode: 420
+        mountPath: /etc/secrets/grafana-keycloak
+        readOnly: true
+    grafana.ini:
+      server:
+        root_url: https://grafana.intellifin.local/
+        enforce_domain: true
+      auth:
+        oauth_auto_login: true
+        signout_redirect_url: https://keycloak.intellifin.local/realms/IntelliFin/protocol/openid-connect/logout?client_id=grafana
+      auth.generic_oauth:
+        enabled: true
+        name: Keycloak
+        allow_sign_up: true
+        client_id: grafana
+        client_secret: $__file{/etc/secrets/grafana-keycloak/client-secret}
+        scopes: openid profile email roles
+        email_attribute_path: email
+        login_attribute_path: preferred_username
+        auth_url: https://keycloak.intellifin.local/realms/IntelliFin/protocol/openid-connect/auth
+        token_url: https://keycloak.intellifin.local/realms/IntelliFin/protocol/openid-connect/token
+        api_url: https://keycloak.intellifin.local/realms/IntelliFin/protocol/openid-connect/userinfo
+        role_attribute_path: contains(resource_access.grafana.roles[*], 'admin') && 'Admin' || 'Viewer'
+      users:
+        auto_assign_org_role: Viewer
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        searchNamespace: ALL
+      datasources:
+        enabled: true
+        label: grafana_datasource
+        searchNamespace: ALL
+    dashboardProviders:
+      dashboardproviders.yaml:
+        apiVersion: 1
+        providers:
+          - name: intellifin
+            orgId: 1
+            folder: IntelliFin
+            type: file
+            disableDeletion: false
+            editable: true
+            options:
+              path: /var/lib/grafana/dashboards/intellifin
+
+serviceMonitors:
+  - name: api-gateway
+    namespace: gateway
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: intellifin-api-gateway
+    endpoints:
+      - port: http
+        path: /metrics
+        scheme: http
+        interval: 15s
+  - name: admin-service
+    namespace: admin
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: intellifin-admin-service
+    endpoints:
+      - port: http
+        path: /metrics
+        interval: 15s
+  - name: loan-origination
+    namespace: lending
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: intellifin-loan-origination
+    endpoints:
+      - port: http
+        path: /metrics
+        interval: 15s
+  - name: credit-bureau
+    namespace: integrations
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: intellifin-credit-bureau
+    endpoints:
+      - port: http
+        path: /metrics
+        interval: 15s

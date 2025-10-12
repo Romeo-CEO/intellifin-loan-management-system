@@ -1,4 +1,6 @@
-﻿namespace IntelliFin.Desktop.OfflineCenter.Services;
+﻿using Microsoft.Maui.Storage;
+
+namespace IntelliFin.Desktop.OfflineCenter.Services;
 
 public class AuthenticationService : IAuthenticationService
 {
@@ -77,9 +79,16 @@ public class AuthenticationService : IAuthenticationService
 
         try
         {
-            // In a real implementation, this would refresh the JWT token
-            var isConnected = await _financialApiService.CheckConnectivityAsync();
-            return isConnected;
+            var refreshed = await _financialApiService.RefreshSessionAsync();
+            if (!refreshed)
+            {
+                _isAuthenticated = false;
+                Preferences.Remove("CurrentUser");
+                Preferences.Remove("LastLoginTime");
+                OnAuthenticationStateChanged(false, null);
+            }
+
+            return refreshed;
         }
         catch
         {

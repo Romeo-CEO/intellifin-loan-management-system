@@ -1,5 +1,6 @@
 using IntelliFin.IdentityService.Extensions;
 using Serilog;
+using IntelliFin.Shared.Observability;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -12,6 +13,8 @@ try
     Log.Information("Starting IntelliFin Identity Service");
 
     var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenTelemetryInstrumentation(builder.Configuration);
 
     // Add Serilog
     builder.Host.UseSerilog();
