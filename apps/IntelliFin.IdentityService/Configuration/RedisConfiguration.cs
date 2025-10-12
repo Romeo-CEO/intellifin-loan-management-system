@@ -7,6 +7,7 @@ public class RedisConfiguration
     public int Database { get; set; } = 0;
     public int SessionTimeoutMinutes { get; set; } = 30;
     public int RefreshTokenTimeoutDays { get; set; } = 7;
+    public int TokenFamilyRetentionDays { get; set; } = 7;
     public int TokenDenylistTimeoutMinutes { get; set; } = 60;
     public bool AbortOnConnectFail { get; set; } = false;
     public int ConnectRetry { get; set; } = 3;

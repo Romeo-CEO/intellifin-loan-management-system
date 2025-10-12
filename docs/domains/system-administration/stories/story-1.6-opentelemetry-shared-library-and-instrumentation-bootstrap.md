@@ -79,12 +79,20 @@ public class AdaptiveSampler : Sampler
 
         // Sample 10% of normal requests
         return new SamplingResult(
-            Random.Shared.NextDouble() < 0.1 
-                ? SamplingDecision.RecordAndSample 
+            Random.Shared.NextDouble() < 0.1
+                ? SamplingDecision.RecordAndSample
                 : SamplingDecision.Drop);
     }
 }
 ```
+
+### Implementation Notes
+
+- The shared extension enforces W3C trace propagation for both HTTP headers and RabbitMQ message properties by registering a composite propagator that includes a custom `RabbitMqPropagator` adapter.
+- Database command enrichment masks sensitive connection string fields before adding them to spans to avoid leaking credentials while still providing connection metadata for troubleshooting.
+- Service metadata (`ServiceName`, `ServiceVersion`, `Environment`) is sourced from configuration with sensible fallbacks to assembly information and environment variables so telemetry remains tagged even when settings are omitted.
+- Default OTLP endpoints (`http://otel-collector:4317`) are included in each microservice `appsettings.json`, allowing operators to override the collector target through configuration without code changes.
+- All ASP.NET Core services reference the new shared library and call `AddOpenTelemetryInstrumentation(builder.Configuration)` during startup, ensuring consistent tracing and metrics registration across the fleet.
 
 ### Integration Verification
 - **IV1**: Existing service functionality unaffected

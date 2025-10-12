@@ -1,0 +1,123 @@
+{{- if .Values.loki.enabled }}
+{{- $fullName := include "observability.fullname" . -}}
+{{- $saName := ternary (default (printf "%s-loki" $fullName) .Values.loki.serviceAccount.name) .Values.loki.serviceAccount.name .Values.loki.serviceAccount.create -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullName }}-loki
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: loki
+spec:
+  serviceName: {{ $fullName }}-loki-gossip
+  replicas: {{ .Values.loki.replicas }}
+  selector:
+    matchLabels:
+      {{- include "observability.loki.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "observability.loki.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ $saName }}
+      securityContext:
+        fsGroup: 10001
+      containers:
+        - name: loki
+          image: {{ .Values.loki.image.repository }}:{{ .Values.loki.image.tag }}
+          imagePullPolicy: {{ .Values.loki.image.pullPolicy }}
+          args:
+            - -config.file=/etc/loki/config/loki-config.yaml
+            - -config.expand-env=true
+          ports:
+            - name: http
+              containerPort: {{ .Values.loki.service.httpPort }}
+            - name: grpc
+              containerPort: {{ .Values.loki.service.grpcPort }}
+            - name: gossip
+              containerPort: 7946
+          env:
+            {{- $minio := .Values.loki.minio }}
+            {{- if $minio.existingSecret }}
+            - name: MINIO_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $minio.existingSecret }}
+                  key: {{ $minio.accessKeyField }}
+            - name: MINIO_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $minio.existingSecret }}
+                  key: {{ $minio.secretKeyField }}
+            {{- else if and $minio.accessKey $minio.secretKey }}
+            - name: MINIO_ACCESS_KEY_ID
+              value: {{ $minio.accessKey | quote }}
+            - name: MINIO_SECRET_ACCESS_KEY
+              value: {{ $minio.secretKey | quote }}
+            {{- end }}
+            - name: LOKI_RETENTION_PERIOD
+              value: {{ .Values.loki.retentionPeriod | quote }}
+            {{- range .Values.loki.extraEnv }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.loki.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          volumeMounts:
+            - name: loki-config
+              mountPath: /etc/loki/config
+            - name: loki-data
+              mountPath: /var/loki
+      volumes:
+        - name: loki-config
+          configMap:
+            name: {{ $fullName }}-loki-config
+            items:
+              - key: loki-config.yaml
+                path: loki-config.yaml
+        {{- if not .Values.loki.persistence.enabled }}
+        - name: loki-data
+          emptyDir: {}
+        {{- end }}
+      {{- with .Values.loki.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.loki.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.loki.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- if .Values.loki.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: loki-data
+      spec:
+        accessModes:
+          {{- range .Values.loki.persistence.accessModes }}
+          - {{ . }}
+          {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.loki.persistence.size }}
+        {{- if .Values.loki.persistence.storageClassName }}
+        storageClassName: {{ .Values.loki.persistence.storageClassName }}
+        {{- end }}
+{{- end }}
+{{- end }}

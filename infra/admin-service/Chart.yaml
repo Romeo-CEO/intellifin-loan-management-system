@@ -1,0 +1,15 @@
+apiVersion: v2
+name: admin-service
+description: Helm chart for IntelliFin Admin Service
+version: 0.1.0
+appVersion: "1.0.0"
+type: application
+keywords:
+  - intellifin
+  - admin
+  - control-plane
+maintainers:
+  - name: IntelliFin Platform Team
+    email: platform@intellifin.example
+sources:
+  - https://github.com/intellifin/platform

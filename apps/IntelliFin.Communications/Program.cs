@@ -10,8 +10,11 @@ using MassTransit;
 using Polly;
 using Polly.Extensions.Http;
 using Microsoft.EntityFrameworkCore;
+using IntelliFin.Shared.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenTelemetryInstrumentation(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

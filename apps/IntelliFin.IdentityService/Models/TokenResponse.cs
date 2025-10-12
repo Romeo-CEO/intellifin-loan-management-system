@@ -9,6 +9,8 @@ public class TokenResponse
     public DateTime IssuedAt { get; set; }
     public DateTime ExpiresAt { get; set; }
     public string[] Scope { get; set; } = Array.Empty<string>();
+    public string RefreshTokenFamilyId { get; set; } = string.Empty;
+    public DateTime RefreshTokenExpiresAt { get; set; }
     public UserInfo User { get; set; } = new();
 }
 

@@ -1,0 +1,79 @@
+replicaCount: 3
+
+environment: Production
+
+image:
+  repository: ghcr.io/intellifin/admin-service
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  allowPrivilegeEscalation: false
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+database:
+  secretName: admin-service-database
+  connectionStringKey: connectionString
+
+keycloak:
+  baseUrl: https://keycloak.intellifin.local/
+  realm: IntelliFin
+  clientId: admin-service
+  secretName: admin-service-keycloak
+  clientSecretKey: clientSecret
+
+metrics:
+  serviceMonitor:
+    enabled: false
+    namespace: monitoring
+    interval: 30s
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: admin.intellifin.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []

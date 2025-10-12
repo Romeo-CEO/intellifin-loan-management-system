@@ -1,0 +1,28 @@
+{{- if and .Values.kubePrometheusStack.enabled .Values.kubePrometheusStack.grafana.enabled .Values.loki.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "observability.fullname" . }}-grafana-loki-datasource
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "observability.monitoring.labels" . | nindent 4 }}
+    grafana_datasource: "1"
+data:
+  loki-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        url: http://{{ include "observability.fullname" . }}-loki:{{ .Values.loki.service.httpPort }}
+        jsonData:
+          maxLines: 5000
+          derivedFields:
+            - name: traceId
+              matcherRegex: "trace_id=(\\w+)"
+              url: https://jaeger.intellifin.local/trace/$${__value.raw}
+        basicAuth: false
+        isDefault: false
+        editable: false
+{{- end }}

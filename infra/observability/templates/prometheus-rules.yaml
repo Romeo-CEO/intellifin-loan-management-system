@@ -1,0 +1,62 @@
+{{- if and .Values.kubePrometheusStack.enabled .Values.kubePrometheusStack.prometheus.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "observability.fullname" . }}-platform-rules
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "observability.monitoring.labels" . | nindent 4 }}
+    prometheus: {{ .Release.Name }}
+    role: alert-rules
+spec:
+  groups:
+    - name: platform.availability
+      interval: 1m
+      rules:
+        - alert: ServiceInstanceDown
+          expr: kube_endpoint_address_not_ready > 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Service endpoint has unavailable pods"
+            description: "{{`{{`}} $labels.namespace {{`}}`}}/{{`{{`}} $labels.service {{`}}`}} has {{`{{`}} $value {{`}}`}} endpoints reporting not ready."
+        - alert: ApiGatewayHighErrorRate
+          expr: sum(rate(http_server_duration_seconds_count{service="intellifin-api-gateway", http_status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_server_duration_seconds_count{service="intellifin-api-gateway"}[5m]))
+            > 0.05
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "API Gateway 5xx error rate is above 5%"
+            description: "The API Gateway has sustained high error rates over the last 5 minutes. Investigate upstream dependencies."
+        - alert: KeycloakTokenFailures
+          expr: sum(rate(keycloak_authentication_requests_total{outcome="failed"}[5m])) > 5
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Keycloak authentication failures detected"
+            description: "Keycloak is returning failed authentications at a rate above 5 per second."
+    - name: platform.latency
+      interval: 1m
+      rules:
+        - alert: LoanOriginationLatencySLO
+          expr: histogram_quantile(0.95, sum(rate(http_server_duration_seconds_bucket{service="intellifin-loan-origination"}[5m])) by (le)) > 0.8
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Loan Origination p95 latency above 800ms"
+            description: "The Loan Origination service p95 latency exceeded 800ms for 10 minutes."
+        - alert: DatabaseDeadlockSpike
+          expr: sum(rate(sql_server_deadlocks_total[5m])) > 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Database deadlock spike detected"
+            description: "Deadlocks per minute exceeded 1. Investigate contention hotspots."
+{{- end }}

@@ -56,3 +56,8 @@ services.AddAuthorization(options =>
 - **IV1**: All existing API endpoints validate successfully with old JWTs
 - **IV2**: New Keycloak JWTs accepted and propagated to downstream services
 - **IV3**: Performance <10ms additional latency for dual-token validation
+
+### Implementation Notes
+- API Gateway configures dual JWT bearer schemes (`Legacy`, `Keycloak`) with automatic scheme selection based on the token issuer and a configurable 30-day legacy support window.
+- Keycloak tokens contribute `branchId`/`branchName` headers (`X-Branch-Id`, `X-Branch-Name`) alongside `X-Token-Type` for downstream services.
+- Authentication success events log token type metadata to the shared audit trail via `IAuditService` to satisfy compliance tracking.

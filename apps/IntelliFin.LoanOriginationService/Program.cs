@@ -7,8 +7,11 @@ using Microsoft.EntityFrameworkCore;
 using MassTransit;
 using Zeebe.Client;
 using Zeebe.Client.Api.Builder;
+using IntelliFin.Shared.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenTelemetryInstrumentation(builder.Configuration);
 
 // Add services to the container
 builder.Services.AddOpenApi();

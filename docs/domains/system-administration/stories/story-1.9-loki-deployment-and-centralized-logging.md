@@ -52,3 +52,19 @@ scrape_configs:
 - **IV1**: Existing file-based logging functional (dual logging during transition)
 - **IV2**: Log search performance <3 seconds for 1-hour queries
 - **IV3**: Log volume within NFR8 estimate (2TB for 90-day retention)
+
+### Implementation Notes
+
+- Extended the `infra/observability` Helm chart (v0.3.0) with a Loki StatefulSet that persists
+  90-day log history to MinIO via boltdb-shipper/compactor configuration, memberlist gossip
+  service, and configurable credentials sourced from Kubernetes secrets.
+- Added a Promtail DaemonSet + RBAC that tails pod stdout/stderr, applies NRC/phone-number regex
+  redaction, and forwards sanitized log entries to Loki using OTLP-compatible clients.
+- Updated the shared OpenTelemetry Collector configuration to emit structured logs to Loki while
+  keeping traces in Jaeger and metrics in Prometheus, ensuring a single OTLP ingestion point for all
+  services.
+- Provisioned a Grafana Loki data source and "Centralized Logging Overview" dashboard that
+  demonstrates the Story 1.9 sample LogQL queries (error logs, audit correlation IDs, high-latency
+  API calls, and failed authentication attempts) for immediate operator value.
+- Documented the new stack capabilities and validation workflow in
+  `infra/observability/README.md` for operations hand-off.

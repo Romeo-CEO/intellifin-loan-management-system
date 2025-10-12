@@ -60,7 +60,21 @@ jaeger-all-in-one:
         value: "memory"
 ```
 
+### Implementation Notes
+
+- Added the `infra/observability` Helm chart that bundles a Jaeger all-in-one Deployment,
+  persistent Badger volume, HTTPS ingress, and Prometheus monitoring resources.
+- Provisioned an OpenTelemetry Collector DaemonSet with RBAC, config map templating, OTLP
+  receivers, batching + memory limiter processors, and Jaeger/Prometheus exporters.
+- Default values align with Story 1.7 requirements: UI at
+  `https://jaeger.intellifin.local`, seven-day trace retention via Badger TTL, and OTLP gRPC
+  forwarding to the Jaeger collector service.
+- ServiceMonitors publish Jaeger admin and collector pipeline metrics for platform observability.
+
 ### Integration Verification
-- **IV1**: Trace collection doesn't impact service latency
-- **IV2**: Traces searchable by correlation ID, service name, operation
-- **IV3**: Error traces (5xx responses) automatically highlighted
+- **IV1**: Trace collection doesn't impact service latency (batch processor configured with modest
+  limits; collector runs as DaemonSet to avoid cross-node hops)
+- **IV2**: Traces searchable by correlation ID, service name, operation (Jaeger UI backed by
+  persistent Badger store)
+- **IV3**: Error traces (5xx responses) automatically highlighted (OpenTelemetry instrumentation
+  already tags error spans; Jaeger UI surfaces them visually)

@@ -47,6 +47,8 @@ public static class ServiceCollectionExtensions
         }
 
         // Services
+        services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<ITokenFamilyService, TokenFamilyService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<ISessionService, SessionService>();

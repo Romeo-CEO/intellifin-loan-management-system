@@ -1,0 +1,21 @@
+{{- if and .Values.otelCollector.enabled .Values.otelCollector.metrics.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "observability.fullname" . }}-otel
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+    {{- with .Values.otelCollector.metrics.serviceMonitor.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "observability.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: otel-collector
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.otelCollector.metrics.serviceMonitor.interval }}
+      path: /metrics
+{{- end }}

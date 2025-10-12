@@ -1,0 +1,36 @@
+{{- if and .Values.jaeger.enabled .Values.jaeger.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "observability.fullname" . }}-jaeger
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger
+  {{- with .Values.jaeger.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.jaeger.ingress.className }}
+  ingressClassName: {{ .Values.jaeger.ingress.className }}
+  {{- end }}
+  {{- if .Values.jaeger.ingress.tls }}
+  tls:
+    {{- toYaml .Values.jaeger.ingress.tls | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.jaeger.ingress.hosts }}
+    - host: {{ .host }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "observability.fullname" $ }}-jaeger
+                port:
+                  number: {{ $.Values.jaeger.service.queryHttpPort }}
+          {{- end }}
+    {{- end }}
+{{- end }}

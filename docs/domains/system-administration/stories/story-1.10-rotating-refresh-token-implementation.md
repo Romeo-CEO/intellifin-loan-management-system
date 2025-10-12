@@ -6,8 +6,8 @@
 - **Blocks**: None
 
 ### User Story
-**As a** security engineer,  
-**I want** Keycloak refresh tokens to rotate on every refresh operation,  
+**As a** security engineer,
+**I want** Keycloak refresh tokens to rotate on every refresh operation,
 **so that** we reduce security risk from long-lived refresh token theft.
 
 ### Acceptance Criteria
@@ -19,50 +19,20 @@
 6. Audit events logged for refresh operations and token family revocations
 7. Documentation updated with refresh token rotation flow diagrams
 
-### Implementation
-```csharp
-// Keycloak realm configuration
-{
-  "realm": "IntelliFin",
-  "refreshTokenMaxReuse": 0,  // No reuse allowed - forces rotation
-  "revokeRefreshToken": true,  // Old tokens immediately revoked
-  "refreshTokenLifespan": 1800  // 30 minutes
-}
+### Implementation Overview
+- Enabled Keycloak realm policies to revoke refresh tokens immediately, forbid reuse (`refreshTokenMaxReuse=0`), and limit lifespan to 30 minutes.
+- Added Redis-backed token family tracking with reuse detection, exponential backoff-safe revocation, and audit logging inside the Identity Service.
+- Extended `/api/auth/refresh` to emit rotated tokens plus family metadata and introduced `/api/auth/revoke` to invalidate an entire refresh-token family.
+- Updated the MAUI offline client to persist rotated refresh tokens securely, request new tokens automatically, and clear stored credentials when rotation fails.
 
-// Redis token family tracking
-public class TokenFamilyService
-{
-    private readonly IDistributedCache _redis;
-    
-    public async Task TrackTokenFamilyAsync(string tokenId, string familyId)
-    {
-        var family = await _redis.GetStringAsync($"token_family:{familyId}");
-        var tokenList = family != null ? JsonSerializer.Deserialize<List<string>>(family) : new List<string>();
-        tokenList.Add(tokenId);
-        await _redis.SetStringAsync($"token_family:{familyId}", JsonSerializer.Serialize(tokenList), 
-            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(7) });
-    }
-    
-    public async Task<bool> IsTokenFamilyCompromisedAsync(string tokenId, string familyId)
-    {
-        var family = await _redis.GetStringAsync($"token_family:{familyId}");
-        if (family == null) return false;
-        
-        var tokenList = JsonSerializer.Deserialize<List<string>>(family);
-        
-        // If trying to use a token that's not the latest in the family, it's compromised
-        return tokenList.LastOrDefault() != tokenId && tokenList.Contains(tokenId);
-    }
-    
-    public async Task RevokeEntireTokenFamilyAsync(string familyId)
-    {
-        await _redis.SetStringAsync($"token_family_revoked:{familyId}", "true", 
-            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(7) });
-    }
-}
-```
+### Runtime Notes
+- **Keycloak Configuration**: `infra/keycloak/realm/IntelliFin-realm.json` sets `revokeRefreshToken`, `refreshTokenMaxReuse`, and `refreshTokenLifespan` for the IntelliFin realm.
+- **Identity Service**: `JwtTokenService` coordinates Redis token families via `TokenFamilyService`, logs `refresh_token.rotated` and `refresh_token.family_revoked` audit events, and enforces reuse detection before issuing new tokens.
+- **Client Updates**: `FinancialApiService` now calls `/api/auth/refresh`, persists the returned refresh token (secure storage fallback to preferences), and updates `AuthenticationService.RefreshTokenAsync` to respond to rotation results.
 
-### Integration Verification
-- **IV1**: Existing refresh token logic updated without breaking active sessions
-- **IV2**: Performance test confirms refresh operation <500ms
-- **IV3**: Token theft simulation validates revocation chain works
+### Validation Checklist
+- [ ] Keycloak admin console confirms realm policy changes after import.
+- [ ] Redis shows `token_family`, `token_family_latest`, and `token_family_revoked` keys per session.
+- [ ] `POST /api/auth/refresh` returns HTTP 200 with new refresh token while invalid reuse returns HTTP 401 and revokes family.
+- [ ] `POST /api/auth/revoke` removes the family and subsequent refresh attempts fail with 401.
+- [ ] MAUI app refreshes access tokens without user intervention and clears storage on failure.
