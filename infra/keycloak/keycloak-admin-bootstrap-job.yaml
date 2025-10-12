@@ -1,0 +1,90 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-admin-bootstrap
+  namespace: keycloak
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: identity-automation
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keycloak
+        app.kubernetes.io/component: identity-automation
+    spec:
+      serviceAccountName: keycloak
+      restartPolicy: OnFailure
+      containers:
+        - name: configure-admin
+          image: quay.io/keycloak/keycloak:24.0.4
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KEYCLOAK_URL
+              value: http://keycloak.keycloak.svc.cluster.local:8080
+            - name: BOOTSTRAP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin-bootstrap
+                  key: username
+            - name: BOOTSTRAP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin-bootstrap
+                  key: password
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin-bootstrap
+                  key: email
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              echo "Waiting for Keycloak readiness..."
+              until curl -sf "${KEYCLOAK_URL}/health/ready" > /dev/null; do
+                sleep 5
+              done
+              /opt/keycloak/bin/kcadm.sh config credentials \
+                --server "${KEYCLOAK_URL}" \
+                --realm master \
+                --user "${BOOTSTRAP_USERNAME}" \
+                --password "${BOOTSTRAP_PASSWORD}"
+              /opt/keycloak/bin/kcadm.sh create roles -r IntelliFin -s name=system-administrator -s description="Full administration rights for IntelliFin realm" -s composite=false >/dev/null 2>&1 || true
+              /opt/keycloak/bin/kcadm.sh update roles/system-administrator -r IntelliFin -s description="Full administration rights for IntelliFin realm"
+              /opt/keycloak/bin/kcadm.sh create roles -r IntelliFin -s name=audit-viewer -s description="Read-only access to realm audit events" -s composite=false >/dev/null 2>&1 || true
+              /opt/keycloak/bin/kcadm.sh update roles/audit-viewer -r IntelliFin -s description="Read-only access to realm audit events"
+              admin_payload=$(/opt/keycloak/bin/kcadm.sh get users -r IntelliFin -q username=keycloak-admin)
+              admin_id=$(echo "${admin_payload}" | tr -d '\n' | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+              if [ -z "${admin_id}" ]; then
+                admin_id=$(/opt/keycloak/bin/kcadm.sh create users -r IntelliFin \
+                  -s username=keycloak-admin \
+                  -s enabled=true \
+                  -s firstName=IntelliFin \
+                  -s lastName=Administrator \
+                  -s email="${ADMIN_EMAIL}" \
+                  -s emailVerified=true \
+                  -s requiredActions='["CONFIGURE_TOTP"]' \
+                  -i)
+              else
+                /opt/keycloak/bin/kcadm.sh update "users/${admin_id}" -r IntelliFin \
+                  -s enabled=true \
+                  -s email="${ADMIN_EMAIL}" \
+                  -s emailVerified=true \
+                  -s requiredActions='["CONFIGURE_TOTP"]'
+              fi
+              /opt/keycloak/bin/kcadm.sh set-password -r IntelliFin --userid "${admin_id}" --new-password "${BOOTSTRAP_PASSWORD}" --temporary=false
+              /opt/keycloak/bin/kcadm.sh add-roles -r IntelliFin --uusername keycloak-admin --cclientid realm-management --rolename realm-admin >/dev/null 2>&1 || true
+              /opt/keycloak/bin/kcadm.sh add-roles -r IntelliFin --uusername keycloak-admin --cclientid account --rolename manage-account >/dev/null 2>&1 || true
+              /opt/keycloak/bin/kcadm.sh add-roles -r IntelliFin --uusername keycloak-admin --rolename system-administrator >/dev/null 2>&1 || true
+              /opt/keycloak/bin/kcadm.sh create groups -r IntelliFin -s name="System Administrators" >/dev/null 2>&1 || true
+              system_admin_group=$(/opt/keycloak/bin/kcadm.sh get groups -r IntelliFin -q search="System Administrators" | tr -d '\n' | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)"[[:space:]]*,[[:space:]]*"name"[[:space:]]*:[[:space:]]*"System Administrators".*/\1/p')
+              if [ -z "${system_admin_group}" ]; then
+                system_admin_group=$(/opt/keycloak/bin/kcadm.sh get groups -r IntelliFin | tr -d '\n' | sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"System Administrators"[[:space:]]*,[[:space:]]*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+              fi
+              /opt/keycloak/bin/kcadm.sh update "users/${admin_id}/groups/${system_admin_group}" -r IntelliFin -n || true
+              /opt/keycloak/bin/kcadm.sh update realms/IntelliFin -s browserFlow=browser -s otpPolicyCodeReusable=false -s otpPolicyType=totp -s otpPolicyDigits=6 -s otpPolicyPeriod=30
+              echo "Keycloak administrative bootstrap complete"

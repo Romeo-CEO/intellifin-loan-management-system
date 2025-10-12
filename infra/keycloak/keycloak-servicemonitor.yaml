@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: keycloak
+  namespace: keycloak
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+  namespaceSelector:
+    matchNames:
+      - keycloak
+  endpoints:
+    - port: http
+      interval: 30s
+      path: /metrics
+      scheme: http
+      scrapeTimeout: 10s

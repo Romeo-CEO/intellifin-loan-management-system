@@ -1,0 +1,249 @@
+{
+  "title": "IntelliFin Keycloak Overview",
+  "timezone": "Africa/Lusaka",
+  "schemaVersion": 38,
+  "version": 1,
+  "tags": [
+    "Keycloak"
+  ],
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "graph",
+      "title": "Successful Login Rate",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${PROMETHEUS_UID}"
+      },
+      "targets": [
+        {
+          "expr": "rate(keycloak_org_keycloak_events_total{type=\"LOGIN\",realm=\"IntelliFin\"}[5m])",
+          "legendFormat": "Successful logins"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 20,
+            "lineWidth": 2
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "type": "graph",
+      "title": "Failed Login Attempts",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${PROMETHEUS_UID}"
+      },
+      "targets": [
+        {
+          "expr": "rate(keycloak_org_keycloak_events_total{type=~\"LOGIN_ERROR.*\",realm=\"IntelliFin\"}[5m])",
+          "legendFormat": "Failed logins"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "custom": {
+            "fillOpacity": 20,
+            "lineWidth": 2
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Active Sessions",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${PROMETHEUS_UID}"
+      },
+      "targets": [
+        {
+          "expr": "sum(keycloak_org_keycloak_sessions{realm=\"IntelliFin\"})",
+          "legendFormat": "Sessions"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 2000 },
+              { "color": "red", "value": 4000 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "id": 4,
+      "type": "graph",
+      "title": "Token Issuance Rate",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${PROMETHEUS_UID}"
+      },
+      "targets": [
+        {
+          "expr": "rate(keycloak_org_keycloak_token_issued_total{outcome=\"SUCCESS\",realm=\"IntelliFin\"}[5m])",
+          "legendFormat": "Tokens"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#14B8A6"
+          },
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "HTTP Gateway Success",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${PROMETHEUS_UID}"
+      },
+      "targets": [
+        {
+          "expr": "avg(rate(keycloak_org_keycloak_requests_duration_seconds_count{outcome=\"SUCCESS\",host=\"keycloak.keycloak.svc.cluster.local\",realm=\"IntelliFin\"}[5m]))",
+          "legendFormat": "Success"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 50 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Request Latency (p95)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${PROMETHEUS_UID}"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(keycloak_org_keycloak_requests_duration_seconds_bucket{host=\"keycloak.keycloak.svc.cluster.local\",realm=\"IntelliFin\"}[5m])) by (le))",
+          "legendFormat": "p95 latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.5 },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      }
+    }
+  ]
+}

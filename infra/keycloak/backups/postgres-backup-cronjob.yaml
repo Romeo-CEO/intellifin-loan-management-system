@@ -1,0 +1,118 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: keycloak-postgresql-backup
+  namespace: keycloak
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: backups
+spec:
+  schedule: "0 1 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: keycloak
+            app.kubernetes.io/component: backups
+        spec:
+          serviceAccountName: keycloak-backup
+          restartPolicy: OnFailure
+          securityContext:
+            fsGroup: 1000
+          initContainers:
+            - name: pgdump
+              image: postgres:16.3
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: keycloak-db-credentials
+                      key: password
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: keycloak-db-credentials
+                      key: username
+              command:
+                - sh
+                - -c
+                - |
+                  set -euo pipefail
+                  timestamp=$(date -u +%Y%m%d%H%M%S)
+                  export BACKUP_FILE="/backups/keycloak-${timestamp}.dump.gz"
+                  pg_dump \
+                    --dbname="keycloak_db" \
+                    --host="keycloak-postgresql.keycloak.svc.cluster.local" \
+                    --username="${POSTGRES_USER}" \
+                    --format=custom \
+                    --no-owner \
+                    --file=- | gzip -c > "${BACKUP_FILE}"
+                  echo "${BACKUP_FILE}" > /backups/.latest
+              volumeMounts:
+                - name: backup-workdir
+                  mountPath: /backups
+          containers:
+            - name: sync-to-minio
+              image: quay.io/minio/mc:RELEASE.2024-07-16T15-13-19Z
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: MINIO_PRIMARY_ENDPOINT
+                  value: https://minio.intellifin.local
+                - name: MINIO_DR_ENDPOINT
+                  value: https://minio-dr.intellifin.local
+                - name: MINIO_BUCKET
+                  value: intellifin-keycloak-backups
+                - name: MINIO_PREFIX
+                  value: postgresql
+                - name: ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: keycloak-minio-backup
+                      key: accessKey
+                - name: SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: keycloak-minio-backup
+                      key: secretKey
+                - name: DR_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: keycloak-minio-backup
+                      key: drAccessKey
+                - name: DR_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: keycloak-minio-backup
+                      key: drSecretKey
+              command:
+                - sh
+                - -c
+                - |
+                  set -euo pipefail
+                  mc alias set primary "${MINIO_PRIMARY_ENDPOINT}" "${ACCESS_KEY}" "${SECRET_KEY}"
+                  mc alias set dr "${MINIO_DR_ENDPOINT}" "${DR_ACCESS_KEY}" "${DR_SECRET_KEY}"
+                  backup_file=$(cat /backups/.latest)
+                  backup_name=$(basename "${backup_file}")
+                  primary_path="primary/${MINIO_BUCKET}/${MINIO_PREFIX}/${backup_name}"
+                  dr_path="dr/${MINIO_BUCKET}/${MINIO_PREFIX}/${backup_name}"
+                  mc mb --ignore-existing "primary/${MINIO_BUCKET}"
+                  mc mb --ignore-existing "dr/${MINIO_BUCKET}"
+                  mc cp "${backup_file}" "${primary_path}"
+                  mc cp "${backup_file}" "${dr_path}"
+                  mc find "primary/${MINIO_BUCKET}/${MINIO_PREFIX}" --older-than 720h --exec "mc rm {}"
+                  mc find "dr/${MINIO_BUCKET}/${MINIO_PREFIX}" --older-than 720h --exec "mc rm {}"
+                  rm -f "${backup_file}" /backups/.latest
+              volumeMounts:
+                - name: backup-workdir
+                  mountPath: /backups
+          volumes:
+            - name: backup-workdir
+              emptyDir:
+                medium: Memory
+                sizeLimit: 2Gi

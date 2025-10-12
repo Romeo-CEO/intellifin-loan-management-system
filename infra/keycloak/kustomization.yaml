@@ -1,0 +1,44 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: keycloak
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - externalsecrets.yaml
+  - postgres-configmap.yaml
+  - postgres-service.yaml
+  - postgres-statefulset.yaml
+  - keycloak-service.yaml
+  - keycloak-deployment.yaml
+  - keycloak-pdb.yaml
+  - keycloak-ingress.yaml
+  - keycloak-servicemonitor.yaml
+  - networkpolicy.yaml
+  - backups/postgres-backup-cronjob.yaml
+  - keycloak-admin-bootstrap-job.yaml
+configMapGenerator:
+  - name: keycloak-realm-config
+    files:
+      - realm/IntelliFin-realm.json
+  - name: keycloak-theme-intellifin
+    files:
+      - intellifin/login/theme.properties=themes/intellifin/login/theme.properties
+      - intellifin/login/resources/css/login.css=themes/intellifin/login/resources/css/login.css
+      - intellifin/login/resources/img/intellifin-logo.svg=themes/intellifin/login/resources/img/intellifin-logo.svg
+      - intellifin/email/theme.properties=themes/intellifin/email/theme.properties
+      - intellifin/email/html/password-reset.ftl=themes/intellifin/email/html/password-reset.ftl
+      - intellifin/email/html/email-verification.ftl=themes/intellifin/email/html/email-verification.ftl
+  - name: grafana-dashboard-keycloak-overview
+    files:
+      - intellifin-keycloak-overview.json=grafana/intellifin-keycloak-overview.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+        app.kubernetes.io/name: keycloak
+        app.kubernetes.io/component: monitoring
+      annotations:
+        dashboard.grafana.intellifin.com/category: identity
+        dashboard.grafana.intellifin.com/title: IntelliFin Keycloak Overview
+        dashboard.grafana.intellifin.com/description: Keycloak availability, authentication throughput, and token issuance trends
+generatorOptions:
+  disableNameSuffixHash: true
