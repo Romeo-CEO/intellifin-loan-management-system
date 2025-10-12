@@ -10,11 +10,11 @@ public abstract class BaseNotificationConsumer<TEvent> : IConsumer<TEvent>
     where TEvent : class, IBusinessEvent
 {
     protected readonly INotificationRepository _notificationRepository;
-    protected readonly ILogger<BaseNotificationConsumer<TEvent>> _logger;
+    protected readonly ILogger _logger;
 
     protected BaseNotificationConsumer(
         INotificationRepository notificationRepository,
-        ILogger<BaseNotificationConsumer<TEvent>> logger)
+        ILogger logger)
     {
         _notificationRepository = notificationRepository ?? throw new ArgumentNullException(nameof(notificationRepository));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -25,6 +25,16 @@ public abstract class BaseNotificationConsumer<TEvent> : IConsumer<TEvent>
         var eventData = context.Message;
         var eventId = eventData.EventId;
         var eventType = typeof(TEvent).Name;
+        var cancellationToken = context.CancellationToken;
+
+        if (eventId == Guid.Empty)
+        {
+            eventId = context.MessageId ?? Guid.NewGuid();
+            _logger.LogWarning(
+                "Event {EventType} arrived without an EventId. Falling back to {FallbackEventId} for idempotency tracking.",
+                eventType,
+                eventId);
+        }
 
         _logger.LogInformation(
             "Processing event {EventId} of type {EventType}",
@@ -35,7 +45,7 @@ public abstract class BaseNotificationConsumer<TEvent> : IConsumer<TEvent>
         try
         {
             // Check idempotency - ensure same event isn't processed twice
-            if (await _notificationRepository.IsEventProcessedAsync(eventId))
+            if (await _notificationRepository.IsEventProcessedAsync(eventId, cancellationToken))
             {
                 _logger.LogInformation("Event {EventId} already processed, skipping", eventId);
                 return;
@@ -46,7 +56,7 @@ public abstract class BaseNotificationConsumer<TEvent> : IConsumer<TEvent>
 
             // Mark event as successfully processed
             await _notificationRepository.MarkEventProcessedAsync(
-                eventId, eventType, success: true);
+                eventId, eventType, success: true, cancellationToken: cancellationToken);
 
             stopwatch.Stop();
             _logger.LogInformation(
@@ -63,7 +73,7 @@ public abstract class BaseNotificationConsumer<TEvent> : IConsumer<TEvent>
 
             // Mark event as failed
             await _notificationRepository.MarkEventProcessedAsync(
-                eventId, eventType, success: false, error: ex.Message);
+                eventId, eventType, success: false, error: ex.Message, cancellationToken: cancellationToken);
 
             // Re-throw to trigger MassTransit's retry mechanism
             throw;
@@ -165,7 +175,7 @@ public abstract class BaseNotificationConsumer<TEvent> : IConsumer<TEvent>
                 ? System.Text.Json.JsonSerializer.Serialize(request.PersonalizationContext)
                 : null,
             Status = NotificationStatus.Pending,
-            BranchId = request.BranchId ?? GetBranchId(default!),
+            BranchId = request.BranchId ?? throw new InvalidOperationException("BranchId is required for notification logs."),
             CreatedBy = GetCreatedBy()
         };
 
