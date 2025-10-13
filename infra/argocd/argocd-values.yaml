@@ -1,0 +1,96 @@
+global:
+  domain: argocd.intellifin.local
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    hosts:
+      - argocd.intellifin.local
+    tls:
+      - secretName: argocd-tls
+        hosts:
+          - argocd.intellifin.local
+  config:
+    url: https://argocd.intellifin.local
+    oidc.config: |
+      name: Keycloak
+      issuer: https://keycloak.intellifin.local/realms/intellifin
+      clientID: argocd
+      clientSecret: $oidc.keycloak.clientSecret
+      requestedScopes:
+        - openid
+        - profile
+        - email
+        - groups
+    repositories: |
+      - url: https://github.com/intellifin/intellifin-k8s-manifests.git
+        name: intellifin-k8s-manifests
+        type: git
+        username: not-used
+        password: $repos.github.token
+    resource.customizations: |
+      argoproj.io/Application:
+        health.lua: |
+          hs = {}
+          hs.status = "Progressing"
+          hs.message = ""
+          if obj.status ~= nil then
+            if obj.status.health ~= nil then
+              hs.status = obj.status.health.status
+              hs.message = obj.status.health.message
+            end
+          end
+          return hs
+  rbacConfig:
+    policy.default: role:readonly
+    policy.csv: |
+      g, argocd-admins, role:admin
+      p, role:developer, applications, *, intellifin-dev/*, allow
+      p, role:developer, applications, *, intellifin-staging/*, allow
+      p, role:developer, applications, get, intellifin-production/*, allow
+      g, argocd-developers, role:developer
+      p, role:viewer, applications, get, */*, allow
+      g, argocd-viewers, role:viewer
+
+notifications:
+  enabled: true
+  argocdUrl: https://argocd.intellifin.local
+  notifiers:
+    service.slack: |
+      token: $slack-token
+    service.email: |
+      host: smtp.sendgrid.net
+      port: 587
+      username: apikey
+      password: $email-password
+      from: argocd@intellifin.com
+  triggers:
+    trigger.on-deployed: |
+      - when: app.status.sync.status == 'Synced'
+        send: [app-deployed]
+    trigger.on-sync-failed: |
+      - when: app.status.sync.status == 'Failed'
+        send: [app-sync-failed]
+
+controller:
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+repoServer:
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+dex:
+  enabled: true
+
+redis:
+  enabled: true

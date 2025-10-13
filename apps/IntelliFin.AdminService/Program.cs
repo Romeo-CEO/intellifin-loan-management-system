@@ -14,6 +14,7 @@ using IntelliFin.AdminService.Models;
 using IntelliFin.AdminService.Options;
 using IntelliFin.AdminService.Services;
 using IntelliFin.AdminService.Utilities;
+using IntelliFin.AdminService.Jobs;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -27,6 +28,11 @@ using Prometheus;
 using IntelliFin.Shared.Observability;
 using Microsoft.AspNetCore.Mvc;
 using Minio;
+using VaultSharp;
+using VaultSharp.V1.AuthMethods;
+using VaultSharp.V1.AuthMethods.Token;
+using Quartz;
+using IntelliFin.Shared.DomainModels.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +41,7 @@ builder.Services.AddOpenTelemetryInstrumentation(builder.Configuration);
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<KeycloakExceptionHandler>();
 builder.Services.AddOpenApi();
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -54,6 +61,11 @@ builder.Services.Configure<AuditArchiveOptions>(builder.Configuration.GetSection
 builder.Services.Configure<MinioOptions>(builder.Configuration.GetSection(MinioOptions.SectionName));
 builder.Services.Configure<ElevationOptions>(builder.Configuration.GetSection(ElevationOptions.SectionName));
 builder.Services.Configure<CamundaOptions>(builder.Configuration.GetSection(CamundaOptions.SectionName));
+builder.Services.Configure<ConfigurationManagementOptions>(builder.Configuration.GetSection("ConfigurationManagement"));
+builder.Services.Configure<VaultOptions>(builder.Configuration.GetSection(VaultOptions.SectionName));
+builder.Services.Configure<ArgoCdOptions>(builder.Configuration.GetSection(ArgoCdOptions.SectionName));
+builder.Services.Configure<SbomOptions>(builder.Configuration.GetSection(SbomOptions.SectionName));
+builder.Services.Configure<BastionOptions>(builder.Configuration.GetSection(BastionOptions.SectionName));
 
 builder.Services.AddDbContext<AdminDbContext>(options =>
 {
@@ -70,7 +82,16 @@ builder.Services.AddDbContext<FinancialDbContext>(options =>
     options.UseSqlServer(connectionString);
 });
 
+builder.Services.AddDbContextFactory<LmsDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("IdentityDb")
+                           ?? builder.Configuration.GetConnectionString("Default")
+                           ?? "Server=(localdb)\\mssqllocaldb;Database=IntelliFin_Identity;Trusted_Connection=True;MultipleActiveResultSets=True";
+    options.UseSqlServer(connectionString);
+});
+
 builder.Services.AddMemoryCache();
+builder.Services.AddDistributedMemoryCache();
 
 builder.Services.AddHttpClient<IKeycloakTokenService, KeycloakTokenService>((sp, client) =>
 {
@@ -101,6 +122,17 @@ builder.Services.AddHostedService<AuditArchiveReplicationMonitor>();
 builder.Services.AddScoped<IAccessElevationService, AccessElevationService>();
 builder.Services.AddScoped<IElevationNotificationService, ElevationNotificationService>();
 builder.Services.AddHostedService<ElevationExpirationWorker>();
+builder.Services.AddScoped<IMfaService, MfaService>();
+builder.Services.AddScoped<IRoleManagementService, RoleManagementService>();
+builder.Services.AddScoped<ISodExceptionService, SodExceptionService>();
+builder.Services.AddScoped<IConfigurationDeployer, ConfigurationDeployer>();
+builder.Services.AddScoped<IConfigurationManagementService, ConfigurationManagementService>();
+builder.Services.AddScoped<IVaultManagementService, VaultManagementService>();
+builder.Services.AddScoped<IManagerDirectoryService, KeycloakManagerDirectoryService>();
+builder.Services.AddScoped<IRecertificationNotificationService, RecertificationNotificationService>();
+builder.Services.AddScoped<IRecertificationService, RecertificationService>();
+builder.Services.AddScoped<ISbomService, SbomService>();
+builder.Services.AddScoped<IBastionAccessService, BastionAccessService>();
 
 builder.Services.AddHttpClient<ICamundaWorkflowService, CamundaWorkflowService>((sp, client) =>
 {
@@ -112,6 +144,30 @@ builder.Services.AddHttpClient<ICamundaWorkflowService, CamundaWorkflowService>(
     client.Timeout = TimeSpan.FromSeconds(15);
 })
     .AddPolicyHandler(CreateRetryPolicy());
+
+builder.Services.AddHttpClient<IArgoCdIntegrationService, ArgoCdIntegrationService>((sp, client) =>
+{
+    var options = sp.GetRequiredService<IOptionsMonitor<ArgoCdOptions>>().CurrentValue;
+    if (!string.IsNullOrWhiteSpace(options.Url))
+    {
+        client.BaseAddress = new Uri(options.Url, UriKind.Absolute);
+    }
+
+    client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 5, 600));
+})
+    .AddPolicyHandler(CreateRetryPolicy());
+
+builder.Services.AddSingleton<IVaultClient>(sp =>
+{
+    var vaultOptions = sp.GetRequiredService<IOptions<VaultOptions>>().Value;
+    var authMethod = (IAuthMethodInfo)new TokenAuthMethodInfo(vaultOptions.Token ?? string.Empty);
+    var settings = new VaultClientSettings(vaultOptions.Address, authMethod)
+    {
+        Namespace = string.IsNullOrWhiteSpace(vaultOptions.Namespace) ? null : vaultOptions.Namespace
+    };
+
+    return new VaultClient(settings);
+});
 
 builder.Services.AddSingleton<IMinioClient>(sp =>
 {
@@ -159,6 +215,17 @@ builder.Services.AddSingleton<IMinioClient>(sp =>
     }
 
     return client.Build();
+});
+
+builder.Services.AddQuartz(q =>
+{
+    q.UseMicrosoftDependencyInjectionJobFactory();
+    q.ConfigureRecertification();
+});
+
+builder.Services.AddQuartzHostedService(options =>
+{
+    options.WaitForJobsToComplete = true;
 });
 
 builder.Services.AddHttpClient(nameof(KeycloakHealthCheck), static (sp, client) =>
@@ -223,6 +290,8 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 });
 
 app.MapMetrics();
+
+app.MapControllers();
 
 var adminGroup = app.MapGroup("/api/admin");
 

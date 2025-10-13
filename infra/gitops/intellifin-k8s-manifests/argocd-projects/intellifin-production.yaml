@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: intellifin-production
+  namespace: argocd
+spec:
+  description: IntelliFin production workloads managed via GitOps
+  sourceRepos:
+    - https://github.com/intellifin/intellifin-k8s-manifests.git
+  destinations:
+    - namespace: production
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  roles:
+    - name: admins
+      description: Full access to production applications
+      policies:
+        - p, proj:intellifin-production:admins, applications, *, intellifin-production/*, allow
+      groups:
+        - argocd-admins
+    - name: readers
+      description: Read-only access to production applications
+      policies:
+        - p, proj:intellifin-production:readers, applications, get, intellifin-production/*, allow
+      groups:
+        - argocd-developers
+        - argocd-viewers

@@ -414,6 +414,255 @@ namespace IntelliFin.AdminService.Migrations
                     b.ToTable("ElevationRequests");
                 });
 
+            modelBuilder.Entity("IntelliFin.AdminService.Models.MfaChallenge", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("CamundaProcessInstanceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ChallengeCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("ChallengeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWID()");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("FailedAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime>("InitiatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ValidatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChallengeId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_MfaChallenges_ChallengeId");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("IX_MfaChallenges_ExpiresAt");
+
+                    b.HasIndex("InitiatedAt")
+                        .HasDatabaseName("IX_MfaChallenges_InitiatedAt");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_MfaChallenges_Status");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_MfaChallenges_UserId");
+
+                    b.ToTable("MfaChallenges");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.MfaConfiguration", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("OperationName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("RequiresMfa")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("TimeoutMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(15);
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperationName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_MfaConfiguration_OperationName");
+
+                    b.ToTable("MfaConfiguration");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Description = "Loan approvals over $50,000",
+                            OperationName = "LoanApproval.HighValue",
+                            RequiresMfa = true,
+                            TimeoutMinutes = 15
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Description = "Role assignment to users",
+                            OperationName = "RoleManagement.Assign",
+                            RequiresMfa = true,
+                            TimeoutMinutes = 15
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Description = "Role removal from users",
+                            OperationName = "RoleManagement.Remove",
+                            RequiresMfa = true,
+                            TimeoutMinutes = 15
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Description = "User account creation",
+                            OperationName = "UserManagement.Create",
+                            RequiresMfa = true,
+                            TimeoutMinutes = 15
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Description = "User account deletion",
+                            OperationName = "UserManagement.Delete",
+                            RequiresMfa = true,
+                            TimeoutMinutes = 15
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Description = "Sensitive configuration changes",
+                            OperationName = "Configuration.Update",
+                            RequiresMfa = true,
+                            TimeoutMinutes = 15
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Description = "Customer PII data export",
+                            OperationName = "DataExport.CustomerPII",
+                            RequiresMfa = true,
+                            TimeoutMinutes = 15
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Description = "Audit log export",
+                            OperationName = "AuditLog.Export",
+                            RequiresMfa = true,
+                            TimeoutMinutes = 15
+                        });
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.MfaEnrollment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Enrolled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("EnrolledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SecretKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_MfaEnrollments_UserId");
+
+                    b.ToTable("MfaEnrollments");
+                });
+
             modelBuilder.Entity("IntelliFin.AdminService.Models.AuditArchiveMetadata", b =>
                 {
                     b.Property<int>("Id")
@@ -614,6 +863,1496 @@ namespace IntelliFin.AdminService.Migrations
                         .HasDatabaseName("IX_KeycloakUserId");
 
                     b.ToTable("UserIdMapping");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.ConfigurationPolicy", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AllowedValuesList")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AllowedValuesRegex")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ApprovalWorkflow")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ConfigKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ConfigMapKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CurrentValue")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("KubernetesConfigMap")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("KubernetesNamespace")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("RequiresApproval")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Sensitivity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Category")
+                        .HasDatabaseName("IX_ConfigurationPolicies_Category");
+
+                    b.HasIndex("ConfigKey")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ConfigurationPolicies_ConfigKey");
+
+                    b.HasIndex("Sensitivity")
+                        .HasDatabaseName("IX_ConfigurationPolicies_Sensitivity");
+
+                    b.ToTable("ConfigurationPolicies");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Category = "Security",
+                            ConfigKey = "jwt.expiry.minutes",
+                            ConfigMapKey = "JwtExpiryMinutes",
+                            Description = "JWT token expiration time in minutes",
+                            KubernetesConfigMap = "identity-service-config",
+                            KubernetesNamespace = "default",
+                            RequiresApproval = true,
+                            Sensitivity = "High"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Category = "Security",
+                            ConfigKey = "jwt.refresh.expiry.days",
+                            ConfigMapKey = "RefreshExpiryDays",
+                            Description = "Refresh token expiration time in days",
+                            KubernetesConfigMap = "identity-service-config",
+                            KubernetesNamespace = "default",
+                            RequiresApproval = true,
+                            Sensitivity = "High"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Category = "Application",
+                            ConfigKey = "loan.approval.threshold",
+                            ConfigMapKey = "ApprovalThreshold",
+                            Description = "Loan amount requiring senior approval",
+                            KubernetesConfigMap = "loan-service-config",
+                            KubernetesNamespace = "default",
+                            RequiresApproval = true,
+                            Sensitivity = "Critical"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Category = "Security",
+                            ConfigKey = "audit.retention.days",
+                            ConfigMapKey = "AuditRetentionDays",
+                            Description = "Audit log retention period in days",
+                            KubernetesConfigMap = "admin-service-config",
+                            KubernetesNamespace = "default",
+                            RequiresApproval = true,
+                            Sensitivity = "High"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Category = "Infrastructure",
+                            ConfigKey = "api.rate.limit.requests",
+                            ConfigMapKey = "RateLimitRequests",
+                            Description = "API rate limit requests per minute",
+                            KubernetesConfigMap = "api-gateway-config",
+                            KubernetesNamespace = "default",
+                            RequiresApproval = false,
+                            Sensitivity = "Medium"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            AllowedValuesList = "[\"Debug\",\"Info\",\"Warning\",\"Error\"]",
+                            Category = "Application",
+                            ConfigKey = "logging.level",
+                            ConfigMapKey = "LogLevel",
+                            Description = "Application logging level (Debug, Info, Warning, Error)",
+                            KubernetesConfigMap = "api-gateway-config",
+                            KubernetesNamespace = "default",
+                            RequiresApproval = false,
+                            Sensitivity = "Low"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Category = "Security",
+                            ConfigKey = "mfa.required.threshold",
+                            ConfigMapKey = "MfaThreshold",
+                            Description = "Transaction amount requiring MFA",
+                            KubernetesConfigMap = "identity-service-config",
+                            KubernetesNamespace = "default",
+                            RequiresApproval = true,
+                            Sensitivity = "Critical"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Category = "Infrastructure",
+                            ConfigKey = "database.connection.timeout",
+                            ConfigMapKey = "DbConnectionTimeout",
+                            Description = "Database connection timeout in seconds",
+                            KubernetesConfigMap = "loan-service-config",
+                            KubernetesNamespace = "default",
+                            RequiresApproval = false,
+                            Sensitivity = "Medium"
+                        });
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.ConfigurationChange", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("AppliedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CamundaProcessInstanceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid>("ChangeRequestId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWID()");
+
+                    b.Property<string>("ConfigKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ConfigMapKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("GitBranch")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("GitCommitSha")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("GitRepository")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Justification")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("KubernetesConfigMap")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("KubernetesNamespace")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("NewValue")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OldValue")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RejectedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("RejectedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Sensitivity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangeRequestId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ConfigurationChanges_ChangeRequestId");
+
+                    b.HasIndex("ConfigKey")
+                        .HasDatabaseName("IX_ConfigurationChanges_ConfigKey");
+
+                    b.HasIndex("RequestedAt")
+                        .HasDatabaseName("IX_ConfigurationChanges_RequestedAt");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_ConfigurationChanges_Status");
+
+                    b.ToTable("ConfigurationChanges");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.ConfigurationRollback", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ConfigKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("NewChangeRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OriginalChangeRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("RolledBackBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("RolledBackAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("RolledBackValue")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("RollbackId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWID()");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NewChangeRequestId")
+                        .HasDatabaseName("IX_ConfigurationRollbacks_NewId");
+
+                    b.HasIndex("OriginalChangeRequestId")
+                        .HasDatabaseName("IX_ConfigurationRollbacks_OriginalId");
+
+                    b.ToTable("ConfigurationRollbacks");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.VaultLeaseRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("DatabaseName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("IssuedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LeaseId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("LastRenewedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastSeenAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MetadataJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Renewable")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RevokedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RevocationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasDefaultValue("Active");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAtUtc")
+                        .HasDatabaseName("IX_VaultLeaseRecords_ExpiresAt");
+
+                    b.HasIndex("LeaseId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_VaultLeaseRecords_LeaseId");
+
+                    b.HasIndex("ServiceName")
+                        .HasDatabaseName("IX_VaultLeaseRecords_ServiceName");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_VaultLeaseRecords_Status");
+
+                    b.ToTable("VaultLeaseRecords");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.RecertificationCampaign", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CamundaProcessInstanceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CampaignId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CampaignName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CompletedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("CompletionDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EscalationCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("Active");
+
+                    b.Property<int>("TotalUsersInScope")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("UsersApproved")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("UsersModified")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("UsersReviewed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("UsersRevoked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Quarter")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RecertificationCampaigns_CampaignId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_RecertificationCampaigns_Status");
+
+                    b.HasIndex("Quarter", "Year")
+                        .HasDatabaseName("IX_RecertificationCampaigns_QuarterYear");
+
+                    b.ToTable("RecertificationCampaigns");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.RecertificationEscalation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("CampaignId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("EscalatedToUserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("EscalatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<Guid>("EscalationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("EscalationType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("OriginalManagerUserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Resolution")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ResolutionComments")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EscalatedToUserId")
+                        .HasDatabaseName("IX_RecertificationEscalations_EscalatedTo");
+
+                    b.HasIndex("TaskId")
+                        .HasDatabaseName("IX_RecertificationEscalations_TaskId");
+
+                    b.ToTable("RecertificationEscalations");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.RecertificationReport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AccessedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("CampaignId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("FilePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("GeneratedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("LastAccessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastAccessedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("ReportId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ReportFormat")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("ReportType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("RetentionDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignId")
+                        .HasDatabaseName("IX_RecertificationReports_CampaignId");
+
+                    b.HasIndex("ReportType")
+                        .HasDatabaseName("IX_RecertificationReports_ReportType");
+
+                    b.ToTable("RecertificationReports");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.RecertificationReview", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("AccessGrantedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("AppealsSubmitted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("AppealStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CampaignId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CurrentPermissions")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CurrentRoles")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("Pending");
+
+                    b.Property<string>("DecisionComments")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("DecisionMadeBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("DecisionMadeAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastLoginDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RiskIndicators")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RiskLevel")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("ReviewId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RolesToRevoke")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserDepartment")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UserEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UserJobTitle")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Decision")
+                        .HasDatabaseName("IX_RecertificationReviews_Decision");
+
+                    b.HasIndex("ReviewId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RecertificationReviews_ReviewId");
+
+                    b.HasIndex("RiskLevel")
+                        .HasDatabaseName("IX_RecertificationReviews_RiskLevel");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_RecertificationReviews_UserId");
+
+                    b.ToTable("RecertificationReviews");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.RecertificationTask", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("AssignedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("CamundaTaskId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CampaignId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EscalatedTo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("EscalatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ManagerEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ManagerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ManagerUserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("RemindersSent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime?>("LastReminderAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("Pending");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("UsersInScope")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("UsersReviewed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DueDate")
+                        .HasDatabaseName("IX_RecertificationTasks_DueDate");
+
+                    b.HasIndex("ManagerUserId")
+                        .HasDatabaseName("IX_RecertificationTasks_Manager");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_RecertificationTasks_Status");
+
+                    b.HasIndex("TaskId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RecertificationTasks_TaskId");
+
+                    b.ToTable("RecertificationTasks");
+                });
+
+                modelBuilder.Entity("IntelliFin.AdminService.Models.ContainerImage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("BuildTimestamp")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("BuildNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int>("CriticalCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<bool>("DeployedToProduction")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("DeploymentTimestamp")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("GitCommitSha")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("HighCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("ImageDigest")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsSigned")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasSbom")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("LowCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("MediumCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("Registry")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("SignatureVerified")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("SignatureTimestamp")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SignedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SbomFormat")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("SbomPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("VulnerabilityScanCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("VulnerabilityScanTimestamp")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuildTimestamp")
+                        .HasDatabaseName("IX_ContainerImages_BuildTimestamp");
+
+                    b.HasIndex("IsSigned")
+                        .HasDatabaseName("IX_ContainerImages_IsSigned");
+
+                    b.HasIndex("VulnerabilityScanCompleted")
+                        .HasDatabaseName("IX_ContainerImages_ScanCompleted");
+
+                    b.HasIndex("ServiceName", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ContainerImages_ServiceVersion");
+
+                    b.ToTable("ContainerImages");
+                });
+
+                modelBuilder.Entity("IntelliFin.AdminService.Models.SignatureVerificationAudit", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ImageDigest")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("VerificationContext")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("VerificationMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("VerificationResult")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("VerificationTimestamp")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("VerifiedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImageDigest")
+                        .HasDatabaseName("IX_SignatureAudit_ImageDigest");
+
+                    b.HasIndex("VerificationResult")
+                        .HasDatabaseName("IX_SignatureAudit_Result");
+
+                    b.HasIndex("VerificationTimestamp")
+                        .HasDatabaseName("IX_SignatureAudit_Timestamp");
+
+                    b.ToTable("SignatureVerificationAudit");
+                });
+
+                modelBuilder.Entity("IntelliFin.AdminService.Models.Vulnerability", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AcknowledgedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("AcknowledgmentComments")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<long>("ContainerImageId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal?>("Cvss3Score")
+                        .HasColumnType("decimal(3,1)");
+
+                    b.Property<string>("FixedVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("InstalledVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("MitigationPlan")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("PackageName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("PublishedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("Open");
+
+                    b.Property<DateTime?>("TargetFixDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("VulnerabilityId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContainerImageId");
+
+                    b.HasIndex("Severity")
+                        .HasDatabaseName("IX_Vulnerabilities_Severity");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_Vulnerabilities_Status");
+
+                    b.HasIndex("VulnerabilityId")
+                        .HasDatabaseName("IX_Vulnerabilities_VulnerabilityId");
+
+                    b.ToTable("Vulnerabilities");
+                });
+
+                modelBuilder.Entity("IntelliFin.AdminService.Models.Vulnerability", b =>
+                {
+                    b.HasOne("IntelliFin.AdminService.Models.ContainerImage", "ContainerImage")
+                        .WithMany("Vulnerabilities")
+                        .HasForeignKey("ContainerImageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ContainerImage");
+                });
+
+                modelBuilder.Entity("IntelliFin.AdminService.Models.BastionAccessRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:Identity", "1, 1");
+
+                    b.Property<int>("AccessDurationHours")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(2);
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CamundaProcessInstanceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CertificateContent")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CertificateExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CertificateSerialNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DenialReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("DeniedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("DeniedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Justification")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("RequiresApproval")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("RequestId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWID()");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<bool>("SshCertificateIssued")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TargetHosts")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("VaultCertificatePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_BastionAccessRequests_RequestId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_BastionAccessRequests_Status");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_BastionAccessRequests_UserId");
+
+                    b.ToTable("BastionAccessRequests");
+                });
+
+                modelBuilder.Entity("IntelliFin.AdminService.Models.BastionSession", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:Identity", "1, 1");
+
+                    b.Property<Guid?>("AccessRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BastionHost")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ClientIp")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("CommandCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("EndTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("RecordingSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RecordingPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("SessionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWID()");
+
+                    b.Property<DateTime>("StartTime")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TargetHost")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TerminationReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccessRequestId")
+                        .HasDatabaseName("IX_BastionSessions_AccessRequestId");
+
+                    b.HasIndex("SessionId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_BastionSessions_SessionId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_BastionSessions_Status");
+
+                    b.HasIndex("Username")
+                        .HasDatabaseName("IX_BastionSessions_Username");
+
+                    b.ToTable("BastionSessions");
+                });
+
+                modelBuilder.Entity("IntelliFin.AdminService.Models.EmergencyAccessLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:Identity", "1, 1");
+
+                    b.Property<string>("ApprovedBy1")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ApprovedBy2")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("EmergencyId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWID()");
+
+                    b.Property<DateTime>("GrantedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("IncidentTicketId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Justification")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("PostIncidentReviewCompleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("ReviewCompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReviewNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("TokenUsed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("TokenUsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("VaultOneTimeToken")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmergencyId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_EmergencyAccessLogs_EmergencyId");
+
+                    b.HasIndex("IncidentTicketId")
+                        .HasDatabaseName("IX_EmergencyAccessLogs_IncidentTicketId");
+
+                    b.ToTable("EmergencyAccessLogs");
+                });
+
+                modelBuilder.Entity("IntelliFin.AdminService.Models.BastionSession", b =>
+                {
+                    b.HasOne("IntelliFin.AdminService.Models.BastionAccessRequest", "AccessRequest")
+                        .WithMany("Sessions")
+                        .HasForeignKey("AccessRequestId")
+                        .HasPrincipalKey("RequestId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AccessRequest");
+                });
+
+                modelBuilder.Entity("IntelliFin.AdminService.Models.BastionAccessRequest", b =>
+                {
+                    b.Navigation("Sessions");
+                });
+
+                modelBuilder.Entity("IntelliFin.AdminService.Models.ContainerImage", b =>
+                {
+                    b.Navigation("Vulnerabilities");
                 });
 #pragma warning restore 612, 618
         }
