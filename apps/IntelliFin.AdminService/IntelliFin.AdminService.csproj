@@ -22,6 +22,9 @@
     <PackageReference Include="Prometheus.AspNetCore" Version="8.1.0" />
     <PackageReference Include="Polly" Version="8.2.1" />
     <PackageReference Include="Polly.Extensions.Http" Version="3.2.1" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.0" />
+    <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
+    <PackageReference Include="Minio" Version="6.0.5" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\libs\IntelliFin.Shared.Observability\IntelliFin.Shared.Observability.csproj" />

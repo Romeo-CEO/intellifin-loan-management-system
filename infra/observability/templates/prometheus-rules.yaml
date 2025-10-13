@@ -59,4 +59,31 @@ spec:
           annotations:
             summary: "Database deadlock spike detected"
             description: "Deadlocks per minute exceeded 1. Investigate contention hotspots."
+    - name: platform.security
+      interval: 1m
+      rules:
+        - alert: LinkerdTlsHandshakeFailures
+          expr: sum(rate(linkerd_tls_acceptor_events_total{event="tls_error"}[5m])) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Linkerd proxy TLS handshake errors detected"
+            description: "One or more Linkerd proxies reported TLS handshake failures over the last 5 minutes. Check certificate validity and network reachability."
+        - alert: LinkerdProxyRestarts
+          expr: sum(increase(kube_pod_container_status_restarts_total{container="linkerd-proxy"}[5m])) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Linkerd proxy restarted"
+            description: "A Linkerd sidecar restarted within the last 5 minutes. Investigate pod health and mesh stability."
+        - alert: NetworkPolicyDeniesDetected
+          expr: sum(rate(felix_denied_packets_total[5m])) > 0
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NetworkPolicy deny events detected"
+            description: "Calico reported denied packets in the last minute. Review recent NetworkPolicy changes and pod identities."
 {{- end }}

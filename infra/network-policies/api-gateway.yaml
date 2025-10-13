@@ -1,0 +1,47 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway-policy
+  namespace: gateway
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - intellifin-api-gateway
+          - api-gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - ingress-nginx
+      ports:
+        - port: 8080
+          protocol: TCP
+        - port: 443
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 8080
+          protocol: TCP
+        - port: 443
+          protocol: TCP
+    - to:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - kube-system
+      ports:
+        - port: 53
+          protocol: UDP

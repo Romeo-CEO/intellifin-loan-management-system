@@ -1,33 +1,51 @@
+using System.Diagnostics;
 using IntelliFin.IdentityService.Models;
+using IntelliFin.Shared.Audit;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 
 namespace IntelliFin.IdentityService.Services;
 
 public class AuditService : IAuditService
 {
     private readonly ILogger<AuditService> _logger;
+    private readonly IAuditClient _auditClient;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public AuditService(ILogger<AuditService> logger)
+    public AuditService(ILogger<AuditService> logger, IAuditClient auditClient, IHttpContextAccessor httpContextAccessor)
     {
         _logger = logger;
+        _auditClient = auditClient;
+        _httpContextAccessor = httpContextAccessor;
     }
 
-    public Task LogAsync(AuditEvent auditEvent, CancellationToken cancellationToken = default)
+    public async Task LogAsync(AuditEvent auditEvent, CancellationToken cancellationToken = default)
     {
-        var detailsJson = auditEvent.Details.Count > 0
-            ? JsonSerializer.Serialize(auditEvent.Details)
-            : string.Empty;
+        var activity = Activity.Current;
+        var correlationId = !string.IsNullOrWhiteSpace(auditEvent.SessionId)
+            ? auditEvent.SessionId
+            : activity?.TraceId.ToString() ?? _httpContextAccessor.HttpContext?.TraceIdentifier;
 
-        _logger.LogInformation("Audit event {Action} by {ActorId} on {Entity} ({EntityId}) success={Success} result={Result} details={Details}",
-            auditEvent.Action,
-            auditEvent.ActorId,
-            auditEvent.Entity,
-            auditEvent.EntityId,
-            auditEvent.Success,
-            auditEvent.Result,
-            detailsJson);
+        var payload = new AuditEventPayload
+        {
+            Timestamp = auditEvent.Timestamp,
+            Actor = string.IsNullOrWhiteSpace(auditEvent.ActorId) ? "system" : auditEvent.ActorId,
+            Action = auditEvent.Action,
+            EntityType = auditEvent.Entity,
+            EntityId = auditEvent.EntityId,
+            CorrelationId = correlationId,
+            IpAddress = auditEvent.IpAddress,
+            UserAgent = auditEvent.UserAgent,
+            EventData = auditEvent.Details.Count > 0 ? auditEvent.Details : null
+        };
 
-        return Task.CompletedTask;
+        try
+        {
+            await _auditClient.LogEventAsync(payload, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to forward audit event {Action} for {Entity} ({EntityId})", auditEvent.Action, auditEvent.Entity, auditEvent.EntityId);
+        }
     }
 }

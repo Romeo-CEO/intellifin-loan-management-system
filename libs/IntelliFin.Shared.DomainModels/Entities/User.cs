@@ -10,6 +10,17 @@ public class User
     public string? PhoneNumber { get; set; }
     public string PasswordHash { get; set; } = string.Empty;
     public string? BranchId { get; set; }
+    public string? BranchName
+    {
+        get => GetMetadataValue(BranchNameMetadataKey);
+        set => SetMetadataValue(BranchNameMetadataKey, value);
+    }
+
+    public string? BranchRegion
+    {
+        get => GetMetadataValue(BranchRegionMetadataKey);
+        set => SetMetadataValue(BranchRegionMetadataKey, value);
+    }
     public bool EmailConfirmed { get; set; } = false;
     public bool PhoneNumberConfirmed { get; set; } = false;
     public bool TwoFactorEnabled { get; set; } = false;
@@ -32,4 +43,30 @@ public class User
     public string FullName => $"{FirstName} {LastName}".Trim();
     public bool IsLockedOut => LockoutEnd.HasValue && LockoutEnd > DateTimeOffset.UtcNow;
     public bool CanLogin => IsActive && !IsLockedOut;
+
+    private const string BranchNameMetadataKey = "branchName";
+    private const string BranchRegionMetadataKey = "branchRegion";
+
+    private string? GetMetadataValue(string key)
+    {
+        if (Metadata is not null && Metadata.TryGetValue(key, out var value) && value is not null)
+        {
+            return value.ToString();
+        }
+
+        return null;
+    }
+
+    private void SetMetadataValue(string key, string? value)
+    {
+        Metadata ??= new Dictionary<string, object>();
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            Metadata.Remove(key);
+            return;
+        }
+
+        Metadata[key] = value;
+    }
 }

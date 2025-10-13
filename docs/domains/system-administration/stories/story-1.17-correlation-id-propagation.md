@@ -11,8 +11,8 @@
 | **Story Points** | 5 |
 | **Estimated Effort** | 3-5 days |
 | **Priority** | P1 (Important for observability) |
-| **Status** | 📋 Backlog |
-| **Assigned To** | TBD |
+| **Status** | ✅ Completed |
+| **Assigned To** | Observability Platform Team |
 | **Dependencies** | Story 1.6 (OpenTelemetry), Story 1.7 (Jaeger), Story 1.9 (Loki), Story 1.14 (Centralized audit) |
 | **Blocks** | None |
 
@@ -37,6 +37,15 @@ Global correlation ID propagation enables complete distributed tracing across th
 - **SLA Monitoring**: Measure end-to-end request latency across service boundaries
 
 This completes the observability triad (traces, metrics, logs) with unified correlation.
+
+---
+
+## Implementation Summary
+
+- API Gateway now applies a dedicated trace context middleware that ensures every inbound request has a W3C `traceparent`, logs generated identifiers, and echoes the correlation headers back to clients.
+- OpenTelemetry defaults were tightened so every service emits span, parent, and baggage identifiers through the shared logging pipeline while RabbitMQ consumers inject/extract trace headers for asynchronous workflows.
+- Admin Service ingestion derives audit `CorrelationId` values from the active trace, aligns batch normalization, and preserves context through RabbitMQ dead-letter handling so Jaeger links and Loki labels stay consistent.
+- Serilog sinks for Identity and KYC services enrich console/file output with `TraceId`/`SpanId`, enabling Grafana Loki to index the correlation metadata without additional parsing rules.
 
 ---
 
@@ -132,147 +141,85 @@ This completes the observability triad (traces, metrics, logs) with unified corr
 ### W3C Trace Context Implementation
 
 ```csharp
-// Already implemented in Story 1.6 OpenTelemetry shared library
-// This story focuses on verification and RabbitMQ/audit integration
+// IntelliFin.Shared.Observability/OpenTelemetryExtensions.cs
+services.AddOptions<LoggerFactoryOptions>()
+    .Configure(options =>
+    {
+        options.ActivityTrackingOptions = ActivityTrackingOptions.TraceId
+            | ActivityTrackingOptions.SpanId
+            | ActivityTrackingOptions.ParentId
+            | ActivityTrackingOptions.Baggage;
+    });
 
-// IntelliFin.Shared.Observability/OpenTelemetryExtensions.cs (from Story 1.6)
-public static IServiceCollection AddOpenTelemetryInstrumentation(
-    this IServiceCollection services,
-    IConfiguration configuration)
-{
-    services.AddOpenTelemetry()
-        .WithTracing(tracing => tracing
-            .AddAspNetCoreInstrumentation(options =>
-            {
-                options.RecordException = true;
-                // traceparent header automatically handled
-            })
-            .AddHttpClientInstrumentation()  // Propagates traceparent automatically
-            .AddEntityFrameworkCoreInstrumentation()
-            .AddSource("IntelliFin.*")
-            .AddOtlpExporter(options => options.Endpoint = new Uri(otlpEndpoint)));
-    
-    return services;
-}
+services.AddOpenTelemetry()
+    .ConfigureResource(resourceBuilder => resourceBuilder.AddService(serviceName, serviceVersion: serviceVersion))
+    .WithTracing(tracerProviderBuilder => tracerProviderBuilder
+        .AddAspNetCoreInstrumentation(options =>
+        {
+            options.RecordException = true;
+            options.Filter = httpContext => !httpContext.Request.Path.StartsWithSegments("/health", StringComparison.OrdinalIgnoreCase);
+        })
+        .AddHttpClientInstrumentation()
+        .AddEntityFrameworkCoreInstrumentation()
+        .AddSource("IntelliFin.*")
+        .SetSampler(new AdaptiveSampler())
+        .AddOtlpExporter(exporterOptions => exporterOptions.Endpoint = new Uri(otlpEndpoint)))
+    .WithMetrics(...);
 ```
 
 ### RabbitMQ Correlation Propagation
 
 ```csharp
-// IntelliFin.Shared.Messaging/RabbitMQPublisher.cs
-public class RabbitMQPublisher : IRabbitMQPublisher
+// apps/IntelliFin.ApiGateway/Middleware/TraceContextMiddleware.cs
+context.Response.OnStarting(() =>
 {
-    private readonly IModel _channel;
-    private readonly ILogger<RabbitMQPublisher> _logger;
-    
-    public void Publish<T>(string exchange, string routingKey, T message)
+    var activity = Activity.Current ?? httpActivityFeature?.Activity;
+    var traceParent = incomingTraceParent;
+
+    if (string.IsNullOrWhiteSpace(traceParent))
     {
-        var properties = _channel.CreateBasicProperties();
-        properties.Persistent = true;
-        properties.ContentType = "application/json";
-        
-        // Inject W3C Trace Context into RabbitMQ message headers
-        var activity = Activity.Current;
-        if (activity != null)
-        {
-            properties.Headers ??= new Dictionary<string, object>();
-            
-            // W3C traceparent format: 00-<trace-id>-<span-id>-<flags>
-            var traceparent = $"00-{activity.TraceId}-{activity.SpanId}-{(activity.Recorded ? "01" : "00")}";
-            properties.Headers["traceparent"] = traceparent;
-            
-            // Also store correlation_id for backward compatibility
-            properties.CorrelationId = activity.TraceId.ToString();
-            
-            _logger.LogDebug(
-                "Publishing message to {Exchange}/{RoutingKey} with trace context: {TraceId}",
-                exchange, routingKey, activity.TraceId);
-        }
-        
-        var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
-        _channel.BasicPublish(exchange, routingKey, properties, body);
+        traceParent = activity is not null
+            ? $"00-{activity.TraceId}-{activity.SpanId}-{(activity.Recorded ? "01" : "00")}"
+            : $"00-{ActivityTraceId.CreateRandom()}-{ActivitySpanId.CreateRandom()}-01";
+
+        _logger.LogDebug("Generated traceparent header for request {Method} {Path}: {TraceParent}",
+            context.Request.Method,
+            context.Request.Path,
+            traceParent);
     }
+
+    context.Response.Headers["traceparent"] = traceParent;
+    if (activity is not null && !string.IsNullOrEmpty(activity.TraceStateString))
+    {
+        context.Response.Headers["tracestate"] = activity.TraceStateString;
+    }
+
+    return Task.CompletedTask;
+});
+
+// apps/IntelliFin.AdminService/Services/AuditRabbitMqConsumer.cs
+var propagationContext = Propagators.DefaultTextMapPropagator.Extract(default, args.BasicProperties, ReadHeaderValues);
+var previousBaggage = Baggage.Current;
+Baggage.Current = propagationContext.Baggage;
+
+using var activity = ActivitySource.StartActivity(
+    "audit.events.consume",
+    ActivityKind.Consumer,
+    propagationContext.ActivityContext);
+
+activity?.SetTag("messaging.system", "rabbitmq");
+activity?.SetTag("messaging.destination", _options.QueueName);
+
+if (string.IsNullOrWhiteSpace(payload.CorrelationId) && activity is not null)
+{
+    payload.CorrelationId = activity.TraceId.ToString();
 }
 
-// IntelliFin.Shared.Messaging/RabbitMQConsumer.cs
-public class RabbitMQConsumer<T> : BackgroundService
-{
-    private readonly IModel _channel;
-    private readonly ILogger<RabbitMQConsumer<T>> _logger;
-    private readonly ActivitySource _activitySource;
-    
-    public RabbitMQConsumer(ILogger<RabbitMQConsumer<T>> logger)
-    {
-        _logger = logger;
-        _activitySource = new ActivitySource("IntelliFin.Messaging");
-    }
-    
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        var consumer = new EventingBasicConsumer(_channel);
-        
-        consumer.Received += async (model, ea) =>
-        {
-            // Extract trace context from message headers
-            ActivityContext parentContext = default;
-            
-            if (ea.BasicProperties.Headers != null && 
-                ea.BasicProperties.Headers.TryGetValue("traceparent", out var traceparentObj))
-            {
-                var traceparent = Encoding.UTF8.GetString((byte[])traceparentObj);
-                
-                // Parse W3C traceparent: 00-<trace-id>-<span-id>-<flags>
-                var parts = traceparent.Split('-');
-                if (parts.Length == 4)
-                {
-                    var traceId = ActivityTraceId.CreateFromString(parts[1].AsSpan());
-                    var parentSpanId = ActivitySpanId.CreateFromString(parts[2].AsSpan());
-                    var traceFlags = parts[3] == "01" ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
-                    
-                    parentContext = new ActivityContext(traceId, parentSpanId, traceFlags);
-                }
-            }
-            
-            // Create new activity with parent context
-            using var activity = parentContext != default
-                ? _activitySource.StartActivity("ProcessMessage", ActivityKind.Consumer, parentContext)
-                : _activitySource.StartActivity("ProcessMessage", ActivityKind.Consumer);
-            
-            activity?.SetTag("messaging.system", "rabbitmq");
-            activity?.SetTag("messaging.destination", ea.RoutingKey);
-            activity?.SetTag("messaging.operation", "receive");
-            
-            try
-            {
-                var body = ea.Body.ToArray();
-                var message = JsonSerializer.Deserialize<T>(Encoding.UTF8.GetString(body));
-                
-                await ProcessMessageAsync(message);
-                
-                _channel.BasicAck(ea.DeliveryTag, false);
-                
-                _logger.LogInformation(
-                    "Message processed successfully. TraceId: {TraceId}",
-                    activity?.TraceId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, 
-                    "Error processing message. TraceId: {TraceId}",
-                    activity?.TraceId);
-                
-                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-                activity?.RecordException(ex);
-                
-                _channel.BasicNack(ea.DeliveryTag, false, true);
-            }
-        };
-        
-        _channel.BasicConsume(queue: "my-queue", autoAck: false, consumer: consumer);
-        
-        await Task.Delay(Timeout.Infinite, stoppingToken);
-    }
-}
+await auditService.LogEventAsync(payload, CancellationToken.None);
+await auditService.FlushBufferAsync(CancellationToken.None);
+
+_channel.BasicAck(args.DeliveryTag, false);
+activity?.SetStatus(ActivityStatusCode.Ok);
 ```
 
 ### Audit Event Correlation

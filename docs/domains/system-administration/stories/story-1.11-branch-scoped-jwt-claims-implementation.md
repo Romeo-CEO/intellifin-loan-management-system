@@ -41,44 +41,69 @@
 ```csharp
 public class BranchClaimMiddleware
 {
+    private static readonly string[] BranchIdClaimTypes = ["branch_id", "branchId"];
+    private static readonly string[] BranchNameClaimTypes = ["branch_name", "branchName"];
+    private static readonly string[] BranchRegionClaimTypes = ["branch_region", "branchRegion"];
+    private const string BranchSwitchPermission = "branch:switch_context";
+
     private readonly RequestDelegate _next;
-    
+    private readonly ILogger<BranchClaimMiddleware> _logger;
+
+    public BranchClaimMiddleware(RequestDelegate next, ILogger<BranchClaimMiddleware> logger)
+    {
+        _next = next;
+        _logger = logger;
+    }
+
     public async Task InvokeAsync(HttpContext context)
     {
         if (context.User.Identity?.IsAuthenticated == true)
         {
-            var branchId = context.User.FindFirst("branch_id")?.Value;
-            var branchName = context.User.FindFirst("branch_name")?.Value;
-            var branchRegion = context.User.FindFirst("branch_region")?.Value;
-            
-            context.Items["BranchId"] = branchId != null ? int.Parse(branchId) : (int?)null;
-            context.Items["BranchName"] = branchName;
-            context.Items["BranchRegion"] = branchRegion;
+            var branchIdValue = GetFirstClaimValue(context.User, BranchIdClaimTypes);
+            var branchNameValue = GetFirstClaimValue(context.User, BranchNameClaimTypes);
+            var branchRegionValue = GetFirstClaimValue(context.User, BranchRegionClaimTypes);
+
+            if (!string.IsNullOrWhiteSpace(branchIdValue) && int.TryParse(branchIdValue, out var branchId))
+            {
+                context.Items[BranchClaimItemKeys.BranchId] = branchId;
+                context.Items[BranchClaimItemKeys.BranchIdRaw] = branchIdValue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(branchNameValue))
+            {
+                context.Items[BranchClaimItemKeys.BranchName] = branchNameValue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(branchRegionValue))
+            {
+                context.Items[BranchClaimItemKeys.BranchRegion] = branchRegionValue;
+            }
+
+            await LogPotentialBranchOverrideAsync(context, branchIdValue, branchNameValue, branchRegionValue);
         }
-        
+
         await _next(context);
     }
 }
 
-// Usage in services
-public async Task<List<LoanApplication>> GetLoanApplicationsAsync(HttpContext context)
-{
-    var branchId = context.Items["BranchId"] as int?;
-    
-    if (branchId.HasValue)
+// Usage in downstream services (via forwarded headers)
+services
+    .AddAuthorization(options =>
     {
-        // Filter by branch from JWT claim - no DB query needed!
-        return await _db.LoanApplications
-            .Where(la => la.BranchId == branchId.Value)
-            .ToListAsync();
-    }
-    else
-    {
-        // Multi-branch user (manager) - return all
-        return await _db.LoanApplications.ToListAsync();
-    }
-}
+        options.AddPolicy("BranchScope", policy =>
+            policy.RequireAssertion(ctx =>
+            {
+                var httpContext = (ctx.Resource as HttpContext)!;
+                var branchIdHeader = httpContext.Request.Headers["X-Branch-Id"].FirstOrDefault();
+                var branchIdClaim = ctx.User.FindFirst("branch_id")?.Value;
+                return string.IsNullOrEmpty(branchIdClaim) || branchIdHeader == branchIdClaim;
+            }));
+    });
 ```
+
+> **Context keys**: `BranchClaimItemKeys` exposes strongly-typed keys (`BranchId`, `BranchIdRaw`, `BranchName`, `BranchRegion`) that the gateway populates before proxying requests. All proxied calls also receive `X-Branch-Id`, `X-Branch-Name`, and `X-Branch-Region` headers for service-side filtering.
+
+> **Audit trail**: The middleware records a `BRANCH_SCOPE_OVERRIDE_ATTEMPT` audit event whenever a user without the `branch:switch_context` permission queries for a branch ID different from their token claim.
 
 ### Integration Verification
 - **IV1**: Existing branch-based queries refactored to use JWT claims (backward compatible)

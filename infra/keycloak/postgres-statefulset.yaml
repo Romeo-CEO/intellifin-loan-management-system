@@ -19,6 +19,8 @@ spec:
         app.kubernetes.io/name: keycloak-postgresql
         app.kubernetes.io/component: database
         app.kubernetes.io/part-of: keycloak
+      annotations:
+        linkerd.io/inject: "disabled"
     spec:
       serviceAccountName: keycloak
       securityContext:

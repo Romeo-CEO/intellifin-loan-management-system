@@ -65,6 +65,68 @@ curl http://localhost:5193/health  # LoanOrigination
 curl http://localhost:5218/health  # Communications
 ```
 
+## Kubernetes Service Mesh (Linkerd)
+
+For Kubernetes environments, install the Linkerd control plane and enable
+mutual TLS between services:
+
+```bash
+# Bootstrap Linkerd (control plane, viz extension, namespace annotations)
+./scripts/linkerd/bootstrap.sh
+
+# Re-run after upgrades or cluster restores to verify TLS coverage
+./scripts/linkerd/verify.sh
+```
+
+Key verification commands:
+
+```bash
+linkerd check
+linkerd viz edges deploy -A
+linkerd viz stat deploy -A --window 30s
+```
+
+Alerts for TLS handshake failures and Linkerd proxy restarts are shipped with
+the observability chart once the mesh is active.
+
+## Kubernetes NetworkPolicies
+
+Apply the micro-segmentation policies after namespaces and Linkerd are in
+place to enforce a default-deny stance across the platform:
+
+```bash
+kubectl apply -k infra/network-policies
+```
+
+Validate that required paths remain functional and unauthorized flows are
+blocked:
+
+```bash
+./scripts/network-policies/test-network-policies.sh
+```
+
+The observability stack scrapes Calico metrics and raises the
+`NetworkPolicyDeniesDetected` alert when the cluster records denied packets,
+surfacing regressions quickly.
+
+## MinIO WORM Audit Storage
+
+Provision immutable audit buckets before enabling the Admin Service export
+workers:
+
+```bash
+export MINIO_ENDPOINT=https://minio.intellifin.local
+export MINIO_ACCESS_KEY=<root-user>
+export MINIO_SECRET_KEY=<root-password>
+
+./scripts/minio/minio-setup.sh
+```
+
+This script enables object lock, versioning, and a 10-year retention policy for
+`audit-logs` and `audit-access-logs`. Replication between the primary and DR
+clusters should be configured via `mc admin replicate` and monitored through the
+Admin Service archive endpoints.
+
 ## Service Ports
 
 | Service | Port | Purpose |

@@ -99,6 +99,8 @@ public class UserService : IUserService
             PhoneNumber = request.PhoneNumber,
             PasswordHash = passwordHash,
             BranchId = request.BranchId,
+            BranchName = request.BranchName,
+            BranchRegion = request.BranchRegion,
             IsActive = request.IsActive,
             CreatedBy = "system", // This would come from the current user context
             CreatedAt = DateTime.UtcNow
@@ -133,6 +135,8 @@ public class UserService : IUserService
         if (!string.IsNullOrEmpty(request.LastName)) user.LastName = request.LastName;
         if (request.PhoneNumber != null) user.PhoneNumber = request.PhoneNumber;
         if (request.BranchId != null) user.BranchId = request.BranchId;
+        if (request.BranchName != null) user.BranchName = request.BranchName;
+        if (request.BranchRegion != null) user.BranchRegion = request.BranchRegion;
         if (request.IsActive.HasValue) user.IsActive = request.IsActive.Value;
         if (request.EmailConfirmed.HasValue) user.EmailConfirmed = request.EmailConfirmed.Value;
         if (request.PhoneNumberConfirmed.HasValue) user.PhoneNumberConfirmed = request.PhoneNumberConfirmed.Value;
@@ -248,6 +252,8 @@ public class UserService : IUserService
             LastName = user.LastName,
             PhoneNumber = user.PhoneNumber,
             BranchId = user.BranchId,
+            BranchName = user.BranchName,
+            BranchRegion = user.BranchRegion,
             EmailConfirmed = user.EmailConfirmed,
             PhoneNumberConfirmed = user.PhoneNumberConfirmed,
             TwoFactorEnabled = user.TwoFactorEnabled,

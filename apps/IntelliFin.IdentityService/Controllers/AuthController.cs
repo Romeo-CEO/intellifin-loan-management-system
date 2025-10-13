@@ -123,6 +123,8 @@ public class AuthController : ControllerBase
                 Roles = userRoles.ToArray(),
                 Permissions = userPermissions.ToArray(),
                 BranchId = user.BranchId,
+                BranchName = user.BranchName,
+                BranchRegion = user.BranchRegion,
                 SessionId = session.SessionId,
                 DeviceId = request.DeviceId,
                 AuthenticatedAt = DateTime.UtcNow,
@@ -151,6 +153,8 @@ public class AuthController : ControllerBase
                     Roles = userClaims.Roles,
                     Permissions = userClaims.Permissions,
                     BranchId = userClaims.BranchId,
+                    BranchName = userClaims.BranchName,
+                    BranchRegion = userClaims.BranchRegion,
                     RequiresTwoFactor = user.TwoFactorEnabled,
                     IsActive = user.IsActive
                 }
@@ -227,6 +231,8 @@ public class AuthController : ControllerBase
                 Roles = userRoles.ToArray(),
                 Permissions = userPermissions.ToArray(),
                 BranchId = user.BranchId,
+                BranchName = user.BranchName,
+                BranchRegion = user.BranchRegion,
                 SessionId = session.SessionId,
                 DeviceId = deviceId,
                 AuthenticatedAt = DateTime.UtcNow,

@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Context.Propagation;
 using OpenTelemetry.Metrics;
@@ -46,6 +47,15 @@ public static class OpenTelemetryExtensions
         Activity.DefaultIdFormat = ActivityIdFormat.W3C;
         Activity.ForceDefaultIdFormat = true;
         Sdk.SetDefaultTextMapPropagator(CompositePropagator);
+
+        services.AddOptions<LoggerFactoryOptions>()
+            .Configure(options =>
+            {
+                options.ActivityTrackingOptions = ActivityTrackingOptions.TraceId
+                    | ActivityTrackingOptions.SpanId
+                    | ActivityTrackingOptions.ParentId
+                    | ActivityTrackingOptions.Baggage;
+            });
 
         services.AddOpenTelemetry()
             .ConfigureResource(resourceBuilder => resourceBuilder

@@ -25,6 +25,8 @@ spec:
         app.kubernetes.io/component: identity-provider
         app.kubernetes.io/part-of: keycloak
       annotations:
+        linkerd.io/inject: "enabled"
+        config.linkerd.io/proxy-log-level: "warn,linkerd=info"
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
         prometheus.io/path: /metrics

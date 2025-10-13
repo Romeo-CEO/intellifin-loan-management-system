@@ -396,6 +396,8 @@ public class UserRuleService : IUserRuleService
                 Roles = userClaims.Roles,
                 Permissions = userClaims.Permissions,
                 BranchId = userClaims.BranchId,
+                BranchName = userClaims.BranchName,
+                BranchRegion = userClaims.BranchRegion,
                 TenantId = userClaims.TenantId,
                 SessionId = userClaims.SessionId,
                 DeviceId = userClaims.DeviceId,

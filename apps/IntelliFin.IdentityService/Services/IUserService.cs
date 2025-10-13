@@ -33,6 +33,8 @@ public class CreateUserRequest
     public string? PhoneNumber { get; set; }
     public string Password { get; set; } = string.Empty;
     public string? BranchId { get; set; }
+    public string? BranchName { get; set; }
+    public string? BranchRegion { get; set; }
     public string[] RoleIds { get; set; } = Array.Empty<string>();
     public bool IsActive { get; set; } = true;
 }
@@ -44,6 +46,8 @@ public class UpdateUserRequest
     public string? LastName { get; set; }
     public string? PhoneNumber { get; set; }
     public string? BranchId { get; set; }
+    public string? BranchName { get; set; }
+    public string? BranchRegion { get; set; }
     public bool? IsActive { get; set; }
     public bool? EmailConfirmed { get; set; }
     public bool? PhoneNumberConfirmed { get; set; }
