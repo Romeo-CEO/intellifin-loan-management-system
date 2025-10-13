@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: staging
+
+resources:
+  - ../../../base/identity-service
+
+replicas:
+  - name: identity-service
+    count: 2
+
+configMapGenerator:
+  - name: identity-service-config
+    behavior: merge
+    literals:
+      - Logging__LogLevel__Default=Information
+      - FeatureFlags__EnableSyntheticMonitoring=true
+
+commonLabels:
+  environment: staging

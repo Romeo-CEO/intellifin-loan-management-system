@@ -4,9 +4,11 @@ using IntelliFin.IdentityService.Services;
 using IntelliFin.Shared.Audit;
 using IntelliFin.Shared.DomainModels.Data;
 using IntelliFin.Shared.DomainModels.Repositories;
+using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using System.Text;
@@ -17,10 +19,44 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddIdentityServices(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<VaultConfiguration>(configuration.GetSection("Vault"));
+
+        services.AddSingleton<VaultDatabaseCredentialService>();
+        services.AddSingleton<IVaultDatabaseCredentialService>(sp => sp.GetRequiredService<VaultDatabaseCredentialService>());
+        services.AddSingleton<IDatabaseConnectionPoolManager, DatabaseConnectionPoolManager>();
+        services.AddHostedService(sp => sp.GetRequiredService<VaultDatabaseCredentialService>());
+
         // Database Context
-        services.AddDbContext<LmsDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection") ??
-                "Server=(localdb)\\mssqllocaldb;Database=IntelliFin_LoanManagement;Trusted_Connection=true;MultipleActiveResultSets=true"));
+        services.AddDbContext<LmsDbContext>((serviceProvider, options) =>
+        {
+            var baseConnectionString = configuration.GetConnectionString("IdentityDb")
+                ?? configuration.GetConnectionString("DefaultConnection")
+                ?? "Server=(localdb)\\mssqllocaldb;Database=IntelliFin_LoanManagement;Trusted_Connection=true;MultipleActiveResultSets=true";
+
+            var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger("VaultSqlConnection");
+
+            try
+            {
+                var credentials = serviceProvider
+                    .GetRequiredService<IVaultDatabaseCredentialService>()
+                    .GetCurrentCredentials();
+
+                var builder = new SqlConnectionStringBuilder(baseConnectionString)
+                {
+                    UserID = credentials.Username,
+                    Password = credentials.Password,
+                    ConnectTimeout = 30
+                };
+
+                options.UseSqlServer(builder.ConnectionString);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Falling back to base connection string while Vault credentials are unavailable");
+                options.UseSqlServer(baseConnectionString);
+            }
+        });
 
         // Repositories
         services.AddScoped<IUserRepository, UserRepository>();

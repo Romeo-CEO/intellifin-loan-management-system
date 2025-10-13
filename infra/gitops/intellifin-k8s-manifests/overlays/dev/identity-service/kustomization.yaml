@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dev
+
+resources:
+  - ../../../base/identity-service
+
+replicas:
+  - name: identity-service
+    count: 1
+
+configMapGenerator:
+  - name: identity-service-config
+    behavior: merge
+    literals:
+      - Logging__LogLevel__Default=Debug
+      - FeatureFlags__UseSandboxIntegrations=true
+
+commonLabels:
+  environment: dev

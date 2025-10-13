@@ -17,6 +17,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.8" />
     <PackageReference Include="MassTransit.TestFramework" Version="8.5.2" />
+    <PackageReference Include="Minio" Version="6.0.5" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,6 +38,7 @@
     <ProjectReference Include="..\..\apps\IntelliFin.ClientManagement\IntelliFin.ClientManagement.csproj" />
     <ProjectReference Include="..\..\apps\IntelliFin.LoanOrigination\IntelliFin.LoanOrigination.csproj" />
     <ProjectReference Include="..\..\apps\IntelliFin.Communications\IntelliFin.Communications.csproj" />
+    <ProjectReference Include="..\..\apps\IntelliFin.AdminService\IntelliFin.AdminService.csproj" />
   </ItemGroup>
 
 </Project>

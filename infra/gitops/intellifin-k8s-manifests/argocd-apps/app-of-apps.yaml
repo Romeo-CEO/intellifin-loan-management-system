@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: intellifin-production-apps
+  namespace: argocd
+spec:
+  project: intellifin-production
+  source:
+    repoURL: https://github.com/intellifin/intellifin-k8s-manifests.git
+    targetRevision: main
+    path: argocd-apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

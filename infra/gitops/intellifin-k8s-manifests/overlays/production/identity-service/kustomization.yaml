@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: production
+
+resources:
+  - ../../../base/identity-service
+
+images:
+  - name: intellifin/identity-service
+    newTag: v1.2.3
+
+replicas:
+  - name: identity-service
+    count: 3
+
+configMapGenerator:
+  - name: identity-service-config
+    behavior: merge
+    literals:
+      - Logging__LogLevel__Default=Warning
+      - Logging__LogLevel__Microsoft=Error
+
+commonLabels:
+  environment: production
