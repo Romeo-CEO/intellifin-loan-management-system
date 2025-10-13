@@ -128,13 +128,19 @@ public sealed class AuditService : IAuditService
             return;
         }
 
+        var batch = new List<AuditEvent>(_options.BatchSize);
+
         try
         {
-            var batch = new List<AuditEvent>(_options.BatchSize);
-
-            while (batch.Count < _options.BatchSize && _buffer.TryDequeue(out var evt))
+            
+            foreach (var evt in _buffer)
             {
                 batch.Add(evt);
+
+                if (batch.Count >= _options.BatchSize)
+                {
+                    break;
+                }
             }
 
             if (batch.Count == 0)
@@ -143,12 +149,30 @@ public sealed class AuditService : IAuditService
             }
 
             await PersistBatchAsync(batch, cancellationToken);
+
+            for (var i = 0; i < batch.Count; i++)
+            {
+                if (!_buffer.TryDequeue(out var dequeued))
+                {
+                    _logger.LogWarning("Expected to dequeue persisted audit event but buffer was empty");
+                    break;
+                }
+
+                if (!ReferenceEquals(dequeued, batch[i]))
+                {
+                    _logger.LogWarning(
+                        "Dequeued audit event {DequeuedEventId} did not match persisted batch event {BatchEventId}",
+                        dequeued.EventId,
+                        batch[i].EventId);
+                }
+            }
+
             _lastFlushUtc = DateTime.UtcNow;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to flush audit event buffer");
-            foreach (var evt in _buffer)
+            _logger.LogError(ex, "Failed to flush audit event buffer; will retry batch of {Count} events", batch.Count);
+            foreach (var evt in batch)
             {
                 _logger.LogDebug("Buffered event {EventId} pending retry", evt.EventId);
             }
