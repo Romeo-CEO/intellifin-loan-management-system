@@ -1,0 +1,79 @@
+{{- $agent := .Values.jaeger.production.agent }}
+{{- if and .Values.jaeger.enabled (eq .Values.jaeger.mode "production") }}
+{{- $collectorServiceName := printf "%s-jaeger-collector" (include "observability.fullname" .) }}
+{{- $collectorHostPort := default (printf "%s:%d" $collectorServiceName .Values.jaeger.production.collector.service.ports.collectorGrpc) $agent.reporter.grpcHostPort }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "observability.fullname" . }}-jaeger-agent
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger-agent
+    app.kubernetes.io/name: jaeger
+spec:
+  selector:
+    matchLabels:
+      {{- include "observability.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: jaeger-agent
+  template:
+    metadata:
+      labels:
+        {{- include "observability.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: jaeger-agent
+    spec:
+      containers:
+        - name: agent
+          image: "{{ $agent.image.repository }}:{{ $agent.image.tag }}"
+          imagePullPolicy: {{ $agent.image.pullPolicy }}
+          args:
+            - "--reporter.type=grpc"
+            - "--reporter.grpc.host-port={{ $collectorHostPort }}"
+            - "--processor.jaeger-compact.server-host-port=:{{ $agent.daemonset.hostPorts.compact }}"
+            - "--processor.jaeger-binary.server-host-port=:{{ $agent.daemonset.hostPorts.binary }}"
+            - "--http-server.host-port=:{{ $agent.daemonset.hostPorts.http }}"
+          ports:
+            - name: jaeger-compact
+              containerPort: {{ $agent.daemonset.hostPorts.compact }}
+              protocol: UDP
+              {{- if $agent.daemonset.useHostPort }}
+              hostPort: {{ $agent.daemonset.hostPorts.compact }}
+              {{- end }}
+            - name: jaeger-binary
+              containerPort: {{ $agent.daemonset.hostPorts.binary }}
+              protocol: UDP
+              {{- if $agent.daemonset.useHostPort }}
+              hostPort: {{ $agent.daemonset.hostPorts.binary }}
+              {{- end }}
+            - name: http
+              containerPort: {{ $agent.daemonset.hostPorts.http }}
+              protocol: TCP
+              {{- if $agent.daemonset.useHostPort }}
+              hostPort: {{ $agent.daemonset.hostPorts.http }}
+              {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            {{- toYaml $agent.resources | nindent 12 }}
+      {{- with $agent.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $agent.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $agent.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

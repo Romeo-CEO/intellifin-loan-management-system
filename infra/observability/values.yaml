@@ -1,8 +1,23 @@
 nameOverride: ""
 fullnameOverride: ""
 
+alerting:
+  pagerDuty:
+    routingKey: "${PAGERDUTY_SERVICE_KEY}"
+  slack:
+    webhookUrl: "${SLACK_WEBHOOK_URL}"
+    channel: "#alerts-critical"
+  email:
+    from: alerts@intellifin.com
+    to:
+      - devops@intellifin.com
+      - sre@intellifin.com
+  defaultSilenceDurationMinutes: 120
+  playbookBaseUrl: https://admin.intellifin.com/playbooks
+
 jaeger:
   enabled: true
+  mode: allInOne
   image:
     repository: jaegertracing/all-in-one
     tag: "1.51"
@@ -73,6 +88,124 @@ jaeger:
     serviceMonitor:
       enabled: true
       interval: 30s
+      additionalLabels: {}
+  production:
+    collector:
+      image:
+        repository: jaegertracing/jaeger-collector
+        tag: "1.51"
+        pullPolicy: IfNotPresent
+      replicaCount: 3
+      resources:
+        requests:
+          cpu: "2"
+          memory: 4Gi
+        limits:
+          cpu: "4"
+          memory: 8Gi
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+      service:
+        type: ClusterIP
+        ports:
+          otlpGrpc: 4317
+          otlpHttp: 4318
+          collectorGrpc: 14250
+          collectorHttp: 14268
+          admin: 14269
+      autoscaling:
+        enabled: true
+        minReplicas: 3
+        maxReplicas: 10
+        targetCPUUtilizationPercentage: 70
+        targetMemoryUtilizationPercentage: 80
+      sampling:
+        defaultProbability: 0.1
+        serviceOverrides:
+          - service: admin-service
+            type: probabilistic
+            param: 1.0
+      cmdlineParams:
+        es.num-shards: 5
+        es.num-replicas: 1
+        es.bulk.size: 10000000
+        es.bulk.workers: 10
+        es.bulk.flush-interval: 1s
+    query:
+      image:
+        repository: jaegertracing/jaeger-query
+        tag: "1.51"
+        pullPolicy: IfNotPresent
+      replicaCount: 2
+      resources:
+        requests:
+          cpu: "1"
+          memory: 2Gi
+        limits:
+          cpu: "2"
+          memory: 4Gi
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+      service:
+        type: ClusterIP
+        port: 16686
+      ingress:
+        enabled: true
+        className: nginx
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+          nginx.ingress.kubernetes.io/ssl-redirect: "true"
+        hosts:
+          - host: jaeger.intellifin.com
+            paths:
+              - path: /
+                pathType: Prefix
+        tls:
+          - secretName: jaeger-tls
+            hosts:
+              - jaeger.intellifin.com
+      cmdlineParams:
+        query.max-clock-skew-adjustment: 1s
+        query.base-path: /
+    agent:
+      image:
+        repository: jaegertracing/jaeger-agent
+        tag: "1.51"
+        pullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          cpu: "1"
+          memory: 1Gi
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+      daemonset:
+        useHostPort: true
+        hostPorts:
+          compact: 6831
+          binary: 6832
+          http: 5778
+      reporter:
+        grpcHostPort: jaeger-collector:14250
+    storage:
+      type: elasticsearch
+      elasticsearch:
+        host: elasticsearch-master.elastic-system.svc.cluster.local
+        port: 9200
+        scheme: http
+        user: jaeger
+        password: jaeger_password
+        indexPrefix: jaeger
+        createIndexTemplates: true
+        version: 8
+    retention:
+      days: 7
+    serviceMonitor:
       additionalLabels: {}
 
 otelCollector:
@@ -257,26 +390,60 @@ kubePrometheusStack:
     config:
       global:
         resolve_timeout: 5m
+        pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+        slack_api_url: {{ default "" .Values.alerting.slack.webhookUrl | quote }}
       route:
-        receiver: "default"
+        receiver: "email-warnings"
         group_by: ['alertname', 'cluster', 'service']
-        group_wait: 30s
-        group_interval: 5m
-        repeat_interval: 3h
+        group_wait: 10s
+        group_interval: 10s
+        repeat_interval: 12h
         routes:
-          - match:
-              severity: critical
-            receiver: "critical"
-            repeat_interval: 30m
+          - matchers:
+              - severity = "critical"
+            receiver: "pagerduty-critical"
+            continue: true
+          - matchers:
+              - severity = "critical"
+            receiver: "slack-critical"
+          - matchers:
+              - severity = "warning"
+            receiver: "email-warnings"
+      inhibit_rules:
+        - source_matchers:
+            - severity = "critical"
+          target_matchers:
+            - severity = "warning"
+          equal: ['alertname', 'service']
       receivers:
-        - name: "default"
-          webhook_configs:
-            - url: http://notification-gateway.intellifin.svc.cluster.local/api/alerts
+        - name: "pagerduty-critical"
+          pagerduty_configs:
+            - routing_key: {{ default "" .Values.alerting.pagerDuty.routingKey | quote }}
+              class: "{{`{{`}} .CommonLabels.component {{`}}`}}"
+              severity: "critical"
+              source: "observability-stack"
+              component: "{{`{{`}} .CommonLabels.service {{`}}`}}"
+              summary: '{{`{{`}} .GroupLabels.alertname {{`}}`}}: {{`{{`}} .CommonAnnotations.summary {{`}}`}}'
+              details:
+                description: '{{`{{`}} .CommonAnnotations.description {{`}}`}}'
+                playbook: '{{`{{`}} .CommonAnnotations.playbook_url {{`}}`}}'
+        - name: "slack-critical"
+          slack_configs:
+            - channel: {{ default "#alerts-critical" .Values.alerting.slack.channel | quote }}
+              username: "IntelliFin Alertmanager"
               send_resolved: true
-        - name: "critical"
-          webhook_configs:
-            - url: http://notification-gateway.intellifin.svc.cluster.local/api/alerts/critical
-              send_resolved: true
+              title: 'CRITICAL: {{`{{`}} .GroupLabels.alertname {{`}}`}}'
+              text: '{{`{{`}} .CommonAnnotations.description {{`}}`}}\nPlaybook: {{`{{`}} .CommonAnnotations.playbook_url {{`}}`}}'
+        - name: "email-warnings"
+          email_configs:
+            - to: {{ (join "," (.Values.alerting.email.to | default (list "devops@intellifin.com"))) | quote }}
+              from: {{ default "alerts@intellifin.com" .Values.alerting.email.from | quote }}
+              headers:
+                Subject: 'IntelliFin Alert: {{`{{`}} .GroupLabels.alertname {{`}}`}} ({{`{{`}} .CommonLabels.severity {{`}}`}})'
+              html: |
+                <p><strong>{{`{{`}} .CommonAnnotations.summary {{`}}`}}</strong></p>
+                <p>{{`{{`}} .CommonAnnotations.description {{`}}`}}</p>
+                <p>Playbook: <a href="{{`{{`}} .CommonAnnotations.playbook_url {{`}}`}}">{{`{{`}} .CommonAnnotations.playbook_url {{`}}`}}</a></p>
   prometheus:
     enabled: true
     serviceMonitorSelectorNilUsesHelmValues: false
@@ -355,6 +522,9 @@ kubePrometheusStack:
         enabled: true
         label: grafana_datasource
         searchNamespace: ALL
+    dashboards:
+      bozCompliance:
+        enabled: true
     dashboardProviders:
       dashboardproviders.yaml:
         apiVersion: 1
@@ -367,6 +537,14 @@ kubePrometheusStack:
             editable: true
             options:
               path: /var/lib/grafana/dashboards/intellifin
+          - name: boz-compliance
+            orgId: 1
+            folder: BoZ Compliance
+            type: file
+            disableDeletion: false
+            editable: false
+            options:
+              path: /var/lib/grafana/dashboards/boz-compliance
 
 serviceMonitors:
   - name: api-gateway

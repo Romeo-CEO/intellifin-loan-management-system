@@ -1,4 +1,5 @@
 {{- if and .Values.jaeger.enabled .Values.jaeger.metrics.serviceMonitor.enabled }}
+{{- if eq .Values.jaeger.mode "allInOne" }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -18,4 +19,45 @@ spec:
     - port: admin
       path: /metrics
       interval: {{ .Values.jaeger.metrics.serviceMonitor.interval }}
+{{- else if eq .Values.jaeger.mode "production" }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "observability.fullname" . }}-jaeger-collector
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger-collector
+    {{- with .Values.jaeger.production.serviceMonitor.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "observability.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: jaeger-collector
+  endpoints:
+    - port: admin
+      path: /metrics
+      interval: {{ .Values.jaeger.metrics.serviceMonitor.interval }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "observability.fullname" . }}-jaeger-query
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger-query
+    {{- with .Values.jaeger.production.serviceMonitor.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "observability.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: jaeger-query
+  endpoints:
+    - port: admin
+      path: /metrics
+      interval: {{ .Values.jaeger.metrics.serviceMonitor.interval }}
+{{- end }}
 {{- end }}

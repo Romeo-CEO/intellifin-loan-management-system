@@ -34,6 +34,10 @@ public class AdminDbContext(DbContextOptions<AdminDbContext> options) : DbContex
     public DbSet<BastionAccessRequest> BastionAccessRequests => Set<BastionAccessRequest>();
     public DbSet<BastionSession> BastionSessions => Set<BastionSession>();
     public DbSet<EmergencyAccessLog> EmergencyAccessLogs => Set<EmergencyAccessLog>();
+    public DbSet<IncidentPlaybook> IncidentPlaybooks => Set<IncidentPlaybook>();
+    public DbSet<IncidentPlaybookRun> IncidentPlaybookRuns => Set<IncidentPlaybookRun>();
+    public DbSet<OperationalIncident> OperationalIncidents => Set<OperationalIncident>();
+    public DbSet<AlertSilenceAudit> AlertSilenceAudits => Set<AlertSilenceAudit>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -164,6 +168,7 @@ public class AdminDbContext(DbContextOptions<AdminDbContext> options) : DbContex
 
             entity.Property(e => e.Severity)
                   .HasMaxLength(20)
+                  .HasDefaultValue("critical")
                   .IsRequired();
 
             entity.Property(e => e.DetectedAt)
@@ -1604,6 +1609,216 @@ public class AdminDbContext(DbContextOptions<AdminDbContext> options) : DbContex
 
             entity.HasIndex(e => e.IncidentTicketId)
                   .HasDatabaseName("IX_EmergencyAccessLogs_IncidentTicketId");
+        });
+
+        modelBuilder.Entity<IncidentPlaybook>(entity =>
+        {
+            entity.ToTable("IncidentPlaybooks");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                  .ValueGeneratedOnAdd();
+
+            entity.Property(e => e.PlaybookId)
+                  .HasDefaultValueSql("NEWID()");
+
+            entity.Property(e => e.AlertName)
+                  .HasMaxLength(150)
+                  .IsRequired();
+
+            entity.Property(e => e.Severity)
+                  .HasMaxLength(20)
+                  .HasDefaultValue("critical")
+                  .IsRequired();
+
+            entity.Property(e => e.Title)
+                  .HasMaxLength(200)
+                  .IsRequired();
+
+            entity.Property(e => e.Summary)
+                  .HasMaxLength(500);
+
+            entity.Property(e => e.LinkedRunbookUrl)
+                  .HasMaxLength(500);
+
+            entity.Property(e => e.Owner)
+                  .HasMaxLength(100)
+                  .IsRequired();
+
+            entity.Property(e => e.IsActive)
+                  .HasDefaultValue(true);
+
+            entity.Property(e => e.AutomationProcessKey)
+                  .HasMaxLength(100);
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.HasIndex(e => e.PlaybookId)
+                  .IsUnique()
+                  .HasDatabaseName("IX_IncidentPlaybooks_PlaybookId");
+
+            entity.HasIndex(e => e.AlertName)
+                  .HasDatabaseName("IX_IncidentPlaybooks_AlertName");
+
+            entity.HasIndex(e => e.IsActive)
+                  .HasDatabaseName("IX_IncidentPlaybooks_IsActive");
+        });
+
+        modelBuilder.Entity<IncidentPlaybookRun>(entity =>
+        {
+            entity.ToTable("IncidentPlaybookRuns");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                  .ValueGeneratedOnAdd();
+
+            entity.Property(e => e.RunId)
+                  .HasDefaultValueSql("NEWID()");
+
+            entity.Property(e => e.AlertName)
+                  .HasMaxLength(150)
+                  .IsRequired();
+
+            entity.Property(e => e.Severity)
+                  .HasMaxLength(20)
+                  .HasDefaultValue("critical")
+                  .IsRequired();
+
+            entity.Property(e => e.AutomationOutcome)
+                  .HasMaxLength(200);
+
+            entity.Property(e => e.RecordedBy)
+                  .HasMaxLength(100);
+
+            entity.Property(e => e.CamundaProcessInstanceId)
+                  .HasMaxLength(100);
+
+            entity.Property(e => e.PagerDutyIncidentId)
+                  .HasMaxLength(100);
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.HasIndex(e => e.RunId)
+                  .IsUnique()
+                  .HasDatabaseName("IX_IncidentPlaybookRuns_RunId");
+
+            entity.HasIndex(e => e.IncidentId)
+                  .HasDatabaseName("IX_IncidentPlaybookRuns_IncidentId");
+
+            entity.HasOne(e => e.Playbook)
+                  .WithMany(p => p.Runs)
+                  .HasForeignKey(e => e.IncidentPlaybookId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<OperationalIncident>(entity =>
+        {
+            entity.ToTable("OperationalIncidents");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                  .ValueGeneratedOnAdd();
+
+            entity.Property(e => e.IncidentId)
+                  .HasDefaultValueSql("NEWID()");
+
+            entity.Property(e => e.AlertName)
+                  .HasMaxLength(150)
+                  .IsRequired();
+
+            entity.Property(e => e.Severity)
+                  .HasMaxLength(20)
+                  .HasDefaultValue("critical")
+                  .IsRequired();
+
+            entity.Property(e => e.Status)
+                  .HasMaxLength(30)
+                  .HasDefaultValue("Open")
+                  .IsRequired();
+
+            entity.Property(e => e.Summary)
+                  .HasMaxLength(500);
+
+            entity.Property(e => e.PagerDutyIncidentId)
+                  .HasMaxLength(100);
+
+            entity.Property(e => e.SlackThreadUrl)
+                  .HasMaxLength(300);
+
+            entity.Property(e => e.CamundaProcessInstanceId)
+                  .HasMaxLength(100);
+
+            entity.Property(e => e.CreatedBy)
+                  .HasMaxLength(100);
+
+            entity.Property(e => e.LastUpdatedBy)
+                  .HasMaxLength(100);
+
+            entity.Property(e => e.AutomationStatus)
+                  .HasMaxLength(50);
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.HasIndex(e => e.IncidentId)
+                  .IsUnique()
+                  .HasDatabaseName("IX_OperationalIncidents_IncidentId");
+
+            entity.HasIndex(e => e.Status)
+                  .HasDatabaseName("IX_OperationalIncidents_Status");
+
+            entity.HasIndex(e => e.AlertName)
+                  .HasDatabaseName("IX_OperationalIncidents_AlertName");
+
+            entity.HasOne(e => e.Playbook)
+                  .WithMany(p => p.Incidents)
+                  .HasForeignKey(e => e.IncidentPlaybookId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<AlertSilenceAudit>(entity =>
+        {
+            entity.ToTable("AlertSilenceAudits");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                  .ValueGeneratedOnAdd();
+
+            entity.Property(e => e.AuditId)
+                  .HasDefaultValueSql("NEWID()");
+
+            entity.Property(e => e.SilenceId)
+                  .HasMaxLength(100)
+                  .IsRequired();
+
+            entity.Property(e => e.CreatedBy)
+                  .HasMaxLength(100)
+                  .IsRequired();
+
+            entity.Property(e => e.Comment)
+                  .HasMaxLength(500);
+
+            entity.Property(e => e.Matchers)
+                  .HasColumnType("nvarchar(max)")
+                  .IsRequired();
+
+            entity.Property(e => e.AlertmanagerUrl)
+                  .HasMaxLength(300)
+                  .IsRequired();
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.HasIndex(e => e.SilenceId)
+                  .HasDatabaseName("IX_AlertSilenceAudits_SilenceId");
         });
     }
 }

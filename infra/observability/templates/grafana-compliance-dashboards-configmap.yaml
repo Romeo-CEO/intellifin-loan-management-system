@@ -1,0 +1,873 @@
+{{- if and .Values.kubePrometheusStack.enabled .Values.kubePrometheusStack.grafana.enabled .Values.kubePrometheusStack.grafana.dashboards.boZCompliance.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "observability.fullname" . }}-grafana-boz-compliance-dashboards
+  labels:
+    {{- include "observability.monitoring.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+  annotations:
+    grafana-folder: BoZ Compliance
+    grafana-folder-uid: boz-compliance
+    dashboard-provider: intellifin
+    dashboard-provider-folder: BoZ Compliance
+    grafana_folder: BoZ Compliance
+  namespace: {{ .Release.Namespace }}
+data:
+  BoZ-Compliance-Overview.json: |
+    {
+      "id": null,
+      "uid": "boz-compliance-overview",
+      "title": "BoZ Compliance Overview",
+      "tags": ["compliance", "boz", "regulatory"],
+      "timezone": "Africa/Lusaka",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": false,
+      "style": "dark",
+      "refresh": "30s",
+      "time": {
+        "from": "now-30d",
+        "to": "now"
+      },
+      "timepicker": {
+        "refresh_intervals": [
+          "30s",
+          "1m",
+          "5m",
+          "15m"
+        ],
+        "time_options": [
+          "7d",
+          "30d",
+          "90d",
+          "180d",
+          "1y"
+        ]
+      },
+      "links": [
+        {
+          "title": "Audit Log Explorer",
+          "type": "link",
+          "url": "https://kibana.intellifin.com/app/discover#/view/audit-logs",
+          "targetBlank": true
+        },
+        {
+          "title": "Incident Command Center",
+          "type": "link",
+          "url": "https://admin.intellifin.com/incidents",
+          "targetBlank": true
+        }
+      ],
+      "panels": [
+        {
+          "id": 1,
+          "type": "row",
+          "title": "Audit Metrics",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Total Audit Events",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(increase(audit_events_total[30d]))"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 10000 },
+                  { "color": "green", "value": 50000 }
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "center",
+            "reduceOptions": {
+              "calcs": ["last"],
+              "fields": "",
+              "values": false
+            }
+          },
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 }
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "Daily Audit Event Rate",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(audit_events_total[1d]))",
+              "legendFormat": "Events/Day"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            }
+          },
+          "gridPos": { "h": 6, "w": 9, "x": 6, "y": 1 }
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Monthly Audit Event Rate",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(audit_events_monthly_total[30d]))",
+              "legendFormat": "Events/Month"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "bars",
+                "lineWidth": 1
+              },
+              "unit": "short"
+            }
+          },
+          "gridPos": { "h": 6, "w": 9, "x": 15, "y": 1 }
+        },
+        {
+          "id": 5,
+          "type": "stat",
+          "title": "Annual Audit Events",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(increase(audit_events_total[365d]))"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(increase(audit_events_total[365d] offset 365d))"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 500000 },
+                  { "color": "green", "value": 750000 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "reduceOptions": {
+              "calcs": ["last"],
+              "fields": "A"
+            },
+            "showPercentChange": true
+          },
+          "gridPos": { "h": 5, "w": 6, "x": 0, "y": 7 }
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "Audit Chain Integrity",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "audit_chain_integrity_status"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "BROKEN",
+                      "color": "red"
+                    },
+                    "1": {
+                      "text": "Intact",
+                      "color": "green"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "orientation": "horizontal",
+            "textMode": "value_and_name"
+          },
+          "gridPos": { "h": 5, "w": 6, "x": 6, "y": 7 }
+        },
+        {
+          "id": 7,
+          "type": "gauge",
+          "title": "Audit Coverage",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "audit_coverage_percent"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 90 },
+                  { "color": "green", "value": 95 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 5, "w": 6, "x": 12, "y": 7 }
+        },
+        {
+          "id": 8,
+          "type": "stat",
+          "title": "Last Integrity Validation",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "Elasticsearch"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "audit_chain_validation:success",
+              "metrics": [
+                {
+                  "id": "1",
+                  "type": "max",
+                  "field": "validated_at"
+                }
+              ],
+              "bucketAggs": []
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "dateTimeFromNow"
+            }
+          },
+          "gridPos": { "h": 5, "w": 6, "x": 18, "y": 7 }
+        },
+        {
+          "id": 9,
+          "type": "row",
+          "title": "Access Control & Recertification",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 }
+        },
+        {
+          "id": 10,
+          "type": "gauge",
+          "title": "Quarterly Certification Completion",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(access_certifications_completed / clamp_min(access_certifications_required, 1)) * 100"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 80 },
+                  { "color": "green", "value": 100 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 13 }
+        },
+        {
+          "id": 11,
+          "type": "table",
+          "title": "Overdue Certifications",
+          "datasource": {
+            "type": "postgres",
+            "uid": "AdminPostgres"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "format": "table",
+              "rawSql": "SELECT owner_email AS \"Owner\", service_name AS \"Service\", due_date AS \"Due Date\" FROM access_certifications WHERE status <> 'Completed' AND due_date < NOW() ORDER BY due_date ASC LIMIT 20;",
+              "datasource": {
+                "type": "postgres",
+                "uid": "AdminPostgres"
+              }
+            }
+          ],
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 13 }
+        },
+        {
+          "id": 12,
+          "type": "timeseries",
+          "title": "Certification Completion Trend",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum_over_time(access_certifications_completed_percent[90d])",
+              "legendFormat": "Completion %"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            }
+          },
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 13 }
+        },
+        {
+          "id": 13,
+          "type": "stat",
+          "title": "High-Risk Access Reviews Pending",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "access_certifications_high_risk_pending"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 5 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 19 }
+        },
+        {
+          "id": 14,
+          "type": "stat",
+          "title": "Next Certification Deadline",
+          "datasource": {
+            "type": "postgres",
+            "uid": "AdminPostgres"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "format": "table",
+              "rawSql": "SELECT CONCAT(EXTRACT(EPOCH FROM (due_date - NOW()))::bigint) AS seconds_remaining FROM certification_calendar WHERE quarter = get_current_compliance_quarter() ORDER BY due_date DESC LIMIT 1;"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            }
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": ["last"],
+              "fields": "/.*/",
+              "values": false
+            }
+          },
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 19 }
+        },
+        {
+          "id": 15,
+          "type": "stat",
+          "title": "Active Access Violations",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(security_violations_total)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 10 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 19 }
+        },
+        {
+          "id": 16,
+          "type": "timeseries",
+          "title": "Violation Breakdown",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (violation_type) (increase(security_violations_total[30d]))",
+              "legendFormat": "{{violation_type}}"
+            }
+          ],
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 19 }
+        },
+        {
+          "id": 17,
+          "type": "row",
+          "title": "Security Incidents",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 }
+        },
+        {
+          "id": 18,
+          "type": "piechart",
+          "title": "Incidents by Severity",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (severity) (increase(security_incidents_total[30d]))"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "palette-classic"
+              }
+            }
+          },
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 24 }
+        },
+        {
+          "id": 19,
+          "type": "stat",
+          "title": "Open Incidents",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(security_incidents_open)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 5 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 7, "w": 4, "x": 8, "y": 24 }
+        },
+        {
+          "id": 20,
+          "type": "stat",
+          "title": "Mean Time To Resolution",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "security_incident_resolution_time_hours"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "hours",
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 24 },
+                  { "color": "red", "value": 48 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 7, "w": 4, "x": 12, "y": 24 }
+        },
+        {
+          "id": 21,
+          "type": "timeseries",
+          "title": "Incident Trend",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(increase(security_incidents_total[1d])) by (severity)",
+              "legendFormat": "{{severity}}"
+            }
+          ],
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 24 }
+        },
+        {
+          "id": 22,
+          "type": "barchart",
+          "title": "Top Incident Categories",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "topk(5, sum by (category) (increase(security_incident_category_total[30d])))",
+              "legendFormat": "{{category}}"
+            }
+          ],
+          "gridPos": { "h": 7, "w": 6, "x": 0, "y": 31 }
+        },
+        {
+          "id": 23,
+          "type": "row",
+          "title": "Loan Portfolio Compliance",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 38 }
+        },
+        {
+          "id": 24,
+          "type": "piechart",
+          "title": "Loan Classification Distribution",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (classification) (loan_classification_total)"
+            }
+          ],
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 39 }
+        },
+        {
+          "id": 25,
+          "type": "gauge",
+          "title": "Non-Performing Loan Ratio",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(sum(loan_classification_total{classification=~\"Substandard|Doubtful|Loss\"}) / clamp_min(sum(loan_classification_total), 1)) * 100"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 20,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 5 },
+                  { "color": "red", "value": 10 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 7, "w": 4, "x": 8, "y": 39 }
+        },
+        {
+          "id": 26,
+          "type": "stat",
+          "title": "Classification Accuracy",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "loan_classification_accuracy_percent"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 90 },
+                  { "color": "green", "value": 95 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 7, "w": 4, "x": 12, "y": 39 }
+        },
+        {
+          "id": 27,
+          "type": "timeseries",
+          "title": "Reclassification Rate",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "increase(loan_reclassification_total[30d]) / clamp_min(sum(loan_classification_total),1) * 100",
+              "legendFormat": "Reclassifications %"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            }
+          },
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 39 }
+        },
+        {
+          "id": 28,
+          "type": "table",
+          "title": "Manual Overrides",
+          "datasource": {
+            "type": "postgres",
+            "uid": "AdminPostgres"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "format": "table",
+              "rawSql": "SELECT loan_id AS \"Loan ID\", override_reason AS \"Reason\", approved_by AS \"Approved By\", approved_at AS \"Approved At\" FROM loan_classification_overrides WHERE approved_at >= NOW() - INTERVAL '90 days' ORDER BY approved_at DESC LIMIT 20;"
+            }
+          ],
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 46 }
+        },
+        {
+          "id": 29,
+          "type": "row",
+          "title": "System Availability & Resilience",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 53 }
+        },
+        {
+          "id": 30,
+          "type": "stat",
+          "title": "Platform Uptime",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "system_uptime_percent"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 99 },
+                  { "color": "green", "value": 99.9 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 54 }
+        },
+        {
+          "id": 31,
+          "type": "stat",
+          "title": "RTO Compliance",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "business_rto_breach_total"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "Within Target",
+                      "color": "green"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 6, "w": 6, "x": 6, "y": 54 }
+        },
+        {
+          "id": 32,
+          "type": "stat",
+          "title": "RPO Compliance",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "business_rpo_breach_total"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "Within Target",
+                      "color": "green"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 6, "w": 6, "x": 12, "y": 54 }
+        },
+        {
+          "id": 33,
+          "type": "timeseries",
+          "title": "Availability Trend",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "system_uptime_percent",
+              "legendFormat": "Uptime"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            }
+          },
+          "gridPos": { "h": 6, "w": 6, "x": 18, "y": 54 }
+        }
+      ]
+    }
+{{- end }}

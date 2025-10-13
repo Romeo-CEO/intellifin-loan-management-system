@@ -1,0 +1,31 @@
+{{- if and .Values.jaeger.enabled (eq .Values.jaeger.mode "production") }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "observability.fullname" . }}-jaeger-collector-config
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger-collector
+    app.kubernetes.io/name: jaeger
+  annotations:
+    observability.intellifin.com/description: "Sampling configuration for Jaeger collector"
+data:
+  sampling.json: |
+    {
+      "service_strategies": [
+      {{- $overrides := .Values.jaeger.production.collector.sampling.serviceOverrides | default list }}
+      {{- range $index, $override := $overrides }}
+        {{- if $index }},{{ end }}
+        {
+          "service": "{{ $override.service }}",
+          "type": "{{ $override.type | default "probabilistic" }}",
+          "param": {{ $override.param | default 1.0 }}
+        }
+      {{- end }}
+      ],
+      "default_strategy": {
+        "type": "probabilistic",
+        "param": {{ .Values.jaeger.production.collector.sampling.defaultProbability | default 0.1 }}
+      }
+    }
+{{- end }}

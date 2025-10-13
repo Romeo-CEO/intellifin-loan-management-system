@@ -1,0 +1,97 @@
+{{- if and .Values.jaeger.enabled (eq .Values.jaeger.mode "production") }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "observability.fullname" . }}-jaeger-collector
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger-collector
+    app.kubernetes.io/name: jaeger
+spec:
+  replicas: {{ .Values.jaeger.production.collector.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "observability.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: jaeger-collector
+  template:
+    metadata:
+      labels:
+        {{- include "observability.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: jaeger-collector
+    spec:
+      containers:
+        - name: collector
+          image: "{{ .Values.jaeger.production.collector.image.repository }}:{{ .Values.jaeger.production.collector.image.tag }}"
+          imagePullPolicy: {{ .Values.jaeger.production.collector.image.pullPolicy }}
+          args:
+            - "--collector.otlp.enabled=true"
+            - "--collector.grpc-server.host-port=:{{ .Values.jaeger.production.collector.service.ports.collectorGrpc }}"
+            - "--collector.http-server.host-port=:{{ .Values.jaeger.production.collector.service.ports.collectorHttp }}"
+            - "--collector.otlp.grpc.host-port=:{{ .Values.jaeger.production.collector.service.ports.otlpGrpc }}"
+            - "--collector.otlp.http.host-port=:{{ .Values.jaeger.production.collector.service.ports.otlpHttp }}"
+            - "--sampling.strategies-file=/config/sampling.json"
+            {{- range $key, $value := .Values.jaeger.production.collector.cmdlineParams }}
+            - "--{{ $key }}={{ $value }}"
+            {{- end }}
+          env:
+            - name: SPAN_STORAGE_TYPE
+              value: {{ .Values.jaeger.production.storage.type }}
+            - name: ES_SERVER_URLS
+              value: {{ printf "%s://%s:%d" .Values.jaeger.production.storage.elasticsearch.scheme .Values.jaeger.production.storage.elasticsearch.host .Values.jaeger.production.storage.elasticsearch.port | quote }}
+            - name: ES_USERNAME
+              value: {{ .Values.jaeger.production.storage.elasticsearch.user | quote }}
+            - name: ES_PASSWORD
+              value: {{ .Values.jaeger.production.storage.elasticsearch.password | quote }}
+            - name: ES_INDEX_PREFIX
+              value: {{ .Values.jaeger.production.storage.elasticsearch.indexPrefix | quote }}
+            - name: ES_VERSION
+              value: {{ printf "%v" .Values.jaeger.production.storage.elasticsearch.version | quote }}
+            - name: ES_CREATE_INDEX_TEMPLATES
+              value: {{ ternary "true" "false" .Values.jaeger.production.storage.elasticsearch.createIndexTemplates | quote }}
+            - name: SAMPLING_STRATEGIES_FILE
+              value: /config/sampling.json
+          ports:
+            - name: otlp-grpc
+              containerPort: {{ .Values.jaeger.production.collector.service.ports.otlpGrpc }}
+            - name: otlp-http
+              containerPort: {{ .Values.jaeger.production.collector.service.ports.otlpHttp }}
+            - name: collector-grpc
+              containerPort: {{ .Values.jaeger.production.collector.service.ports.collectorGrpc }}
+            - name: collector-http
+              containerPort: {{ .Values.jaeger.production.collector.service.ports.collectorHttp }}
+            - name: admin
+              containerPort: {{ .Values.jaeger.production.collector.service.ports.admin }}
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: admin
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: admin
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.jaeger.production.collector.resources | nindent 12 }}
+          volumeMounts:
+            - name: sampling-config
+              mountPath: /config
+      {{- with .Values.jaeger.production.collector.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.jaeger.production.collector.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.jaeger.production.collector.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: sampling-config
+          configMap:
+            name: {{ include "observability.fullname" . }}-jaeger-collector-config
+{{- end }}

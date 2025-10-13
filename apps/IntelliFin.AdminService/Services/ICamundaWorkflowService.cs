@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using IntelliFin.AdminService.Models;
@@ -12,4 +14,6 @@ public interface ICamundaWorkflowService
     Task CompleteConfigurationChangeWorkflowAsync(string? processInstanceId, bool approved, string comments, CancellationToken cancellationToken);
     Task<string?> StartRecertificationCampaignAsync(string campaignId, CancellationToken cancellationToken);
     Task CompleteRecertificationTaskAsync(string? camundaTaskId, Guid taskId, CancellationToken cancellationToken);
+    Task<string?> StartIncidentWorkflowAsync(OperationalIncident incident, CancellationToken cancellationToken);
+    Task<string?> StartPostIncidentReviewAsync(OperationalIncident incident, DateTime dueAtUtc, CancellationToken cancellationToken);
 }

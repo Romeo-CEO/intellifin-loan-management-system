@@ -713,4 +713,1230 @@ data:
         ]
       }
     }
+  boz-cost-compliance.json: |
+    {
+      "id": null,
+      "uid": "intellifin-boz-cost-compliance",
+      "title": "BoZ Compliance - Cloud Cost & Budget Governance",
+      "schemaVersion": 39,
+      "version": 1,
+      "tags": [
+        "finops",
+        "compliance",
+        "cost"
+      ],
+      "timezone": "",
+      "refresh": "30m",
+      "time": {
+        "from": "now-30d",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Current Month Spend",
+          "id": 201,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum_over_time(azure_cost_daily_usd{environment=~\"$environment\"}[30d])"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 0
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "sum"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "type": "gauge",
+          "title": "Budget Utilization",
+          "id": 202,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(sum_over_time(azure_cost_daily_usd{environment=~\"$environment\"}[30d])) / scalar(sum(azure_budget_monthly_usd{environment=~\"$environment\"})) * 100"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 150,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 80
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  },
+                  {
+                    "color": "dark-red",
+                    "value": 120
+                  }
+                ]
+              }
+            }
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 6,
+            "y": 0
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Cost Trend (Daily)",
+          "id": 203,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(azure_cost_daily_usd{environment=~\"$environment\"}) by (usage_date)",
+              "legendFormat": "{{usage_date}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 0
+            }
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 12,
+            "x": 12,
+            "y": 0
+          }
+        },
+        {
+          "type": "piechart",
+          "title": "Cost by Cost Center",
+          "id": 204,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum_over_time(azure_cost_daily_usd{environment=~\"$environment\",cost_center!=\"\"}[30d]) by (cost_center)",
+              "legendFormat": "{{cost_center}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD"
+            }
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 8,
+            "x": 0,
+            "y": 6
+          }
+        },
+        {
+          "type": "piechart",
+          "title": "Cost by Service",
+          "id": 205,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum_over_time(azure_cost_daily_usd{environment=~\"$environment\",service!=\"\"}[30d]) by (service)",
+              "legendFormat": "{{service}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD"
+            }
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 8,
+            "x": 8,
+            "y": 6
+          }
+        },
+        {
+          "type": "table",
+          "title": "Top 10 Resources",
+          "id": 206,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "topk(10, sum_over_time(azure_cost_daily_usd{environment=~\"$environment\"}[30d]) by (resource_name, resource_group))",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "left"
+              },
+              "unit": "currencyUSD"
+            }
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 8,
+            "x": 16,
+            "y": 6
+          }
+        },
+        {
+          "type": "table",
+          "title": "Active Cost Anomalies",
+          "id": 207,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "azure_cost_anomaly_score{environment=~\"$environment\"}",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "Value": "Anomaly Score"
+                },
+                "include": {
+                  "resource_name": true,
+                  "resource_type": true,
+                  "usage_date": true,
+                  "percentage_increase": true,
+                  "possible_root_cause": true,
+                  "Value": true
+                }
+              }
+            }
+          ],
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 13
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Forecast vs Actual",
+          "id": 208,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(azure_cost_daily_usd{environment=~\"$environment\"}) by (usage_date)",
+              "legendFormat": "Actual"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(azure_cost_forecast_usd{environment=~\"$environment\",statistic=\"expected\"}) by (forecast_date)",
+              "legendFormat": "Forecast"
+            },
+            {
+              "refId": "C",
+              "expr": "sum(azure_cost_forecast_usd{environment=~\"$environment\",statistic=\"upper\"}) by (forecast_date)",
+              "legendFormat": "Upper Bound"
+            },
+            {
+              "refId": "D",
+              "expr": "sum(azure_cost_forecast_usd{environment=~\"$environment\",statistic=\"lower\"}) by (forecast_date)",
+              "legendFormat": "Lower Bound"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD"
+            }
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 13
+          }
+        },
+        {
+          "type": "table",
+          "title": "Optimization Recommendations",
+          "id": 209,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "azure_cost_recommendation_savings_usd{environment=~\"$environment\"}",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "Value": "Monthly Savings (USD)"
+                },
+                "include": {
+                  "recommendation_type": true,
+                  "resource_name": true,
+                  "confidence_level": true,
+                  "implementation_effort": true,
+                  "risk_level": true,
+                  "Value": true
+                }
+              }
+            }
+          ],
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 22
+          }
+        },
+        {
+          "type": "barchart",
+          "title": "AKS Namespace Cost Allocation",
+          "id": 210,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum_over_time(azure_aks_namespace_cost_usd{environment=~\"$environment\"}[30d]) by (namespace)",
+              "legendFormat": "{{namespace}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD"
+            }
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 22
+          }
+        }
+      ],
+      "templating": {
+        "list": [
+          {
+            "name": "environment",
+            "label": "Environment",
+            "type": "query",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "Prometheus"
+            },
+            "definition": "label_values(azure_cost_daily_usd, environment)",
+            "includeAll": true,
+            "multi": false,
+            "refresh": 1,
+            "current": {
+              "text": "All",
+              "value": "(.*)"
+            }
+          }
+        ]
+      }
+    }
+  Cost-Performance-Overview.json: |
+    {
+      "id": null,
+      "uid": "cost-performance-overview",
+      "title": "Cost-Performance Overview",
+      "tags": [
+        "cost",
+        "performance",
+        "finance",
+        "sla"
+      ],
+      "timezone": "Africa/Lusaka",
+      "schemaVersion": 39,
+      "version": 1,
+      "style": "dark",
+      "editable": false,
+      "refresh": "60s",
+      "time": {
+        "from": "now-30d",
+        "to": "now"
+      },
+      "timepicker": {
+        "refresh_intervals": [
+          "1m",
+          "5m",
+          "15m",
+          "30m"
+        ],
+        "time_options": [
+          "7d",
+          "30d",
+          "90d",
+          "6m",
+          "1y"
+        ]
+      },
+      "links": [
+        {
+          "title": "Cost Management Runbook",
+          "url": "https://confluence.intellifin.com/display/FINOPS/Cost+Performance+Dashboards",
+          "targetBlank": true
+        }
+      ],
+      "panels": [
+        {
+          "id": 1,
+          "type": "row",
+          "title": "Executive Summary",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Total Monthly Spend",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "sum(increase(service_cost_usd{environment=~\"$environment\"}[30d]))" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 15000 },
+                  { "color": "red", "value": 25000 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 5, "w": 4, "x": 0, "y": 1 }
+        },
+        {
+          "id": 3,
+          "type": "gauge",
+          "title": "Budget Utilisation",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(sum(increase(service_cost_usd{environment=~\"$environment\"}[30d])) / clamp_min(sum(cost_budget_monthly_usd{environment=~\"$environment\"}), 1)) * 100"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 150,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 80 },
+                  { "color": "red", "value": 100 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 }
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "Cost Efficiency Score",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "avg(cost_efficiency_score{environment=~\"$environment\"})" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 60 },
+                  { "color": "green", "value": 80 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 5, "w": 4, "x": 8, "y": 1 }
+        },
+        {
+          "id": 5,
+          "type": "stat",
+          "title": "Active Alerts",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "sum(cost_alert_active_total{environment=~\"$environment\"})" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 3 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 5, "w": 4, "x": 12, "y": 1 }
+        },
+        {
+          "id": 35,
+          "type": "stat",
+          "title": "Top Cost Driver",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "topk(1, sum(increase(service_cost_component_usd{component=\"total\",environment=~\"$environment\"}[30d])) by (service))"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "displayName": "{{service}}"
+            }
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          },
+          "gridPos": { "h": 5, "w": 4, "x": 16, "y": 1 }
+        },
+        {
+          "id": 36,
+          "type": "stat",
+          "title": "Biggest Optimisation Opportunity",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "topk(1, service_cost_recommendation_savings_usd{environment=~\"$environment\"})"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "displayName": "{{service}}"
+            }
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          },
+          "gridPos": { "h": 5, "w": 4, "x": 20, "y": 1 }
+        },
+        {
+          "id": 6,
+          "type": "row",
+          "title": "Cost Metrics",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }
+        },
+        {
+          "id": 7,
+          "type": "table",
+          "title": "Per-Service Cost Breakdown",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "sum(increase(service_cost_component_usd{component=\"total\",environment=~\"$environment\"}[30d])) by (service)" },
+            { "refId": "B", "expr": "sum(service_cost_projection_month_end_usd{environment=~\"$environment\"}) by (service)" },
+            { "refId": "C", "expr": "sum(increase(service_cost_component_usd{component=\"cpu\",environment=~\"$environment\"}[30d])) by (service)" },
+            { "refId": "D", "expr": "sum(increase(service_cost_component_usd{component=\"memory\",environment=~\"$environment\"}[30d])) by (service)" },
+            { "refId": "E", "expr": "sum(increase(service_cost_component_usd{component=\"storage\",environment=~\"$environment\"}[30d])) by (service)" },
+            { "refId": "F", "expr": "sum(increase(service_cost_component_usd{component=\"network\",environment=~\"$environment\"}[30d])) by (service)" },
+            { "refId": "G", "expr": "avg(service_cost_mom_change_percent{environment=~\"$environment\"}) by (service)" }
+          ],
+          "transformations": [
+            { "id": "seriesToColumns", "options": { "byField": "service" } },
+            {
+              "id": "organize",
+              "options": {
+                "indexByName": {
+                  "Time": 0,
+                  "service": 1,
+                  "A": 2,
+                  "B": 3,
+                  "C": 4,
+                  "D": 5,
+                  "E": 6,
+                  "F": 7,
+                  "G": 8
+                },
+                "renameByName": {
+                  "service": "Service",
+                  "A": "Monthly Cost (USD)",
+                  "B": "Projected Month-End (USD)",
+                  "C": "CPU Cost (USD)",
+                  "D": "Memory Cost (USD)",
+                  "E": "Storage Cost (USD)",
+                  "F": "Network Cost (USD)",
+                  "G": "MoM Change (%)"
+                }
+              }
+            },
+            { "id": "sortBy", "options": { "field": "Monthly Cost (USD)", "order": "desc" } },
+            { "id": "limit", "options": { "limitField": "Monthly Cost (USD)", "limit": 10 } }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "align": "auto", "displayMode": "auto" }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "MoM Change (%)" },
+                "properties": [
+                  { "id": "unit", "value": "percent" }
+                ]
+              }
+            ]
+          },
+          "options": { "showHeader": true },
+          "links": [
+            {
+              "title": "Download CSV",
+              "url": "/d-solo/cost-performance-overview/cost-performance-overview?orgId=1&from=${__from}&to=${__to}&panelId=7&var-environment=${environment}&download=csv",
+              "targetBlank": true
+            }
+          ],
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 7 }
+        },
+        {
+          "id": 8,
+          "type": "row",
+          "title": "Cost Efficiency",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 }
+        },
+        {
+          "id": 9,
+          "type": "stat",
+          "title": "Loan Applications Processed",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "sum(increase(business_loan_applications_total{environment=~\"$environment\"}[$__range]))" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } },
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 18 }
+        },
+        {
+          "id": 10,
+          "type": "stat",
+          "title": "Total Infrastructure Cost",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "sum(increase(service_cost_usd{environment=~\"$environment\"}[$__range]))" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 18 }
+        },
+        {
+          "id": 11,
+          "type": "stat",
+          "title": "Cost per Loan Application",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(increase(service_cost_usd{environment=~\"$environment\"}[$__range])) / clamp_min(sum(increase(business_loan_applications_total{environment=~\"$environment\"}[$__range])), 1)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 2 },
+                  { "color": "red", "value": 5 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 18 }
+        },
+        {
+          "id": 12,
+          "type": "stat",
+          "title": "Cost per Active User",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(increase(service_cost_usd{environment=~\"$environment\"}[$__range])) / clamp_min(sum(increase(business_active_users_total{environment=~\"$environment\"}[$__range])), 1)"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 } },
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 18 }
+        },
+        {
+          "id": 13,
+          "type": "timeseries",
+          "title": "Cost Efficiency Trend",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(increase(service_cost_usd{environment=~\"$environment\"}[1d])) / clamp_min(sum(increase(business_loan_applications_total{environment=~\"$environment\"}[1d])), 1)",
+              "legendFormat": "Cost per Loan"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(increase(service_cost_usd{environment=~\"$environment\"}[1d])) / clamp_min(sum(increase(api_requests_total{environment=~\"$environment\"}[1d])), 1)",
+              "legendFormat": "Cost per API Request"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 } },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 }
+        },
+        {
+          "id": 14,
+          "type": "row",
+          "title": "Resource Utilisation",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 }
+        },
+        {
+          "id": 15,
+          "type": "gauge",
+          "title": "Average CPU Utilisation",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(sum(rate(container_cpu_usage_seconds_total{environment=~\"$environment\"}[5m])) / clamp_min(sum(kube_pod_container_resource_requests_cpu_cores{environment=~\"$environment\"}), 0.001)) * 100"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 120,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 40 },
+                  { "color": "green", "value": 60 },
+                  { "color": "yellow", "value": 80 },
+                  { "color": "red", "value": 90 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 31 }
+        },
+        {
+          "id": 16,
+          "type": "gauge",
+          "title": "Average Memory Utilisation",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(sum(container_memory_working_set_bytes{environment=~\"$environment\"}) / clamp_min(sum(kube_pod_container_resource_requests_memory_bytes{environment=~\"$environment\"}), 1024)) * 100"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 120,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 40 },
+                  { "color": "green", "value": 60 },
+                  { "color": "yellow", "value": 80 },
+                  { "color": "red", "value": 90 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 6, "w": 6, "x": 6, "y": 31 }
+        },
+        {
+          "id": 17,
+          "type": "gauge",
+          "title": "Storage Utilisation",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "sum(pvc_usage_bytes{environment=~\"$environment\"}) / sum(pvc_capacity_bytes{environment=~\"$environment\"}) * 100" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 } },
+          "gridPos": { "h": 6, "w": 6, "x": 12, "y": 31 }
+        },
+        {
+          "id": 18,
+          "type": "gauge",
+          "title": "Efficiency Score",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "avg(service_efficiency_score{environment=~\"$environment\"})" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 60 },
+                  { "color": "green", "value": 80 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 6, "w": 6, "x": 18, "y": 31 }
+        },
+        {
+          "id": 19,
+          "type": "table",
+          "title": "Underutilised Services",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(sum(rate(container_cpu_usage_seconds_total{environment=~\"$environment\"}[30m])) by (service)) / clamp_min(sum(kube_pod_container_resource_requests_cpu_cores{environment=~\"$environment\"}) by (service), 0.001) * 100",
+              "legendFormat": "{{service}}"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "Value",
+                "rename": "Average CPU (%)"
+              }
+            },
+            {
+              "id": "filterFieldsByName",
+              "options": {
+                "mode": "include",
+                "names": [
+                  "Time",
+                  "service",
+                  "Average CPU (%)"
+                ]
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "custom": { "displayMode": "gradient-gauge" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 30 }
+                ]
+              }
+            }
+          },
+          "options": { "showHeader": true },
+          "gridPos": { "h": 7, "w": 24, "x": 0, "y": 37 }
+        },
+        {
+          "id": 20,
+          "type": "row",
+          "title": "SLA & Performance",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 }
+        },
+        {
+          "id": 21,
+          "type": "timeseries",
+          "title": "Latency Distribution",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{environment=~\"$environment\"}[5m])) by (le, service))",
+              "legendFormat": "{{service}} P50"
+            },
+            {
+              "refId": "B",
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{environment=~\"$environment\"}[5m])) by (le, service))",
+              "legendFormat": "{{service}} P95"
+            },
+            {
+              "refId": "C",
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{environment=~\"$environment\"}[5m])) by (le, service))",
+              "legendFormat": "{{service}} P99"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 2 } },
+          "gridPos": { "h": 8, "w": 16, "x": 0, "y": 45 }
+        },
+        {
+          "id": 22,
+          "type": "table",
+          "title": "SLA Compliance Summary",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "avg(rate(http_request_errors_total{environment=~\"$environment\"}[5m]) / rate(http_requests_total{environment=~\"$environment\"}[5m]) * 100) by (service)" },
+            { "refId": "B", "expr": "avg(service_uptime_percent{environment=~\"$environment\"}) by (service)" }
+          ],
+          "transformations": [
+            { "id": "seriesToColumns", "options": { "byField": "service" } },
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "service": "Service",
+                  "A": "Error Rate (%)",
+                  "B": "Uptime (%)"
+                }
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "custom": { "align": "center" } },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Error Rate (%)" },
+                "properties": [
+                  { "id": "unit", "value": "percentunit" },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        { "color": "green", "value": null },
+                        { "color": "yellow", "value": 0.5 },
+                        { "color": "red", "value": 1 }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Uptime (%)" },
+                "properties": [
+                  { "id": "unit", "value": "percentunit" },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        { "color": "red", "value": null },
+                        { "color": "yellow", "value": 99.5 },
+                        { "color": "green", "value": 99.9 }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 45 }
+        },
+        {
+          "id": 23,
+          "type": "row",
+          "title": "Cost Anomalies",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 53 }
+        },
+        {
+          "id": 24,
+          "type": "table",
+          "title": "Active Cost Anomalies",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "service_cost_anomaly_percent{environment=~\"$environment\",severity!=\"\"}" },
+            { "refId": "B", "expr": "service_cost_anomaly_impact_usd{environment=~\"$environment\"}" },
+            { "refId": "C", "expr": "service_cost_anomaly_root_cause{environment=~\"$environment\"}" }
+          ],
+          "transformations": [
+            { "id": "seriesToColumns", "options": { "byField": "service" } },
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "service": "Service",
+                  "severity": "Severity",
+                  "A": "MoM Increase (%)",
+                  "B": "Impact (USD)",
+                  "C": "Root Cause"
+                }
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "custom": { "align": "auto" } },
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "MoM Increase (%)" }, "properties": [ { "id": "unit", "value": "percentunit" } ] },
+              { "matcher": { "id": "byName", "options": "Impact (USD)" }, "properties": [ { "id": "unit", "value": "currencyUSD" } ] }
+            ]
+          },
+          "options": { "showHeader": true },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 54 }
+        },
+        {
+          "id": 25,
+          "type": "row",
+          "title": "Forecast & Optimisation",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 62 }
+        },
+        {
+          "id": 26,
+          "type": "timeseries",
+          "title": "3-Month Cost Forecast",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "sum(service_cost_forecast_usd{environment=~\"$environment\",horizon=\"90d\"})", "legendFormat": "Forecast" },
+            { "refId": "B", "expr": "sum(service_cost_forecast_lower_usd{environment=~\"$environment\",horizon=\"90d\"})", "legendFormat": "Lower Bound" },
+            { "refId": "C", "expr": "sum(service_cost_forecast_upper_usd{environment=~\"$environment\",horizon=\"90d\"})", "legendFormat": "Upper Bound" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
+          "gridPos": { "h": 8, "w": 14, "x": 0, "y": 63 }
+        },
+        {
+          "id": 27,
+          "type": "table",
+          "title": "Optimisation Recommendations",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "service_cost_recommendation_savings_usd{environment=~\"$environment\"}" },
+            { "refId": "B", "expr": "service_cost_recommendation_current_usd{environment=~\"$environment\"}" },
+            { "refId": "C", "expr": "service_cost_recommendation_effort{environment=~\"$environment\"}" },
+            { "refId": "D", "expr": "service_cost_recommendation_type{environment=~\"$environment\"}" }
+          ],
+          "transformations": [
+            { "id": "seriesToColumns", "options": { "byField": "service" } },
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "service": "Service",
+                  "A": "Potential Savings (USD/mo)",
+                  "B": "Current Spend (USD/mo)",
+                  "C": "Implementation Effort",
+                  "D": "Recommendation Type"
+                }
+              }
+            },
+            { "id": "sortBy", "options": { "field": "Potential Savings (USD/mo)", "order": "desc" } }
+          ],
+          "fieldConfig": {
+            "defaults": { "custom": { "align": "auto" } },
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "Potential Savings (USD/mo)" }, "properties": [ { "id": "unit", "value": "currencyUSD" } ] },
+              { "matcher": { "id": "byName", "options": "Current Spend (USD/mo)" }, "properties": [ { "id": "unit", "value": "currencyUSD" } ] }
+            ]
+          },
+          "options": { "showHeader": true },
+          "gridPos": { "h": 8, "w": 10, "x": 14, "y": 63 }
+        },
+        {
+          "id": 28,
+          "type": "row",
+          "title": "Chargeback & Allocation",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 71 }
+        },
+        {
+          "id": 37,
+          "type": "stat",
+          "title": "Tagged Cost Coverage",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "avg(cost_tag_coverage_percent{environment=~\"$environment\"})" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 85 },
+                  { "color": "green", "value": 95 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 7, "w": 6, "x": 0, "y": 72 }
+        },
+        {
+          "id": 29,
+          "type": "piechart",
+          "title": "Cost by Domain",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "sum(increase(tagged_cost_usd{dimension=\"domain\",environment=~\"$environment\"}[30d])) by (label)" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
+          "gridPos": { "h": 7, "w": 6, "x": 6, "y": 72 }
+        },
+        {
+          "id": 30,
+          "type": "piechart",
+          "title": "Cost by Environment",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "sum(increase(tagged_cost_usd{dimension=\"environment\"}[30d])) by (label)" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
+          "gridPos": { "h": 7, "w": 6, "x": 12, "y": 72 }
+        },
+        {
+          "id": 31,
+          "type": "piechart",
+          "title": "Cost by Team",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "sum(increase(tagged_cost_usd{dimension=\"team\",environment=~\"$environment\"}[30d])) by (label)" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
+          "gridPos": { "h": 7, "w": 6, "x": 18, "y": 72 }
+        },
+        {
+          "id": 32,
+          "type": "table",
+          "title": "Chargeback Detail",
+          "datasource": { "type": "postgres", "uid": "AdminPostgres" },
+          "targets": [
+            {
+              "refId": "A",
+              "format": "table",
+              "rawSql": "SELECT domain, team, environment, SUM(cost_usd) AS cost_usd FROM finops_chargeback WHERE usage_date BETWEEN $__timeFrom() AND $__timeTo() GROUP BY domain, team, environment ORDER BY cost_usd DESC LIMIT 25;",
+              "datasource": { "type": "postgres", "uid": "AdminPostgres" }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "align": "auto" },
+              "unit": "currencyUSD"
+            }
+          },
+          "options": { "showHeader": true },
+          "links": [
+            {
+              "title": "Download Chargeback CSV",
+              "url": "/d-solo/cost-performance-overview/cost-performance-overview?orgId=1&from=${__from}&to=${__to}&panelId=32&var-environment=${environment}&download=csv",
+              "targetBlank": true
+            }
+          ],
+          "gridPos": { "h": 9, "w": 24, "x": 0, "y": 79 }
+        },
+        {
+          "id": 33,
+          "type": "row",
+          "title": "Executive Alerts",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 88 }
+        },
+        {
+          "id": 34,
+          "type": "table",
+          "title": "Active Executive Alerts",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "cost_alert_detail{environment=~\"$environment\"}" }
+          ],
+          "transformations": [
+            { "id": "labelsToFields", "options": { "mode": "columns" } }
+          ],
+          "fieldConfig": { "defaults": { "custom": { "align": "auto" } } },
+          "options": { "showHeader": true },
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 89 }
+        }
+      ],
+      "templating": {
+        "list": [
+          {
+            "name": "environment",
+            "label": "Environment",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "Prometheus" },
+            "definition": "label_values(service_cost_usd, environment)",
+            "includeAll": true,
+            "multi": false,
+            "refresh": 2,
+            "current": { "text": "Production", "value": "production" }
+          }
+        ]
+      }
+    }
 {{- end }}

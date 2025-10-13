@@ -1,4 +1,4 @@
-{{- if .Values.jaeger.enabled }}
+{{- if and .Values.jaeger.enabled (eq .Values.jaeger.mode "allInOne") }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

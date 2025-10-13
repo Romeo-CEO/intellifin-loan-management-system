@@ -10,6 +10,75 @@ metadata:
     role: alert-rules
 spec:
   groups:
+    - name: platform.incident-response
+      interval: 30s
+      rules:
+        - alert: KeycloakDown
+          expr: sum(rate(keycloak_authentication_requests_total{outcome="success"}[5m])) == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: authentication
+            service: keycloak
+          annotations:
+            summary: "Keycloak authentication service is down"
+            description: "No successful authentication requests were recorded in the last 5 minutes. Verify Keycloak availability and ingress routing."
+            playbook_url: "https://admin.intellifin.com/playbooks/keycloak-down"
+        - alert: AuditChainBreak
+          expr: audit_chain_integrity_status == 0
+          for: 1m
+          labels:
+            severity: critical
+            component: audit
+            service: admin-service
+          annotations:
+            summary: "Audit chain integrity compromised"
+            description: "Tamper-evident audit hash verification failed. Investigate recent audit ingestion events immediately."
+            playbook_url: "https://admin.intellifin.com/playbooks/audit-chain-break"
+        - alert: MutualTlsHandshakeFailures
+          expr: sum(increase(linkerd_tls_acceptor_events_total{event="tls_error"}[1m])) > 10
+          for: 2m
+          labels:
+            severity: critical
+            component: service-mesh
+            service: istio-gateway
+          annotations:
+            summary: "mTLS handshake failures detected"
+            description: "Linkerd reported more than 10 TLS handshake errors per minute over the last 2 minutes. Certificates or trust bundles may be invalid."
+            playbook_url: "https://admin.intellifin.com/playbooks/mtls-failures"
+        - alert: PlatformHighErrorRate
+          expr: (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) > 0.05
+          for: 5m
+          labels:
+            severity: critical
+            component: application
+            service: platform
+          annotations:
+            summary: "High platform error rate detected"
+            description: "5xx responses exceed 5% of total traffic for 5 minutes. Review recent deployments and dependent services."
+            playbook_url: "https://admin.intellifin.com/playbooks/high-error-rate"
+        - alert: VaultUnavailable
+          expr: sum(up{job="vault"}) == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: secrets
+            service: vault
+          annotations:
+            summary: "Vault cluster unavailable"
+            description: "HashiCorp Vault probes failed for 2 minutes. Secrets retrieval and database rotations may be impacted."
+            playbook_url: "https://admin.intellifin.com/playbooks/vault-down"
+        - alert: DatabaseConnectionPoolExhausted
+          expr: min(intellifin_db_pool_available_connections) == 0
+          for: 3m
+          labels:
+            severity: warning
+            component: database
+            service: sql-cluster
+          annotations:
+            summary: "Database connection pool exhausted"
+            description: "No spare database connections available for at least 3 minutes. Investigate slow queries and pool sizing."
+            playbook_url: "https://admin.intellifin.com/playbooks/db-connection-pool"
     - name: platform.availability
       interval: 1m
       rules:
@@ -40,50 +109,4 @@ spec:
           annotations:
             summary: "Keycloak authentication failures detected"
             description: "Keycloak is returning failed authentications at a rate above 5 per second."
-    - name: platform.latency
-      interval: 1m
-      rules:
-        - alert: LoanOriginationLatencySLO
-          expr: histogram_quantile(0.95, sum(rate(http_server_duration_seconds_bucket{service="intellifin-loan-origination"}[5m])) by (le)) > 0.8
-          for: 10m
-          labels:
-            severity: warning
-          annotations:
-            summary: "Loan Origination p95 latency above 800ms"
-            description: "The Loan Origination service p95 latency exceeded 800ms for 10 minutes."
-        - alert: DatabaseDeadlockSpike
-          expr: sum(rate(sql_server_deadlocks_total[5m])) > 1
-          for: 5m
-          labels:
-            severity: warning
-          annotations:
-            summary: "Database deadlock spike detected"
-            description: "Deadlocks per minute exceeded 1. Investigate contention hotspots."
-    - name: platform.security
-      interval: 1m
-      rules:
-        - alert: LinkerdTlsHandshakeFailures
-          expr: sum(rate(linkerd_tls_acceptor_events_total{event="tls_error"}[5m])) > 0
-          for: 5m
-          labels:
-            severity: warning
-          annotations:
-            summary: "Linkerd proxy TLS handshake errors detected"
-            description: "One or more Linkerd proxies reported TLS handshake failures over the last 5 minutes. Check certificate validity and network reachability."
-        - alert: LinkerdProxyRestarts
-          expr: sum(increase(kube_pod_container_status_restarts_total{container="linkerd-proxy"}[5m])) > 0
-          for: 5m
-          labels:
-            severity: warning
-          annotations:
-            summary: "Linkerd proxy restarted"
-            description: "A Linkerd sidecar restarted within the last 5 minutes. Investigate pod health and mesh stability."
-        - alert: NetworkPolicyDeniesDetected
-          expr: sum(rate(felix_denied_packets_total[5m])) > 0
-          for: 1m
-          labels:
-            severity: warning
-          annotations:
-            summary: "NetworkPolicy deny events detected"
-            description: "Calico reported denied packets in the last minute. Review recent NetworkPolicy changes and pod identities."
 {{- end }}
