@@ -40,6 +40,11 @@ namespace IntelliFin.AdminService.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
                     b.Property<string>("CorrelationId")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -47,6 +52,25 @@ namespace IntelliFin.AdminService.Migrations
                     b.Property<string>("CurrentEventHash")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("IsOfflineEvent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("IntegrityStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("UNVERIFIED");
+
+                    b.Property<bool>("IsGenesisEvent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("LastVerifiedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("EntityId")
                         .HasMaxLength(100)
@@ -64,6 +88,29 @@ namespace IntelliFin.AdminService.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("NEWID()");
 
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.Property<Guid?>("OfflineMergeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("OfflineDeviceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("OfflineSessionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("OriginalHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("MigrationSource")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("PreviousEventHash")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
@@ -73,18 +120,464 @@ namespace IntelliFin.AdminService.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Actor")
-                        .HasDatabaseName("IX_Actor");
+                        .HasDatabaseName("IX_AuditEvents_Actor");
 
                     b.HasIndex("CorrelationId")
-                        .HasDatabaseName("IX_CorrelationId");
+                        .HasDatabaseName("IX_AuditEvents_CorrelationId");
+
+                    b.HasIndex("EventId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_AuditEvents_EventId");
 
                     b.HasIndex("Timestamp")
-                        .HasDatabaseName("IX_Timestamp");
+                        .HasDatabaseName("IX_AuditEvents_Timestamp");
+
+                    b.HasIndex("Timestamp", "CurrentEventHash")
+                        .HasDatabaseName("IX_AuditEvents_Timestamp_Hash");
+
+                    b.HasIndex("OfflineMergeId")
+                        .HasDatabaseName("IX_AuditEvents_OfflineMergeId");
+
+                    b.HasIndex("EntityType", "EntityId")
+                        .HasDatabaseName("IX_AuditEvents_Entity");
 
                     b.ToTable("AuditEvents");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.AuditChainVerification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<long?>("BrokenEventId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("BrokenEventTimestamp")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ChainStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("EndTime")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int>("EventsVerified")
+                        .HasColumnType("int");
+
+                    b.Property<string>("InitiatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("StartTime")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int>("VerificationDurationMs")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("VerificationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWID()");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartTime")
+                        .HasDatabaseName("IX_AuditChainVerifications_StartTime");
+
+                    b.HasIndex("VerificationId")
+                        .HasDatabaseName("IX_AuditChainVerifications_VerificationId");
+
+                    b.ToTable("AuditChainVerifications");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.OfflineMergeHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("DuplicatesSkipped")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ConflictsDetected")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EventsMerged")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EventsReceived")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EventsReHashed")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ErrorDetails")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("MergeDurationMs")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("MergeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWID()");
+
+                    b.Property<DateTime>("MergeTimestamp")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("OfflineSessionId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MergeId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_OfflineMergeHistory_MergeId");
+
+                    b.HasIndex("MergeTimestamp")
+                        .HasDatabaseName("IX_OfflineMergeHistory_MergeTimestamp");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_OfflineMergeHistory_UserId");
+
+                    b.ToTable("OfflineMergeHistory");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.ElevationRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("ActivatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ApprovedDuration")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CamundaProcessInstanceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<Guid>("ElevationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWID()");
+
+                    b.Property<DateTime?>("ExpiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Justification")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("ManagerId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ManagerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("RejectedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("RejectedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("RequestedDuration")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RequestedRoles")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RevokedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RevocationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ElevationId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ElevationRequests_ElevationId");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("IX_ElevationRequests_ExpiresAt");
+
+                    b.HasIndex("ManagerId")
+                        .HasDatabaseName("IX_ElevationRequests_ManagerId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_ElevationRequests_Status");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_ElevationRequests_UserId");
+
+                    b.ToTable("ElevationRequests");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.AuditArchiveMetadata", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<Guid>("ArchiveId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWID()");
+
+                    b.Property<string>("ChainEndHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ChainStartHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<decimal>("CompressionRatio")
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<DateTime>("EventDateEnd")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("EventDateStart")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EventCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ExportDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("LastAccessedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastAccessedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("LastReplicationCheckUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("PreviousDayEndHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ReplicationStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("PENDING");
+
+                    b.Property<DateTime>("RetentionExpiryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("StorageLocation")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("PRIMARY");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArchiveId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_AuditArchiveMetadata_ArchiveId");
+
+                    b.HasIndex("ExportDate")
+                        .HasDatabaseName("IX_AuditArchiveMetadata_ExportDate");
+
+                    b.HasIndex("ObjectKey")
+                        .HasDatabaseName("IX_AuditArchiveMetadata_ObjectKey");
+
+                    b.HasIndex("EventDateStart", "EventDateEnd")
+                        .HasDatabaseName("IX_AuditArchiveMetadata_EventDateRange");
+
+                    b.ToTable("AuditArchiveMetadata");
+                });
+
+            modelBuilder.Entity("IntelliFin.AdminService.Models.SecurityIncident", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AffectedEntityId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("AffectedEntityType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("DetectedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("IncidentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWID()");
+
+                    b.Property<string>("IncidentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ResolutionStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("OPEN");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ResolvedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DetectedAt")
+                        .HasDatabaseName("IX_SecurityIncidents_DetectedAt");
+
+                    b.HasIndex("IncidentType")
+                        .HasDatabaseName("IX_SecurityIncidents_Type");
+
+                    b.ToTable("SecurityIncidents");
                 });
 
             modelBuilder.Entity("IntelliFin.AdminService.Models.UserIdMapping", b =>

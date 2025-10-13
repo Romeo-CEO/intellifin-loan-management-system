@@ -1,3 +1,5 @@
+using System.Threading;
+using System.Threading.Tasks;
 using IntelliFin.AdminService.Contracts.Requests;
 using IntelliFin.AdminService.Contracts.Responses;
 using IntelliFin.AdminService.Models.Keycloak;
@@ -20,4 +22,7 @@ public interface IKeycloakAdminService
     Task<IReadOnlyCollection<RoleResponse>> GetUserRolesAsync(string id, CancellationToken cancellationToken);
     Task AssignRolesAsync(string id, AssignRolesRequest request, CancellationToken cancellationToken);
     Task RemoveRoleAsync(string id, string roleName, CancellationToken cancellationToken);
+    Task SetUserAttributeAsync(string id, string attributeName, string value, CancellationToken cancellationToken);
+    Task RemoveUserAttributeAsync(string id, string attributeName, CancellationToken cancellationToken);
+    Task InvalidateUserSessionsAsync(string id, CancellationToken cancellationToken);
 }

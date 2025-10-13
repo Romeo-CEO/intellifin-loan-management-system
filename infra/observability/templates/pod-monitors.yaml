@@ -1,0 +1,55 @@
+{{- if .Values.podMonitors }}
+{{- range $index, $monitor := .Values.podMonitors }}
+{{- if not (hasKey $monitor "enabled") or $monitor.enabled }}
+{{- if gt $index 0 }}---
+{{- end }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "observability.fullname" $ }}-{{ $monitor.name }}
+  namespace: {{ default $.Release.Namespace $monitor.namespace }}
+  labels:
+    {{- include "observability.monitoring.labels" $ | nindent 4 }}
+    monitoring.intellifin.io/managed-by: observability-stack
+    monitoring.intellifin.io/component: {{ $monitor.name }}
+  {{- if $monitor.additionalLabels }}
+    {{- toYaml $monitor.additionalLabels | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if $monitor.namespaceSelector }}
+  namespaceSelector:
+    {{- toYaml $monitor.namespaceSelector | nindent 4 }}
+  {{- else }}
+  namespaceSelector:
+    matchNames:
+      - {{ default $.Release.Namespace $monitor.namespace }}
+  {{- end }}
+  selector:
+    {{- toYaml $monitor.selector | nindent 4 }}
+  podMetricsEndpoints:
+    {{- range $ep := $monitor.podMetricsEndpoints }}
+    - port: {{ $ep.port }}
+      {{- if $ep.path }}
+      path: {{ $ep.path }}
+      {{- end }}
+      {{- if $ep.scheme }}
+      scheme: {{ $ep.scheme }}
+      {{- end }}
+      {{- if $ep.interval }}
+      interval: {{ $ep.interval }}
+      {{- end }}
+      {{- if $ep.scrapeTimeout }}
+      scrapeTimeout: {{ $ep.scrapeTimeout }}
+      {{- end }}
+      {{- if $ep.metricRelabelings }}
+      metricRelabelings:
+        {{- toYaml $ep.metricRelabelings | nindent 8 }}
+      {{- end }}
+      {{- if $ep.relabelings }}
+      relabelings:
+        {{- toYaml $ep.relabelings | nindent 8 }}
+      {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

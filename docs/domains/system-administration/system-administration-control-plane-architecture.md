@@ -503,6 +503,56 @@ CREATE TABLE PamSessions (
 );
 ```
 
+> **Tamper-Evident Enhancements (Story 1.15)**
+>
+> - `AuditEvents` stores `IntegrityStatus`, `IsGenesisEvent`, `PreviousEventHash`, `CurrentEventHash`, and `LastVerifiedAt` to maintain the cryptographic chain.
+> - New tables `AuditChainVerifications` and `SecurityIncidents` capture integrity runs and incident triage data respectively.
+> - Stored procedure `sp_InsertAuditEventsBatch` now accepts hash metadata via the updated `AuditEventTableType` TVP to guarantee ordered chaining.
+> - Additional index `IX_AuditEvents_Timestamp_Hash` accelerates chronological verification scans for million-record windows.
+
+> **Offline CEO Merge (Story 1.18)**
+>
+> - `AuditEvents` now captures offline provenance (`IsOfflineEvent`, `OfflineDeviceId`, `OfflineSessionId`, `OfflineMergeId`, `OriginalHash`) so every chain entry records its desktop origin and pre-merge hash.
+> - `OfflineMergeHistory` provides a first-class ledger of merge attempts, durations, duplicate/conflict counts, and statuses that the compliance dashboard can query.
+> - The Admin Service exposes `POST /api/admin/audit/merge-offline`, performing duplicate detection and incremental re-hashing before the transaction commits, ensuring legacy hashes remain auditable.
+> - API consumers receive merge telemetry (merged/skipped/conflict counts, re-hash volume, elapsed time) enabling the CEO desktop app to surface sync progress and remediation cues.
+
+```sql
+-- AuditArchiveMetadata (MinIO cold storage index)
+CREATE TABLE AuditArchiveMetadata (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    ArchiveId UNIQUEIDENTIFIER NOT NULL DEFAULT NEWID(),
+    FileName NVARCHAR(500) NOT NULL,
+    ObjectKey NVARCHAR(1000) NOT NULL,
+    ExportDate DATETIME2 NOT NULL,
+    EventDateStart DATETIME2 NOT NULL,
+    EventDateEnd DATETIME2 NOT NULL,
+    EventCount INT NOT NULL,
+    FileSize BIGINT NOT NULL,
+    CompressionRatio DECIMAL(5,2) NOT NULL DEFAULT 0,
+    ChainStartHash NVARCHAR(64) NULL,
+    ChainEndHash NVARCHAR(64) NULL,
+    PreviousDayEndHash NVARCHAR(64) NULL,
+    RetentionExpiryDate DATETIME2 NOT NULL,
+    StorageLocation NVARCHAR(100) NOT NULL DEFAULT 'PRIMARY',
+    ReplicationStatus NVARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    LastReplicationCheckUtc DATETIME2 NULL,
+    LastAccessedAtUtc DATETIME2 NULL,
+    LastAccessedBy NVARCHAR(100) NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+);
+
+CREATE UNIQUE INDEX IX_AuditArchiveMetadata_ArchiveId ON AuditArchiveMetadata(ArchiveId);
+CREATE INDEX IX_AuditArchiveMetadata_EventDateRange ON AuditArchiveMetadata(EventDateStart, EventDateEnd);
+CREATE INDEX IX_AuditArchiveMetadata_ExportDate ON AuditArchiveMetadata(ExportDate);
+CREATE INDEX IX_AuditArchiveMetadata_ObjectKey ON AuditArchiveMetadata(ObjectKey);
+```
+
+> **Cold Storage Enhancements (Story 1.16)**
+> - Daily export worker moves verified events (>24h old) to MinIO WORM buckets with SHA-256 chain metadata and an offline verifier script.
+> - `AuditArchiveMetadata` tracks retention expiry, replication state, and last access for compliance dashboards.
+> - `/api/admin/audit/archive/search` and `/api/admin/audit/archive/download/{archiveId}` deliver discovery and signed download flows while auditing each retrieval.
+
 #### 4.1.3 API Endpoints
 
 **User Management**:
@@ -2131,6 +2181,10 @@ IntelliFin requires mTLS for all service-to-service communication (zero-trust ar
 - Monitor mesh health via Linkerd Viz; alert on mTLS handshake errors
 - Keep cert-manager for ingress TLS and PKI as needed
 - Validate performance overhead (<20ms p95) during rollout
+- Kustomize manifests live in `infra/linkerd` and automation scripts under
+  `scripts/linkerd` bootstrap the control plane and verification steps.
+- Platform Prometheus scrapes Linkerd proxy metrics via the new pod monitor and
+  enforces `LinkerdTlsHandshakeFailures`/`LinkerdProxyRestarts` alert rules.
 
 ---
 

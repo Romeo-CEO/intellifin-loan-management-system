@@ -9,7 +9,9 @@ using IntelliFin.Shared.Observability;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
+    .Enrich.FromLogContext()
+    .Enrich.With<TraceContextEnricher>()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} | TraceId={TraceId} SpanId={SpanId}{NewLine}{Exception}")
     .WriteTo.File("logs/kycdocumentservice-.txt", rollingInterval: RollingInterval.Day)
     .CreateLogger();
 

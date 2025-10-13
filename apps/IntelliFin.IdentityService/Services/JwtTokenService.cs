@@ -192,7 +192,7 @@ public class JwtTokenService : IJwtTokenService
             {
                 ClaimTypes.NameIdentifier, ClaimTypes.Name, ClaimTypes.Email,
                 ClaimTypes.GivenName, ClaimTypes.Surname, ClaimTypes.Role,
-                "permission", "branch_id", "tenant_id", "session_id", "device_id",
+                "permission", "branch_id", "branch_name", "branch_region", "tenant_id", "session_id", "device_id",
                 "auth_time", "auth_level", "ip_address", JwtRegisteredClaimNames.Jti,
                 JwtRegisteredClaimNames.Iat, JwtRegisteredClaimNames.Exp,
                 JwtRegisteredClaimNames.Nbf, JwtRegisteredClaimNames.Iss,
@@ -213,6 +213,8 @@ public class JwtTokenService : IJwtTokenService
                 Roles = claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToArray(),
                 Permissions = claims.Where(c => c.Type == "permission").Select(c => c.Value).ToArray(),
                 BranchId = claims.FirstOrDefault(c => c.Type == "branch_id")?.Value,
+                BranchName = claims.FirstOrDefault(c => c.Type == "branch_name")?.Value,
+                BranchRegion = claims.FirstOrDefault(c => c.Type == "branch_region")?.Value,
                 TenantId = claims.FirstOrDefault(c => c.Type == "tenant_id")?.Value,
                 SessionId = claims.FirstOrDefault(c => c.Type == "session_id")?.Value,
                 DeviceId = claims.FirstOrDefault(c => c.Type == "device_id")?.Value,

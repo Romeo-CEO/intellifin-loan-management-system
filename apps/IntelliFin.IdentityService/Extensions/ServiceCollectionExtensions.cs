@@ -1,6 +1,7 @@
 using IntelliFin.IdentityService.Configuration;
 using IntelliFin.IdentityService.Models;
 using IntelliFin.IdentityService.Services;
+using IntelliFin.Shared.Audit;
 using IntelliFin.Shared.DomainModels.Data;
 using IntelliFin.Shared.DomainModels.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -45,6 +46,9 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IConnectionMultiplexer>(provider =>
                 ConnectionMultiplexer.Connect("localhost:6379"));
         }
+
+        // Audit client
+        services.AddAuditClient(configuration);
 
         // Services
         services.AddScoped<IAuditService, AuditService>();

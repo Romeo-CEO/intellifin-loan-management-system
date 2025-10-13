@@ -1,4 +1,8 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -254,6 +258,75 @@ public sealed class KeycloakAdminService : IKeycloakAdminService
 
         var removeRequest = await CreateRequestAsync(HttpMethod.Delete, $"admin/realms/{Realm}/users/{id}/role-mappings/realm", cancellationToken, new[] { role });
         await SendAsync(removeRequest, cancellationToken);
+    }
+
+    public async Task SetUserAttributeAsync(string id, string attributeName, string value, CancellationToken cancellationToken)
+    {
+        var existing = await GetUserRepresentationAsync(id, cancellationToken);
+        if (existing is null || string.IsNullOrWhiteSpace(existing.Id))
+        {
+            throw new KeycloakAdminException(HttpStatusCode.NotFound, $"User '{id}' was not found", "not_found", null);
+        }
+
+        var updates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [attributeName] = value
+        };
+
+        var attributes = MergeAttributes(existing.Attributes, updates)
+            ?? new Dictionary<string, IList<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                [attributeName] = new List<string> { value }
+            };
+
+        var payload = new KeycloakUserRepresentation
+        {
+            Id = existing.Id,
+            Username = existing.Username,
+            FirstName = existing.FirstName,
+            LastName = existing.LastName,
+            Email = existing.Email,
+            Enabled = existing.Enabled,
+            EmailVerified = existing.EmailVerified,
+            Attributes = attributes
+        };
+
+        var request = await CreateRequestAsync(HttpMethod.Put, $"admin/realms/{Realm}/users/{existing.Id}", cancellationToken, payload);
+        await SendAsync(request, cancellationToken);
+    }
+
+    public async Task RemoveUserAttributeAsync(string id, string attributeName, CancellationToken cancellationToken)
+    {
+        var existing = await GetUserRepresentationAsync(id, cancellationToken);
+        if (existing is null || string.IsNullOrWhiteSpace(existing.Id) || existing.Attributes is null)
+        {
+            return;
+        }
+
+        var attributes = existing.Attributes
+            .Where(kvp => !string.Equals(kvp.Key, attributeName, StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(kvp => kvp.Key, kvp => (IList<string>)new List<string>(kvp.Value), StringComparer.OrdinalIgnoreCase);
+
+        var payload = new KeycloakUserRepresentation
+        {
+            Id = existing.Id,
+            Username = existing.Username,
+            FirstName = existing.FirstName,
+            LastName = existing.LastName,
+            Email = existing.Email,
+            Enabled = existing.Enabled,
+            EmailVerified = existing.EmailVerified,
+            Attributes = attributes
+        };
+
+        var request = await CreateRequestAsync(HttpMethod.Put, $"admin/realms/{Realm}/users/{existing.Id}", cancellationToken, payload);
+        await SendAsync(request, cancellationToken);
+    }
+
+    public async Task InvalidateUserSessionsAsync(string id, CancellationToken cancellationToken)
+    {
+        var request = await CreateRequestAsync(HttpMethod.Post, $"admin/realms/{Realm}/users/{id}/logout", cancellationToken);
+        await SendAsync(request, cancellationToken);
     }
 
     private string Realm => _optionsMonitor.CurrentValue.Realm;

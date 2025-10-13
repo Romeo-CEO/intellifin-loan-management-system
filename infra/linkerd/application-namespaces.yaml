@@ -1,0 +1,120 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gateway
+  annotations:
+    linkerd.io/inject: enabled
+  labels:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/part-of: intellifin-platform
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: identity
+  annotations:
+    linkerd.io/inject: enabled
+  labels:
+    app.kubernetes.io/name: identity
+    app.kubernetes.io/part-of: intellifin-platform
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: admin
+  annotations:
+    linkerd.io/inject: enabled
+  labels:
+    app.kubernetes.io/name: admin
+    app.kubernetes.io/part-of: intellifin-platform
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lending
+  annotations:
+    linkerd.io/inject: enabled
+  labels:
+    app.kubernetes.io/name: lending
+    app.kubernetes.io/part-of: intellifin-platform
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: integrations
+  annotations:
+    linkerd.io/inject: enabled
+  labels:
+    app.kubernetes.io/name: integrations
+    app.kubernetes.io/part-of: intellifin-platform
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: communications
+  annotations:
+    linkerd.io/inject: enabled
+  labels:
+    app.kubernetes.io/name: communications
+    app.kubernetes.io/part-of: intellifin-platform
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: collections
+  annotations:
+    linkerd.io/inject: enabled
+  labels:
+    app.kubernetes.io/name: collections
+    app.kubernetes.io/part-of: intellifin-platform
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: reporting
+  annotations:
+    linkerd.io/inject: enabled
+  labels:
+    app.kubernetes.io/name: reporting
+    app.kubernetes.io/part-of: intellifin-platform
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: finance
+  annotations:
+    linkerd.io/inject: enabled
+  labels:
+    app.kubernetes.io/name: finance
+    app.kubernetes.io/part-of: intellifin-platform
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kyc
+  annotations:
+    linkerd.io/inject: enabled
+  labels:
+    app.kubernetes.io/name: kyc
+    app.kubernetes.io/part-of: intellifin-platform
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: offline
+  annotations:
+    linkerd.io/inject: enabled
+  labels:
+    app.kubernetes.io/name: offline
+    app.kubernetes.io/part-of: intellifin-platform
+    pod-security.kubernetes.io/enforce: baseline

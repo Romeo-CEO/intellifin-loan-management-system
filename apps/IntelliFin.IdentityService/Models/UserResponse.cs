@@ -9,6 +9,8 @@ public class UserResponse
     public string LastName { get; set; } = string.Empty;
     public string? PhoneNumber { get; set; }
     public string? BranchId { get; set; }
+    public string? BranchName { get; set; }
+    public string? BranchRegion { get; set; }
     public bool EmailConfirmed { get; set; }
     public bool PhoneNumberConfirmed { get; set; }
     public bool TwoFactorEnabled { get; set; }

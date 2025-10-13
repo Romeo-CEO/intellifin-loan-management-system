@@ -1,10 +1,13 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using System.Threading.Tasks;
+using IntelliFin.ApiGateway.Middleware;
 using IntelliFin.ApiGateway.Options;
+using IntelliFin.ApiGateway.Security;
 using IntelliFin.Shared.DomainModels.Data;
 using IntelliFin.Shared.DomainModels.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -20,8 +23,7 @@ using IntelliFin.Shared.Observability;
 const string LegacySchemeName = "Legacy";
 const string KeycloakSchemeName = "Keycloak";
 const string TokenTypeItemKey = "__token_type";
-const string BranchIdItemKey = "__branch_id";
-const string BranchNameItemKey = "__branch_name";
+const string BranchRegionHeader = "X-Branch-Region";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -85,9 +87,7 @@ builder.Services.AddReverseProxy()
 
               if (httpContext.User.Identity?.IsAuthenticated == true)
               {
-                  var branchId = httpContext.Items.TryGetValue(BranchIdItemKey, out var branchIdItem)
-                      ? branchIdItem as string
-                      : httpContext.User.FindFirstValue("branchId") ?? httpContext.User.FindFirstValue("branch_id");
+                  var branchId = ResolveBranchId(httpContext);
 
                   if (!string.IsNullOrWhiteSpace(branchId))
                   {
@@ -95,14 +95,24 @@ builder.Services.AddReverseProxy()
                       transformContext.ProxyRequest.Headers.Add("X-Branch-Id", branchId);
                   }
 
-                  var branchName = httpContext.Items.TryGetValue(BranchNameItemKey, out var branchNameItem)
-                      ? branchNameItem as string
-                      : httpContext.User.FindFirstValue("branchName") ?? httpContext.User.FindFirstValue("branch_name");
+                  var branchName = ResolveStringItem(httpContext, BranchClaimItemKeys.BranchName)
+                      ?? httpContext.User.FindFirstValue("branchName")
+                      ?? httpContext.User.FindFirstValue("branch_name");
 
                   if (!string.IsNullOrWhiteSpace(branchName))
                   {
                       transformContext.ProxyRequest.Headers.Remove("X-Branch-Name");
                       transformContext.ProxyRequest.Headers.Add("X-Branch-Name", branchName);
+                  }
+
+                  var branchRegion = ResolveStringItem(httpContext, BranchClaimItemKeys.BranchRegion)
+                      ?? httpContext.User.FindFirstValue("branchRegion")
+                      ?? httpContext.User.FindFirstValue("branch_region");
+
+                  if (!string.IsNullOrWhiteSpace(branchRegion))
+                  {
+                      transformContext.ProxyRequest.Headers.Remove(BranchRegionHeader);
+                      transformContext.ProxyRequest.Headers.Add(BranchRegionHeader, branchRegion);
                   }
 
                   if (httpContext.Items.TryGetValue(TokenTypeItemKey, out var tokenTypeObj) && tokenTypeObj is string tokenType)
@@ -245,8 +255,23 @@ builder.Services.AddAuthentication(options =>
             OnTokenValidated = async context =>
             {
                 context.HttpContext.Items[TokenTypeItemKey] = KeycloakSchemeName;
-                context.HttpContext.Items[BranchIdItemKey] = context.Principal?.FindFirstValue("branchId") ?? context.Principal?.FindFirstValue("branch_id");
-                context.HttpContext.Items[BranchNameItemKey] = context.Principal?.FindFirstValue("branchName") ?? context.Principal?.FindFirstValue("branch_name");
+                var branchIdClaim = context.Principal?.FindFirstValue("branchId") ?? context.Principal?.FindFirstValue("branch_id");
+                if (!string.IsNullOrWhiteSpace(branchIdClaim))
+                {
+                    context.HttpContext.Items[BranchClaimItemKeys.BranchIdRaw] = branchIdClaim;
+                }
+
+                var branchNameClaim = context.Principal?.FindFirstValue("branchName") ?? context.Principal?.FindFirstValue("branch_name");
+                if (!string.IsNullOrWhiteSpace(branchNameClaim))
+                {
+                    context.HttpContext.Items[BranchClaimItemKeys.BranchName] = branchNameClaim;
+                }
+
+                var branchRegionClaim = context.Principal?.FindFirstValue("branchRegion") ?? context.Principal?.FindFirstValue("branch_region");
+                if (!string.IsNullOrWhiteSpace(branchRegionClaim))
+                {
+                    context.HttpContext.Items[BranchClaimItemKeys.BranchRegion] = branchRegionClaim;
+                }
 
                 await LogTokenValidationAsync(context, KeycloakSchemeName);
             }
@@ -278,10 +303,12 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseMiddleware<TraceContextMiddleware>();
 app.UseHttpLogging();
 app.UseRateLimiter();
 app.UseCors("FrontendCors");
 app.UseAuthentication();
+app.UseMiddleware<BranchClaimMiddleware>();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");
@@ -294,6 +321,54 @@ app.MapGet("/", () => Results.Ok(new { name = "IntelliFin.ApiGateway", status = 
 app.UseHttpsRedirection();
 
 app.Run();
+
+static string? ResolveBranchId(HttpContext httpContext)
+{
+    if (httpContext.Items.TryGetValue(BranchClaimItemKeys.BranchId, out var branchIdItem))
+    {
+        switch (branchIdItem)
+        {
+            case int branchIdInt:
+                return branchIdInt.ToString(CultureInfo.InvariantCulture);
+            case string branchIdString when !string.IsNullOrWhiteSpace(branchIdString):
+                return branchIdString;
+            default:
+                var itemString = branchIdItem?.ToString();
+                if (!string.IsNullOrWhiteSpace(itemString))
+                {
+                    return itemString;
+                }
+
+                break;
+        }
+    }
+
+    if (httpContext.Items.TryGetValue(BranchClaimItemKeys.BranchIdRaw, out var branchIdRaw) && branchIdRaw is string rawString && !string.IsNullOrWhiteSpace(rawString))
+    {
+        return rawString;
+    }
+
+    return httpContext.User.FindFirstValue("branchId") ?? httpContext.User.FindFirstValue("branch_id");
+}
+
+static string? ResolveStringItem(HttpContext httpContext, string key)
+{
+    if (httpContext.Items.TryGetValue(key, out var value))
+    {
+        if (value is string stringValue)
+        {
+            return string.IsNullOrWhiteSpace(stringValue) ? null : stringValue;
+        }
+
+        var converted = value?.ToString();
+        if (!string.IsNullOrWhiteSpace(converted))
+        {
+            return converted;
+        }
+    }
+
+    return null;
+}
 
 static async Task LogTokenValidationAsync(TokenValidatedContext context, string schemeName)
 {
@@ -327,6 +402,7 @@ static async Task LogTokenValidationAsync(TokenValidatedContext context, string 
 
         var branchId = principal.FindFirstValue("branchId") ?? principal.FindFirstValue("branch_id");
         var branchName = principal.FindFirstValue("branchName") ?? principal.FindFirstValue("branch_name");
+        var branchRegion = principal.FindFirstValue("branchRegion") ?? principal.FindFirstValue("branch_region");
 
         var auditContext = new AuditEventContext
         {
@@ -346,7 +422,8 @@ static async Task LogTokenValidationAsync(TokenValidatedContext context, string 
                 ["issuer"] = issuer ?? string.Empty,
                 ["audiences"] = audiences,
                 ["branchId"] = branchId ?? string.Empty,
-                ["branchName"] = branchName ?? string.Empty
+                ["branchName"] = branchName ?? string.Empty,
+                ["branchRegion"] = branchRegion ?? string.Empty
             }
         };
 

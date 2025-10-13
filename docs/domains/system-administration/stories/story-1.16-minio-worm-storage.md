@@ -11,7 +11,7 @@
 | **Story Points** | 8 |
 | **Estimated Effort** | 5-7 days |
 | **Priority** | P0 (Critical for BoZ compliance) |
-| **Status** | 📋 Backlog |
+| **Status** | ✅ Complete |
 | **Assigned To** | TBD |
 | **Dependencies** | Story 1.15 (Tamper-evident chain), Story 1.14 (Centralized audit) |
 | **Blocks** | Story 1.33 (DR runbooks) |
@@ -129,8 +129,8 @@ This implements SEC Rule 17a-4 compliant storage architecture.
 - **Object Storage**: MinIO (self-hosted, S3-compatible)
 - **Compression**: Gzip (System.IO.Compression.GzipStream)
 - **Serialization**: System.Text.Json (JSONL format)
-- **Scheduling**: Hangfire or Quartz.NET for daily export jobs
-- **SDK**: MinIO.AspNet SDK for .NET
+- **Scheduling**: ASP.NET Core hosted services orchestrating export and replication checks
+- **SDK**: MinIO .NET client library
 
 ### MinIO Configuration
 
@@ -212,6 +212,15 @@ mc admin config set intellifin logger_webhook:audit_access endpoint="https://adm
 
 echo "MinIO audit storage configured successfully"
 ```
+
+### Implemented Solution (Sprint 6)
+
+- `AuditArchiveService` streams verified audit events into gzipped JSONL exports, uploads immutable payloads and metadata (`chain-metadata.json`, `verify.py`) to MinIO, and records archive metadata in SQL Server for discovery.
+- Hosted background workers schedule the midnight UTC export window and poll MinIO for replication status updates, flagging lagging replicas in the Admin Service metadata table.
+- New API endpoints expose archive search, download (with signed URLs), and integrity telemetry; downloads audit themselves and update last-access metadata for compliance dashboards.
+- Configuration surfaced in `appsettings*.json` with overridable retention, replication, and presigned URL durations to meet 10-year WORM retention requirements.
+- Infrastructure scripts (`scripts/minio/minio-setup.sh`, `infra/minio/README.md`) codify bucket provisioning, object lock defaults, and DR replication guidance.
+- Operations runbook captured in [`docs/domains/system-administration/minio-worm-storage.md`](../minio-worm-storage.md) for ongoing support and alerting.
 
 ### Database Schema
 

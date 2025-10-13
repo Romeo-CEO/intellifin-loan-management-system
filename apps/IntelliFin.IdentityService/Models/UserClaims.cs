@@ -12,6 +12,8 @@ public class UserClaims
     public string[] Roles { get; set; } = Array.Empty<string>();
     public string[] Permissions { get; set; } = Array.Empty<string>();
     public string? BranchId { get; set; }
+    public string? BranchName { get; set; }
+    public string? BranchRegion { get; set; }
     public string? TenantId { get; set; }
     public string? SessionId { get; set; }
     public string? DeviceId { get; set; }
@@ -43,6 +45,16 @@ public class UserClaims
         if (!string.IsNullOrEmpty(BranchId))
         {
             claims.Add(new Claim("branch_id", BranchId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(BranchName))
+        {
+            claims.Add(new Claim("branch_name", BranchName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(BranchRegion))
+        {
+            claims.Add(new Claim("branch_region", BranchRegion));
         }
 
         if (!string.IsNullOrEmpty(TenantId))

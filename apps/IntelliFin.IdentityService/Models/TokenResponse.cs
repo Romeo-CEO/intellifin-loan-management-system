@@ -24,6 +24,8 @@ public class UserInfo
     public string[] Roles { get; set; } = Array.Empty<string>();
     public string[] Permissions { get; set; } = Array.Empty<string>();
     public string? BranchId { get; set; }
+    public string? BranchName { get; set; }
+    public string? BranchRegion { get; set; }
     public bool RequiresTwoFactor { get; set; }
     public bool IsActive { get; set; }
 }
