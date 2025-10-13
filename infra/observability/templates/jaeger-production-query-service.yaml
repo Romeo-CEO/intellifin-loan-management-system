@@ -1,0 +1,22 @@
+{{- if and .Values.jaeger.enabled (eq .Values.jaeger.mode "production") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "observability.fullname" . }}-jaeger-query
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger-query
+    app.kubernetes.io/name: jaeger
+spec:
+  type: {{ .Values.jaeger.production.query.service.type }}
+  selector:
+    {{- include "observability.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger-query
+  ports:
+    - name: http
+      port: {{ .Values.jaeger.production.query.service.port }}
+      targetPort: http
+    - name: admin
+      port: 16687
+      targetPort: admin
+{{- end }}

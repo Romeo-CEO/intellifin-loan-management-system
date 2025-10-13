@@ -66,6 +66,7 @@ builder.Services.Configure<VaultOptions>(builder.Configuration.GetSection(VaultO
 builder.Services.Configure<ArgoCdOptions>(builder.Configuration.GetSection(ArgoCdOptions.SectionName));
 builder.Services.Configure<SbomOptions>(builder.Configuration.GetSection(SbomOptions.SectionName));
 builder.Services.Configure<BastionOptions>(builder.Configuration.GetSection(BastionOptions.SectionName));
+builder.Services.Configure<IncidentResponseOptions>(builder.Configuration.GetSection(IncidentResponseOptions.SectionName));
 
 builder.Services.AddDbContext<AdminDbContext>(options =>
 {
@@ -133,6 +134,7 @@ builder.Services.AddScoped<IRecertificationNotificationService, RecertificationN
 builder.Services.AddScoped<IRecertificationService, RecertificationService>();
 builder.Services.AddScoped<ISbomService, SbomService>();
 builder.Services.AddScoped<IBastionAccessService, BastionAccessService>();
+builder.Services.AddScoped<IIncidentResponseService, IncidentResponseService>();
 
 builder.Services.AddHttpClient<ICamundaWorkflowService, CamundaWorkflowService>((sp, client) =>
 {
@@ -142,6 +144,18 @@ builder.Services.AddHttpClient<ICamundaWorkflowService, CamundaWorkflowService>(
         client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
     }
     client.Timeout = TimeSpan.FromSeconds(15);
+})
+    .AddPolicyHandler(CreateRetryPolicy());
+
+builder.Services.AddHttpClient<IAlertmanagerClient, AlertmanagerClient>((sp, client) =>
+{
+    var options = sp.GetRequiredService<IOptionsMonitor<IncidentResponseOptions>>().CurrentValue;
+    if (!string.IsNullOrWhiteSpace(options.AlertmanagerBaseUrl))
+    {
+        client.BaseAddress = new Uri(options.AlertmanagerBaseUrl, UriKind.Absolute);
+    }
+
+    client.Timeout = TimeSpan.FromSeconds(10);
 })
     .AddPolicyHandler(CreateRetryPolicy());
 

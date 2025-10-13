@@ -1,0 +1,38 @@
+{{- $ingress := .Values.jaeger.production.query.ingress }}
+{{- if and .Values.jaeger.enabled (eq .Values.jaeger.mode "production") $ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "observability.fullname" . }}-jaeger
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jaeger-query
+    app.kubernetes.io/name: jaeger
+  {{- with $ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if $ingress.className }}
+  ingressClassName: {{ $ingress.className }}
+  {{- end }}
+  {{- if $ingress.tls }}
+  tls:
+    {{- toYaml $ingress.tls | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range $ingress.hosts }}
+    - host: {{ .host }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "observability.fullname" $ }}-jaeger-query
+                port:
+                  number: {{ $.Values.jaeger.production.query.service.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}

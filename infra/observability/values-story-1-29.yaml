@@ -1,0 +1,54 @@
+jaeger:
+  mode: production
+  production:
+    collector:
+      autoscaling:
+        enabled: true
+        minReplicas: 3
+        maxReplicas: 10
+        targetCPUUtilizationPercentage: 70
+        targetMemoryUtilizationPercentage: 80
+      sampling:
+        defaultProbability: 0.1
+        serviceOverrides:
+          - service: admin-service
+            type: probabilistic
+            param: 1.0
+      cmdlineParams:
+        es.num-shards: 5
+        es.num-replicas: 1
+        es.bulk.size: 10000000
+        es.bulk.workers: 10
+        es.bulk.flush-interval: 1s
+    query:
+      ingress:
+        enabled: true
+        className: nginx
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+          nginx.ingress.kubernetes.io/ssl-redirect: "true"
+        hosts:
+          - host: jaeger.intellifin.com
+            paths:
+              - path: /
+                pathType: Prefix
+        tls:
+          - secretName: jaeger-tls
+            hosts:
+              - jaeger.intellifin.com
+      cmdlineParams:
+        query.max-clock-skew-adjustment: 1s
+        query.base-path: /
+    storage:
+      type: elasticsearch
+      elasticsearch:
+        host: elasticsearch-master.elastic-system.svc.cluster.local
+        port: 9200
+        scheme: http
+        user: jaeger
+        password: jaeger_password
+        indexPrefix: jaeger
+        createIndexTemplates: true
+        version: 8
+    retention:
+      days: 7

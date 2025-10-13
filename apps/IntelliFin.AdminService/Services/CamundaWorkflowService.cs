@@ -16,12 +16,18 @@ public sealed class CamundaWorkflowService : ICamundaWorkflowService
 
     private readonly HttpClient _httpClient;
     private readonly IOptionsMonitor<CamundaOptions> _optionsMonitor;
+    private readonly IOptionsMonitor<IncidentResponseOptions> _incidentOptions;
     private readonly ILogger<CamundaWorkflowService> _logger;
 
-    public CamundaWorkflowService(HttpClient httpClient, IOptionsMonitor<CamundaOptions> optionsMonitor, ILogger<CamundaWorkflowService> logger)
+    public CamundaWorkflowService(
+        HttpClient httpClient,
+        IOptionsMonitor<CamundaOptions> optionsMonitor,
+        IOptionsMonitor<IncidentResponseOptions> incidentOptions,
+        ILogger<CamundaWorkflowService> logger)
     {
         _httpClient = httpClient;
         _optionsMonitor = optionsMonitor;
+        _incidentOptions = incidentOptions;
         _logger = logger;
     }
 
@@ -236,6 +242,94 @@ public sealed class CamundaWorkflowService : ICamundaWorkflowService
         {
             _logger.LogWarning(ex, "Failed to complete Camunda recertification task {TaskId}", taskId);
         }
+    }
+
+    public async Task<string?> StartIncidentWorkflowAsync(OperationalIncident incident, CancellationToken cancellationToken)
+    {
+        var camundaOptions = _optionsMonitor.CurrentValue;
+        var incidentOptions = _incidentOptions.CurrentValue;
+
+        if (string.IsNullOrWhiteSpace(camundaOptions.BaseUrl) || string.IsNullOrWhiteSpace(incidentOptions.IncidentWorkflowProcessId))
+        {
+            _logger.LogDebug("Camunda incident workflow not configured; returning synthetic id for incident {IncidentId}", incident.IncidentId);
+            return $"incident-offline-{Guid.NewGuid():N}";
+        }
+
+        var payload = new
+        {
+            incidentId = incident.IncidentId,
+            alertName = incident.AlertName,
+            severity = incident.Severity,
+            detectedAt = incident.DetectedAt,
+            summary = incident.Summary,
+            pagerDutyIncidentId = incident.PagerDutyIncidentId,
+            slackThreadUrl = incident.SlackThreadUrl,
+            playbookId = incident.Playbook?.PlaybookId,
+            automationStatus = incident.AutomationStatus
+        };
+
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync($"workflows/{incidentOptions.IncidentWorkflowProcessId}", payload, SerializerOptions, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadFromJsonAsync<CamundaStartResponse>(SerializerOptions, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(content?.ProcessInstanceId))
+                {
+                    return content.ProcessInstanceId;
+                }
+            }
+            else
+            {
+                _logger.LogWarning("Camunda incident workflow start returned {StatusCode} for incident {IncidentId}", response.StatusCode, incident.IncidentId);
+            }
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "Failed to invoke Camunda incident workflow for incident {IncidentId}", incident.IncidentId);
+        }
+
+        return $"incident-fallback-{Guid.NewGuid():N}";
+    }
+
+    public async Task<string?> StartPostIncidentReviewAsync(OperationalIncident incident, DateTime dueAtUtc, CancellationToken cancellationToken)
+    {
+        var camundaOptions = _optionsMonitor.CurrentValue;
+        var incidentOptions = _incidentOptions.CurrentValue;
+
+        if (string.IsNullOrWhiteSpace(camundaOptions.BaseUrl) || string.IsNullOrWhiteSpace(incidentOptions.PostmortemWorkflowProcessId))
+        {
+            _logger.LogDebug("Camunda post-incident workflow not configured; skipping schedule for incident {IncidentId}", incident.IncidentId);
+            return null;
+        }
+
+        var payload = new
+        {
+            incidentId = incident.IncidentId,
+            alertName = incident.AlertName,
+            severity = incident.Severity,
+            dueAt = dueAtUtc,
+            summary = incident.Summary,
+            owner = incident.CreatedBy
+        };
+
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync($"workflows/{incidentOptions.PostmortemWorkflowProcessId}", payload, SerializerOptions, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadFromJsonAsync<CamundaStartResponse>(SerializerOptions, cancellationToken);
+                return content?.ProcessInstanceId;
+            }
+
+            _logger.LogWarning("Camunda post-incident workflow start returned {StatusCode} for incident {IncidentId}", response.StatusCode, incident.IncidentId);
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "Failed to schedule Camunda post-incident workflow for incident {IncidentId}", incident.IncidentId);
+        }
+
+        return null;
     }
 
     private sealed record CamundaStartResponse(string? ProcessInstanceId);

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_IncidentResponse"
+                  targetNamespace="https://intellifin.com/bpmn/incident-response">
+  <bpmn:process id="IncidentResponse" name="Automated Incident Response" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_Alert" name="Alert Received">
+      <bpmn:outgoing>Flow_CreateIncident</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="Task_CreateIncidentRecord" name="Create Incident Record" camunda:delegateExpression="${createIncidentDelegate}">
+      <bpmn:incoming>Flow_CreateIncident</bpmn:incoming>
+      <bpmn:outgoing>Flow_CheckAutomation</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_CanAutomate" name="Automation Available?">
+      <bpmn:incoming>Flow_CheckAutomation</bpmn:incoming>
+      <bpmn:outgoing>Flow_Automation</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Manual</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_ExecuteAutomation" name="Execute Auto Remediation" camunda:delegateExpression="${autoRemediationDelegate}">
+      <bpmn:incoming>Flow_Automation</bpmn:incoming>
+      <bpmn:outgoing>Flow_VerifyResolution</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_VerifyResolution" name="Verify Resolution" camunda:delegateExpression="${verifyResolutionDelegate}">
+      <bpmn:incoming>Flow_VerifyResolution</bpmn:incoming>
+      <bpmn:outgoing>Flow_Verified</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="Task_ManualIntervention" name="Manual Investigation" camunda:assignee="${onCallEngineer}">
+      <bpmn:incoming>Flow_Manual</bpmn:incoming>
+      <bpmn:incoming>Flow_AutomationFailed</bpmn:incoming>
+      <bpmn:outgoing>Flow_PagerDuty</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="Task_PageOnCall" name="Notify PagerDuty" camunda:delegateExpression="${pagerDutyDelegate}">
+      <bpmn:incoming>Flow_PagerDuty</bpmn:incoming>
+      <bpmn:outgoing>Flow_ManualResolution</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_Resolved" name="Resolved?">
+      <bpmn:incoming>Flow_Verified</bpmn:incoming>
+      <bpmn:incoming>Flow_ManualResolution</bpmn:incoming>
+      <bpmn:outgoing>Flow_Resolved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_AutomationFailed</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_CloseIncident" name="Close Incident" camunda:delegateExpression="${closeIncidentDelegate}">
+      <bpmn:incoming>Flow_Resolved</bpmn:incoming>
+      <bpmn:outgoing>Flow_CheckSeverity</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_MajorIncident" name="Major Incident?">
+      <bpmn:incoming>Flow_CheckSeverity</bpmn:incoming>
+      <bpmn:outgoing>Flow_CreateRca</bpmn:outgoing>
+      <bpmn:outgoing>Flow_EndProcess</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="Task_RootCause" name="Complete RCA" camunda:assignee="${incidentOwner}">
+      <bpmn:incoming>Flow_CreateRca</bpmn:incoming>
+      <bpmn:outgoing>Flow_EndProcess</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:endEvent id="EndEvent_Resolved" name="Incident Resolved">
+      <bpmn:incoming>Flow_EndProcess</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_CreateIncident" sourceRef="StartEvent_Alert" targetRef="Task_CreateIncidentRecord" />
+    <bpmn:sequenceFlow id="Flow_CheckAutomation" sourceRef="Task_CreateIncidentRecord" targetRef="Gateway_CanAutomate" />
+    <bpmn:sequenceFlow id="Flow_Automation" sourceRef="Gateway_CanAutomate" targetRef="Task_ExecuteAutomation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${canAutomate}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Manual" sourceRef="Gateway_CanAutomate" targetRef="Task_ManualIntervention">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!canAutomate}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_VerifyResolution" sourceRef="Task_ExecuteAutomation" targetRef="Task_VerifyResolution" />
+    <bpmn:sequenceFlow id="Flow_Verified" sourceRef="Task_VerifyResolution" targetRef="Gateway_Resolved" />
+    <bpmn:sequenceFlow id="Flow_PagerDuty" sourceRef="Task_ManualIntervention" targetRef="Task_PageOnCall" />
+    <bpmn:sequenceFlow id="Flow_ManualResolution" sourceRef="Task_PageOnCall" targetRef="Gateway_Resolved" />
+    <bpmn:sequenceFlow id="Flow_AutomationFailed" sourceRef="Gateway_Resolved" targetRef="Task_ManualIntervention">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!resolved}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Resolved" sourceRef="Gateway_Resolved" targetRef="Task_CloseIncident">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${resolved}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_CheckSeverity" sourceRef="Task_CloseIncident" targetRef="Gateway_MajorIncident" />
+    <bpmn:sequenceFlow id="Flow_CreateRca" sourceRef="Gateway_MajorIncident" targetRef="Task_RootCause">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${majorIncident}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_EndProcess" sourceRef="Gateway_MajorIncident" targetRef="EndEvent_Resolved">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!majorIncident}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_EndProcessRca" sourceRef="Task_RootCause" targetRef="EndEvent_Resolved" />
+  </bpmn:process>
+</bpmn:definitions>
