@@ -92,7 +92,7 @@ public sealed class BastionAccessController : ControllerBase
     }
 
     [HttpPost("sessions")]
-    [Authorize]
+    [Authorize(Roles = "BastionService")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RecordSession(
         [FromBody] BastionSessionIngestRequest request,

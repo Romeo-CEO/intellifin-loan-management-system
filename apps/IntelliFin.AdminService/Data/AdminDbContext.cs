@@ -551,7 +551,8 @@ public class AdminDbContext(DbContextOptions<AdminDbContext> options) : DbContex
                 new RoleDefinition { Id = 10, RoleName = "GL Accountant", DisplayName = "General Ledger Accountant", Description = "Records journal entries and financial transactions", Category = "Business", RiskLevel = "High", RequiresApproval = false },
                 new RoleDefinition { Id = 11, RoleName = "Auditor", DisplayName = "Auditor", Description = "Reviews audit logs and compliance (read-only)", Category = "Management", RiskLevel = "Medium", RequiresApproval = true },
                 new RoleDefinition { Id = 12, RoleName = "Risk Manager", DisplayName = "Risk Manager", Description = "Assesses and manages institutional risk", Category = "Management", RiskLevel = "High", RequiresApproval = true },
-                new RoleDefinition { Id = 13, RoleName = "Branch Manager", DisplayName = "Branch Manager", Description = "Supervises branch operations", Category = "Management", RiskLevel = "High", RequiresApproval = true }
+                new RoleDefinition { Id = 13, RoleName = "Branch Manager", DisplayName = "Branch Manager", Description = "Supervises branch operations", Category = "Management", RiskLevel = "High", RequiresApproval = true },
+                new RoleDefinition { Id = 14, RoleName = "BastionService", DisplayName = "Bastion Ingestion Service", Description = "Trusted bastion ingestion service account", Category = "System", RiskLevel = "Critical", RequiresApproval = true }
             );
         });
 
