@@ -33,12 +33,23 @@ public static class ServiceCollectionExtensions
             options.UseSqlServer(connection);
         });
 
+        var platformConnectionString = configuration.GetConnectionString("PlatformDb");
+
         services.AddDbContext<LmsDbContext>((serviceProvider, options) =>
         {
-            var connection = BuildSqlConnectionString(serviceProvider, connectionString);
+            var logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<LmsDbContext>();
+            var targetConnectionString = string.IsNullOrWhiteSpace(platformConnectionString)
+                ? connectionString
+                : platformConnectionString;
+
+            if (string.IsNullOrWhiteSpace(platformConnectionString))
+            {
+                logger.LogWarning("ConnectionStrings:PlatformDb is not configured. Falling back to the identity database connection string. Configure a dedicated shared-domain connection string for production deployments.");
+            }
+
+            var connection = BuildSqlConnectionString(serviceProvider, targetConnectionString);
             options.UseSqlServer(connection);
         });
-
         // Repositories
         services.AddScoped<IUserRepository, UserRepository>();
 

@@ -122,10 +122,9 @@ try
         });
     }
 
-    app.UseSerilogRequestLogging();
     app.UseMiddleware<CorrelationIdMiddleware>();
+    app.UseSerilogRequestLogging();
 
-    app.UseHttpsRedirection();
     app.UseSecurityHeaders();
 
     app.UseRouting();
@@ -180,3 +179,5 @@ finally
 }
 
 public partial class Program;
+
+
