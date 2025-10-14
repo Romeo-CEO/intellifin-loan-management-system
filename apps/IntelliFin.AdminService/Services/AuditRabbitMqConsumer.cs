@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using IntelliFin.AdminService.Models;
 using IntelliFin.AdminService.Options;
 using Microsoft.Extensions.Options;
@@ -21,17 +22,20 @@ public sealed class AuditRabbitMqConsumer : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly AuditRabbitMqOptions _options;
     private readonly ILogger<AuditRabbitMqConsumer> _logger;
+    private readonly IVaultSecretResolver _vaultSecretResolver;
     private IConnection? _connection;
     private IModel? _channel;
 
     public AuditRabbitMqConsumer(
         IServiceProvider serviceProvider,
         IOptions<AuditRabbitMqOptions> options,
-        ILogger<AuditRabbitMqConsumer> logger)
+        ILogger<AuditRabbitMqConsumer> logger,
+        IVaultSecretResolver vaultSecretResolver)
     {
         _serviceProvider = serviceProvider;
         _options = options.Value;
         _logger = logger;
+        _vaultSecretResolver = vaultSecretResolver;
     }
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -42,12 +46,14 @@ public sealed class AuditRabbitMqConsumer : BackgroundService
             return Task.CompletedTask;
         }
 
+        var credentials = _vaultSecretResolver.GetRabbitMqCredentialsAsync(stoppingToken).GetAwaiter().GetResult();
+
         var factory = new ConnectionFactory
         {
             HostName = _options.HostName,
             Port = _options.Port,
-            UserName = _options.UserName,
-            Password = _options.Password,
+            UserName = string.IsNullOrWhiteSpace(_options.UserName) ? credentials.UserName : _options.UserName,
+            Password = string.IsNullOrWhiteSpace(_options.Password) ? credentials.Password : _options.Password,
             VirtualHost = _options.VirtualHost,
             DispatchConsumersAsync = true
         };

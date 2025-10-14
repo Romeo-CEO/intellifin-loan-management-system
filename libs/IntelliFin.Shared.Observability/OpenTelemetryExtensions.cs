@@ -1,17 +1,18 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Diagnostics;
 using System.Reflection;
-using System.Text;
+using System.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Context.Propagation;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using System.Text.RegularExpressions;
 
 namespace IntelliFin.Shared.Observability;
 
@@ -43,6 +44,28 @@ public static class OpenTelemetryExtensions
                           ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
                           ?? "Production";
         var otlpEndpoint = configuration["OpenTelemetry:OtlpEndpoint"] ?? "http://otel-collector:4317";
+        var logsSection = configuration.GetSection("OpenTelemetry:Logs");
+        var logEndpoint = logsSection["OtlpEndpoint"] ?? otlpEndpoint;
+        var configuredHeaderValues = BuildHeaders(logsSection.GetSection("Headers"));
+        var sensitiveKeys = new HashSet<string>(logsSection.GetSection("SensitiveKeys").Get<string[]>() ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+        var configuredPatterns = logsSection.GetSection("RedactionPatterns").Get<string[]>() ?? Array.Empty<string>();
+        var patternList = new List<Regex>
+        {
+            new("\\b\\d{6}/\\d{2}/\\d{1}\\b", RegexOptions.Compiled),
+            new("\\+260\\d{9}\\b", RegexOptions.Compiled)
+        };
+
+        foreach (var pattern in configuredPatterns)
+        {
+            if (string.IsNullOrWhiteSpace(pattern))
+            {
+                continue;
+            }
+
+            patternList.Add(new Regex(pattern, RegexOptions.Compiled));
+        }
+
+        var redactor = new SensitiveDataRedactor(patternList, sensitiveKeys);
 
         Activity.DefaultIdFormat = ActivityIdFormat.W3C;
         Activity.ForceDefaultIdFormat = true;
@@ -57,7 +80,11 @@ public static class OpenTelemetryExtensions
                     | ActivityTrackingOptions.Baggage;
             });
 
-        services.AddOpenTelemetry()
+        var loggingAlreadyConfigured = services.Any(descriptor =>
+            descriptor.ServiceType == typeof(ILoggerProvider)
+            && descriptor.ImplementationType == typeof(OpenTelemetryLoggerProvider));
+
+        var openTelemetryBuilder = services.AddOpenTelemetry()
             .ConfigureResource(resourceBuilder => resourceBuilder
                 .AddService(serviceName, serviceVersion: serviceVersion)
                 .AddAttributes(new Dictionary<string, object>
@@ -106,7 +133,44 @@ public static class OpenTelemetryExtensions
                     exporterOptions.Endpoint = new Uri(otlpEndpoint);
                 }));
 
+        if (!loggingAlreadyConfigured)
+        {
+            openTelemetryBuilder.WithLogging(loggingBuilder =>
+            {
+                loggingBuilder.IncludeScopes = true;
+                loggingBuilder.IncludeFormattedMessage = true;
+                loggingBuilder.ParseStateValues = true;
+                loggingBuilder.AddProcessor(new SensitiveDataLogProcessor(redactor));
+                loggingBuilder.AddOtlpExporter(exporterOptions =>
+                {
+                    exporterOptions.Endpoint = new Uri(logEndpoint);
+                    exporterOptions.Headers = configuredHeaderValues;
+                });
+            });
+        }
+
         return services;
+    }
+
+    private static string? BuildHeaders(IConfigurationSection headersSection)
+    {
+        if (!headersSection.Exists())
+        {
+            return null;
+        }
+
+        var pairs = new List<string>();
+        foreach (var header in headersSection.GetChildren())
+        {
+            if (string.IsNullOrWhiteSpace(header.Key) || string.IsNullOrWhiteSpace(header.Value))
+            {
+                continue;
+            }
+
+            pairs.Add($"{header.Key}={header.Value}");
+        }
+
+        return pairs.Count == 0 ? null : string.Join(",", pairs);
     }
 
     private static string SanitizeConnectionString(string? connectionString)

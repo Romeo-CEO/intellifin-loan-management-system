@@ -1,5 +1,7 @@
 using IntelliFin.Shared.Observability;
-﻿using IntelliFin.FinancialService.Services;
+using IntelliFin.FinancialService.Clients;
+using IntelliFin.FinancialService.Services;
+using IntelliFin.Shared.Audit;
 using IntelliFin.Shared.Infrastructure.Messaging;
 using IntelliFin.Shared.DomainModels.Data;
 using IntelliFin.Shared.DomainModels.Repositories;
@@ -9,6 +11,7 @@ using Hangfire;
 using Hangfire.SqlServer;
 using Polly;
 using Polly.Extensions.Http;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,10 +58,22 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IComplianceMonitoringService, ComplianceMonitoringService>();
 builder.Services.AddScoped<IBozComplianceService, BozComplianceService>();
 
-// Add audit trail services
-builder.Services.AddScoped<IntelliFin.Shared.DomainModels.Services.IAuditService, IntelliFin.Shared.DomainModels.Services.AuditService>();
-builder.Services.AddSingleton<IntelliFin.Shared.DomainModels.Services.IAuditMonitoringService, IntelliFin.Shared.DomainModels.Services.AuditMonitoringService>();
-builder.Services.AddHostedService<IntelliFin.Shared.DomainModels.Services.AuditMonitoringService>();
+// Forward audit writes and queries to Admin Service
+builder.Services.AddAuditClient(builder.Configuration);
+
+builder.Services.AddHttpClient<IAdminAuditClient, AdminAuditClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptionsMonitor<AuditClientOptions>>().CurrentValue;
+    if (options.BaseAddress is null)
+    {
+        throw new InvalidOperationException("AuditService:BaseAddress configuration is required for audit forwarding.");
+    }
+
+    client.BaseAddress = options.BaseAddress;
+    client.Timeout = options.HttpTimeout;
+})
+.AddPolicyHandler(GetRetryPolicy())
+.AddPolicyHandler(GetCircuitBreakerPolicy());
 
 // Add JasperReports client with HttpClient factory and Polly resilience patterns
 builder.Services.AddHttpClient<IJasperReportsClient, JasperReportsClient>(client =>

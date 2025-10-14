@@ -161,6 +161,8 @@ This document serves as a definitive blueprint, explicitly linking each regulato
   - End-to-end encryption for all data at rest and in transit
   - Role-based access control with principle of least privilege
   - Multi-factor authentication for all system access
+  - API Gateway enforces Keycloak-issued OAuth2 tokens exclusively, validating
+    issuer/audience over HTTPS to satisfy FR11 zero-trust mandates
   - Regular security audits and penetration testing
   - Incident response procedures and breach notification protocols
 

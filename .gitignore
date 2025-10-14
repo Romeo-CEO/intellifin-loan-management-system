@@ -274,4 +274,5 @@ __pycache__/
 .nx/cache
 .nx/workspace-data
 .cursor/rules/nx-rules.mdc
-.github/instructions/nx.instructions.md
+.github/instructions/nx.instructions.mdapps/IntelliFin.AdminService/appsettings.Development.json
+apps/IntelliFin.ApiGateway/appsettings.Development.json

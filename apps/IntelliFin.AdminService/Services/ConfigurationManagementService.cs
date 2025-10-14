@@ -249,8 +249,6 @@ public sealed class ConfigurationManagementService : IConfigurationManagementSer
         change.ApprovedBy = approverId;
         change.ApprovedAt = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
         await _camundaWorkflowService.CompleteConfigurationChangeWorkflowAsync(change.CamundaProcessInstanceId, approved: true, comments ?? string.Empty, cancellationToken).ConfigureAwait(false);
 
         await ApplyChangeAsync(change, policy, approverId, cancellationToken).ConfigureAwait(false);
@@ -288,9 +286,9 @@ public sealed class ConfigurationManagementService : IConfigurationManagementSer
         change.RejectedAt = DateTime.UtcNow;
         change.RejectionReason = reason;
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
         await _camundaWorkflowService.CompleteConfigurationChangeWorkflowAsync(change.CamundaProcessInstanceId, approved: false, reason, cancellationToken).ConfigureAwait(false);
+
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         await LogAuditAsync(new AuditEvent
         {

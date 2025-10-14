@@ -40,4 +40,43 @@ public class VaultOptions
     /// Optional base path for database secrets (defaults to "database").
     /// </summary>
     public string SecretsEnginePath { get; set; } = "database";
+
+    /// <summary>
+    /// Default cache lifetime (in seconds) for secrets that do not expose lease information.
+    /// </summary>
+    [Range(30, 3600)]
+    public int DefaultSecretCacheSeconds { get; set; } = 300;
+
+    /// <summary>
+    /// Mapping of logical service components to Vault secret paths.
+    /// </summary>
+    [Required]
+    public VaultSecretPaths SecretPaths { get; set; } = new();
+}
+
+public sealed class VaultSecretPaths
+{
+    [Required]
+    public string AdminDatabaseRole { get; set; } = "admin-service";
+
+    [Required]
+    public string FinancialDatabaseRole { get; set; } = "financial-service";
+
+    [Required]
+    public string IdentityDatabaseRole { get; set; } = "identity-service";
+
+    [Required]
+    public VaultKeyValueSecretPath RabbitMq { get; set; } = new() { MountPoint = "kv", Path = "messaging/audit" };
+
+    [Required]
+    public VaultKeyValueSecretPath Minio { get; set; } = new() { MountPoint = "kv", Path = "object-storage/admin-service" };
+}
+
+public sealed class VaultKeyValueSecretPath
+{
+    [Required]
+    public string MountPoint { get; set; } = "kv";
+
+    [Required]
+    public string Path { get; set; } = string.Empty;
 }

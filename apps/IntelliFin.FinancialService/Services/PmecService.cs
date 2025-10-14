@@ -1,4 +1,6 @@
-﻿using IntelliFin.FinancialService.Models;
+﻿using IntelliFin.FinancialService.Exceptions;
+using IntelliFin.FinancialService.Models;
+using IntelliFin.Shared.Audit;
 using Microsoft.Extensions.Logging;
 
 namespace IntelliFin.FinancialService.Services;
@@ -7,22 +9,24 @@ public class PmecService : IPmecService
 {
     private readonly ILogger<PmecService> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IAuditClient _auditClient;
 
-    public PmecService(ILogger<PmecService> logger, IConfiguration configuration)
+    public PmecService(ILogger<PmecService> logger, IConfiguration configuration, IAuditClient auditClient)
     {
         _logger = logger;
         _configuration = configuration;
+        _auditClient = auditClient;
     }
 
     public async Task<EmployeeVerificationResult> VerifyEmployeeAsync(EmployeeVerificationRequest request)
     {
         _logger.LogInformation("Verifying employee {EmployeeId} with PMEC", request.EmployeeId);
-        
+
         // TODO: Implement actual PMEC API call
         await Task.Delay(500); // Simulate network call
-        
+
         // Mock verification result
-        return new EmployeeVerificationResult
+        var result = new EmployeeVerificationResult
         {
             IsVerified = true,
             EmployeeId = request.EmployeeId,
@@ -36,16 +40,30 @@ public class PmecService : IPmecService
             VerificationStatus = "VERIFIED",
             VerificationDate = DateTime.UtcNow
         };
+
+        await ForwardAuditAsync(
+            "system",
+            "PmecEmployeeVerified",
+            "PmecEmployee",
+            result.EmployeeId,
+            new
+            {
+                request.NationalId,
+                result.IsVerified,
+                result.VerificationStatus
+            });
+
+        return result;
     }
 
     public async Task<DeductionSubmissionResult> SubmitDeductionsAsync(DeductionSubmissionRequest request)
     {
-        _logger.LogInformation("Submitting {ItemCount} deductions to PMEC for cycle {CycleId}", 
+        _logger.LogInformation("Submitting {ItemCount} deductions to PMEC for cycle {CycleId}",
             request.Items.Count, request.CycleId);
-        
+
         // TODO: Implement actual PMEC API submission
         await Task.Delay(1000); // Simulate network call
-        
+
         var itemResults = request.Items.Select(item => new DeductionItemResult
         {
             EmployeeId = item.EmployeeId,
@@ -54,8 +72,8 @@ public class PmecService : IPmecService
             Message = "Deduction accepted",
             ExternalReference = $"PMEC-{Random.Shared.Next(100000, 999999)}"
         }).ToList();
-        
-        return new DeductionSubmissionResult
+
+        var result = new DeductionSubmissionResult
         {
             Success = true,
             SubmissionId = Guid.NewGuid().ToString(),
@@ -67,6 +85,21 @@ public class PmecService : IPmecService
             Message = "All deductions submitted successfully",
             SubmissionDate = DateTime.UtcNow
         };
+
+        await ForwardAuditAsync(
+            request.SubmittedBy ?? "system",
+            "PmecDeductionsSubmitted",
+            "PmecDeductionSubmission",
+            result.SubmissionId!,
+            new
+            {
+                request.CycleId,
+                result.TotalItems,
+                result.AcceptedItems,
+                result.RejectedItems
+            });
+
+        return result;
     }
 
     public async Task<DeductionResultsResponse> FetchDeductionResultsAsync(string cycleId)
@@ -162,17 +195,24 @@ public class PmecService : IPmecService
     public async Task<bool> CancelDeductionAsync(string deductionId, string reason)
     {
         _logger.LogInformation("Cancelling deduction {DeductionId} with reason: {Reason}", deductionId, reason);
-        
+
         // TODO: Implement actual cancellation logic
         await Task.Delay(200);
-        
+
+        await ForwardAuditAsync(
+            "system",
+            "PmecDeductionCancelled",
+            "PmecDeduction",
+            deductionId,
+            new { reason });
+
         return true;
     }
 
     public async Task<PmecHealthCheckResult> CheckPmecConnectivityAsync()
     {
         _logger.LogInformation("Checking PMEC connectivity");
-        
+
         var startTime = DateTime.UtcNow;
         
         try
@@ -203,6 +243,28 @@ public class PmecService : IPmecService
                 LastChecked = DateTime.UtcNow,
                 Issues = new List<string> { ex.Message }
             };
+        }
+    }
+
+    private async Task ForwardAuditAsync(string actor, string action, string entityType, string entityId, object eventData)
+    {
+        var payload = new AuditEventPayload
+        {
+            Actor = string.IsNullOrWhiteSpace(actor) ? "system" : actor,
+            Action = action,
+            EntityType = entityType,
+            EntityId = entityId,
+            EventData = eventData,
+            Timestamp = DateTime.UtcNow
+        };
+
+        try
+        {
+            await _auditClient.LogEventAsync(payload);
+        }
+        catch (Exception ex)
+        {
+            throw new AuditForwardingException("Failed to forward audit event to Admin Service", ex);
         }
     }
 }

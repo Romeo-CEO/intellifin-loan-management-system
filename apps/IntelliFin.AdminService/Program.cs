@@ -5,6 +5,7 @@ using System.Net;
 using System.Reflection;
 using System.Text.Json;
 using System.Security.Claims;
+using System.Threading;
 using IntelliFin.AdminService.Data;
 using IntelliFin.AdminService.Contracts.Requests;
 using IntelliFin.AdminService.Contracts.Responses;
@@ -40,6 +41,7 @@ builder.Services.AddOpenTelemetryInstrumentation(builder.Configuration);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<KeycloakExceptionHandler>();
+builder.Services.AddExceptionHandler<CamundaExceptionHandler>();
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -60,7 +62,10 @@ builder.Services.Configure<AuditChainOptions>(builder.Configuration.GetSection(A
 builder.Services.Configure<AuditArchiveOptions>(builder.Configuration.GetSection(AuditArchiveOptions.SectionName));
 builder.Services.Configure<MinioOptions>(builder.Configuration.GetSection(MinioOptions.SectionName));
 builder.Services.Configure<ElevationOptions>(builder.Configuration.GetSection(ElevationOptions.SectionName));
-builder.Services.Configure<CamundaOptions>(builder.Configuration.GetSection(CamundaOptions.SectionName));
+builder.Services.AddOptions<CamundaOptions>()
+    .Bind(builder.Configuration.GetSection(CamundaOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<CamundaOptions>, CamundaOptionsValidator>();
 builder.Services.Configure<ConfigurationManagementOptions>(builder.Configuration.GetSection("ConfigurationManagement"));
 builder.Services.Configure<VaultOptions>(builder.Configuration.GetSection(VaultOptions.SectionName));
 builder.Services.Configure<ArgoCdOptions>(builder.Configuration.GetSection(ArgoCdOptions.SectionName));
@@ -68,31 +73,30 @@ builder.Services.Configure<SbomOptions>(builder.Configuration.GetSection(SbomOpt
 builder.Services.Configure<BastionOptions>(builder.Configuration.GetSection(BastionOptions.SectionName));
 builder.Services.Configure<IncidentResponseOptions>(builder.Configuration.GetSection(IncidentResponseOptions.SectionName));
 
-builder.Services.AddDbContext<AdminDbContext>(options =>
+builder.Services.AddDbContext<AdminDbContext>((sp, options) =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("Default")
-                           ?? "Server=(localdb)\\mssqllocaldb;Database=IntelliFin_AdminService;Trusted_Connection=True;MultipleActiveResultSets=True";
+    var resolver = sp.GetRequiredService<IVaultSecretResolver>();
+    var connectionString = resolver.GetAdminConnectionStringAsync(CancellationToken.None).GetAwaiter().GetResult();
     options.UseSqlServer(connectionString);
 });
 
-builder.Services.AddDbContext<FinancialDbContext>(options =>
+builder.Services.AddDbContext<FinancialDbContext>((sp, options) =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("FinancialService")
-                           ?? builder.Configuration.GetConnectionString("Default")
-                           ?? "Server=(localdb)\\mssqllocaldb;Database=IntelliFin_FinancialService;Trusted_Connection=True;MultipleActiveResultSets=True";
+    var resolver = sp.GetRequiredService<IVaultSecretResolver>();
+    var connectionString = resolver.GetFinancialConnectionStringAsync(CancellationToken.None).GetAwaiter().GetResult();
     options.UseSqlServer(connectionString);
 });
 
-builder.Services.AddDbContextFactory<LmsDbContext>(options =>
+builder.Services.AddDbContextFactory<LmsDbContext>((sp, options) =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("IdentityDb")
-                           ?? builder.Configuration.GetConnectionString("Default")
-                           ?? "Server=(localdb)\\mssqllocaldb;Database=IntelliFin_Identity;Trusted_Connection=True;MultipleActiveResultSets=True";
+    var resolver = sp.GetRequiredService<IVaultSecretResolver>();
+    var connectionString = resolver.GetIdentityConnectionStringAsync(CancellationToken.None).GetAwaiter().GetResult();
     options.UseSqlServer(connectionString);
 });
 
 builder.Services.AddMemoryCache();
 builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSingleton<IVaultSecretResolver, VaultSecretResolver>();
 
 builder.Services.AddHttpClient<IKeycloakTokenService, KeycloakTokenService>((sp, client) =>
 {
@@ -135,6 +139,19 @@ builder.Services.AddScoped<IRecertificationService, RecertificationService>();
 builder.Services.AddScoped<ISbomService, SbomService>();
 builder.Services.AddScoped<IBastionAccessService, BastionAccessService>();
 builder.Services.AddScoped<IIncidentResponseService, IncidentResponseService>();
+builder.Services.AddTransient<CamundaAuthenticationHandler>();
+
+builder.Services.AddHttpClient<ICamundaTokenProvider, CamundaTokenProvider>((sp, client) =>
+{
+    var options = sp.GetRequiredService<IOptionsMonitor<CamundaOptions>>().CurrentValue;
+    if (!string.IsNullOrWhiteSpace(options.TokenEndpoint))
+    {
+        client.BaseAddress = new Uri(options.TokenEndpoint, UriKind.Absolute);
+    }
+
+    client.Timeout = TimeSpan.FromSeconds(15);
+})
+    .AddPolicyHandler(CreateRetryPolicy());
 
 builder.Services.AddHttpClient<ICamundaWorkflowService, CamundaWorkflowService>((sp, client) =>
 {
@@ -145,6 +162,7 @@ builder.Services.AddHttpClient<ICamundaWorkflowService, CamundaWorkflowService>(
     }
     client.Timeout = TimeSpan.FromSeconds(15);
 })
+    .AddHttpMessageHandler<CamundaAuthenticationHandler>()
     .AddPolicyHandler(CreateRetryPolicy());
 
 builder.Services.AddHttpClient<IAlertmanagerClient, AlertmanagerClient>((sp, client) =>
@@ -177,7 +195,8 @@ builder.Services.AddSingleton<IVaultClient>(sp =>
     var authMethod = (IAuthMethodInfo)new TokenAuthMethodInfo(vaultOptions.Token ?? string.Empty);
     var settings = new VaultClientSettings(vaultOptions.Address, authMethod)
     {
-        Namespace = string.IsNullOrWhiteSpace(vaultOptions.Namespace) ? null : vaultOptions.Namespace
+        Namespace = string.IsNullOrWhiteSpace(vaultOptions.Namespace) ? null : vaultOptions.Namespace,
+        VaultServiceTimeout = TimeSpan.FromSeconds(Math.Clamp(vaultOptions.TimeoutSeconds, 5, 120))
     };
 
     return new VaultClient(settings);
@@ -186,6 +205,8 @@ builder.Services.AddSingleton<IVaultClient>(sp =>
 builder.Services.AddSingleton<IMinioClient>(sp =>
 {
     var options = sp.GetRequiredService<IOptions<MinioOptions>>().Value;
+    var secretResolver = sp.GetRequiredService<IVaultSecretResolver>();
+    var credentials = secretResolver.GetMinioCredentialsAsync(CancellationToken.None).GetAwaiter().GetResult();
     var client = new MinioClient();
     var endpoint = options.Endpoint?.Trim();
     var useSsl = options.UseSsl;
@@ -216,7 +237,9 @@ builder.Services.AddSingleton<IMinioClient>(sp =>
         }
     }
 
-    client = client.WithCredentials(options.AccessKey, options.SecretKey);
+    var accessKey = string.IsNullOrWhiteSpace(options.AccessKey) ? credentials.AccessKey : options.AccessKey;
+    var secretKey = string.IsNullOrWhiteSpace(options.SecretKey) ? credentials.SecretKey : options.SecretKey;
+    client = client.WithCredentials(accessKey, secretKey);
 
     if (useSsl)
     {
@@ -257,6 +280,12 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<AdminDbContext>("sql", tags: new[] { "ready" });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var vaultSecretResolver = scope.ServiceProvider.GetRequiredService<IVaultSecretResolver>();
+    vaultSecretResolver.EnsureSecretsAvailableAsync(CancellationToken.None).GetAwaiter().GetResult();
+}
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
@@ -1190,8 +1219,10 @@ static string? GetCorrelationId(HttpContext context)
         if (!string.IsNullOrWhiteSpace(parsedTraceId))
         {
             return parsedTraceId;
-        }
     }
+}
+
+public partial class Program;
 
     var correlationHeader = context.Request.Headers["X-Correlation-ID"].FirstOrDefault();
     if (!string.IsNullOrWhiteSpace(correlationHeader))

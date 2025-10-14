@@ -1,6 +1,7 @@
 ﻿using IntelliFin.Shared.DomainModels.Entities;
 using IntelliFin.Shared.DomainModels.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace IntelliFin.Shared.DomainModels.Data;
 
@@ -140,6 +141,8 @@ public class LmsDbContext : DbContext
             b.Property(x => x.OccurredAtUtc).IsRequired();
             b.Property(x => x.Data);
             b.HasIndex(x => new { x.EntityType, x.EntityId, x.OccurredAtUtc });
+            b.Metadata.SetIsReadOnlyBeforeSave(true);
+            b.Metadata.SetIsReadOnlyAfterSave(true);
         });
 
         // Sprint 3 Entity Configurations

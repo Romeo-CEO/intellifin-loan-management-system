@@ -43,6 +43,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify no plaintext secrets
+        shell: pwsh
+        run: ./tools/security/verify-no-plaintext-secrets.ps1
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:

@@ -7,6 +7,7 @@
   - [High Level Architecture](#high-level-architecture)
   - [Tech Stack](#tech-stack)
   - [System Architecture](#system-architecture)
+  - [System Monitoring](system-monitoring.md)
   - [Implementation Roadmap](#implementation-roadmap)
   - [Risk Mitigation](#risk-mitigation)
   - [Success Metrics](#success-metrics)

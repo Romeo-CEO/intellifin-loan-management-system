@@ -1,4 +1,5 @@
-﻿using IntelliFin.FinancialService.Models;
+﻿using IntelliFin.FinancialService.Exceptions;
+using IntelliFin.FinancialService.Models;
 using IntelliFin.FinancialService.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -28,6 +29,11 @@ public class PmecController : ControllerBase
             var result = await _pmecService.VerifyEmployeeAsync(request);
             return Ok(result);
         }
+        catch (AuditForwardingException ex)
+        {
+            _logger.LogError(ex, "Audit forwarding failed while verifying employee {EmployeeId}", request.EmployeeId);
+            return StatusCode(503, new { message = "Audit trail unavailable", detail = ex.Message });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error verifying employee {EmployeeId}", request.EmployeeId);
@@ -49,6 +55,11 @@ public class PmecController : ControllerBase
                 return Ok(result);
             }
             return BadRequest(result);
+        }
+        catch (AuditForwardingException ex)
+        {
+            _logger.LogError(ex, "Audit forwarding failed while submitting deductions for cycle {CycleId}", request.CycleId);
+            return StatusCode(503, new { message = "Audit trail unavailable", detail = ex.Message });
         }
         catch (Exception ex)
         {
@@ -139,6 +150,11 @@ public class PmecController : ControllerBase
         {
             var result = await _pmecService.CancelDeductionAsync(deductionId, request.Reason);
             return Ok(result);
+        }
+        catch (AuditForwardingException ex)
+        {
+            _logger.LogError(ex, "Audit forwarding failed while cancelling deduction {DeductionId}", deductionId);
+            return StatusCode(503, new { message = "Audit trail unavailable", detail = ex.Message });
         }
         catch (Exception ex)
         {

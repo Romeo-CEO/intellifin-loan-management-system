@@ -1,4 +1,6 @@
-﻿using IntelliFin.FinancialService.Models;
+﻿using IntelliFin.FinancialService.Exceptions;
+using IntelliFin.FinancialService.Models;
+using IntelliFin.Shared.Audit;
 using IntelliFin.Shared.DomainModels.Repositories;
 using IntelliFin.Shared.DomainModels.Entities;
 using Microsoft.Extensions.Logging;
@@ -11,17 +13,20 @@ public class GeneralLedgerService : IGeneralLedgerService
     private readonly ILogger<GeneralLedgerService> _logger;
     private readonly IGLAccountRepository _accountRepository;
     private readonly IGLEntryRepository _entryRepository;
+    private readonly IAuditClient _auditClient;
 
 
 
     public GeneralLedgerService(
         ILogger<GeneralLedgerService> logger,
         IGLAccountRepository accountRepository,
-        IGLEntryRepository entryRepository)
+        IGLEntryRepository entryRepository,
+        IAuditClient auditClient)
     {
         _logger = logger;
         _accountRepository = accountRepository;
         _entryRepository = entryRepository;
+        _auditClient = auditClient;
     }
 
     // Mapping methods between service models and domain entities
@@ -222,6 +227,20 @@ public class GeneralLedgerService : IGeneralLedgerService
             await _accountRepository.UpdateBalanceAsync(debitAccount.Id, debitAccount.CurrentBalance + debitBalanceChange);
             await _accountRepository.UpdateBalanceAsync(creditAccount.Id, creditAccount.CurrentBalance + creditBalanceChange);
 
+            await ForwardAuditAsync(
+                request.CreatedBy ?? "system",
+                "JournalEntryPosted",
+                "JournalEntry",
+                savedEntry.EntryNumber,
+                new
+                {
+                    request.DebitAccountId,
+                    request.CreditAccountId,
+                    request.Amount,
+                    savedEntry.Reference,
+                    savedEntry.CreatedAt
+                });
+
             _logger.LogInformation("Journal entry {JournalEntryId} posted successfully", savedEntry.Id);
 
             return new JournalEntryResult
@@ -231,6 +250,16 @@ public class GeneralLedgerService : IGeneralLedgerService
                 Message = "Journal entry posted successfully",
                 Reference = savedEntry.Reference,
                 PostedAt = savedEntry.CreatedAt
+            };
+        }
+        catch (AuditForwardingException ex)
+        {
+            _logger.LogError(ex, "Audit forwarding failed for journal entry");
+            return new JournalEntryResult
+            {
+                Success = false,
+                Message = "Audit forwarding to Admin Service failed",
+                Errors = new List<string> { ex.Message }
             };
         }
         catch (Exception ex)
@@ -421,6 +450,28 @@ public class GeneralLedgerService : IGeneralLedgerService
             Balances = balances,
             ComplianceNotes = complianceNotes
         };
+    }
+
+    private async Task ForwardAuditAsync(string actor, string action, string entityType, string entityId, object eventData)
+    {
+        var payload = new AuditEventPayload
+        {
+            Actor = string.IsNullOrWhiteSpace(actor) ? "system" : actor,
+            Action = action,
+            EntityType = entityType,
+            EntityId = entityId,
+            EventData = eventData,
+            Timestamp = DateTime.UtcNow
+        };
+
+        try
+        {
+            await _auditClient.LogEventAsync(payload);
+        }
+        catch (Exception ex)
+        {
+            throw new AuditForwardingException("Failed to forward audit event to Admin Service", ex);
+        }
     }
 
     public async Task<bool> ValidateJournalEntryAsync(CreateJournalEntryRequest request)
