@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: identity-service-config
+  labels:
+    app: identity-service
+  annotations:
+    reloader.stakater.com/match: "true"
+data:
+  appsettings.json: |
+    {
+      "ServiceVersion": "1.0.0",
+      "Logging": {
+        "LogLevel": {
+          "Default": "Information",
+          "Microsoft.AspNetCore": "Warning"
+        }
+      },
+      "Features": {
+        "DisableSqlHealthCheck": false
+      }
+    }
