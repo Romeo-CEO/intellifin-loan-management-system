@@ -1,6 +1,7 @@
 ﻿using IntelliFin.IdentityService.Models;
 using IntelliFin.Shared.DomainModels.Entities;
 using IntelliFin.Shared.DomainModels.Repositories;
+using System.Linq;
 
 namespace IntelliFin.IdentityService.Services;
 
@@ -8,15 +9,18 @@ public class UserService : IUserService
 {
     private readonly IUserRepository _userRepository;
     private readonly IPasswordService _passwordService;
+    private readonly ISoDValidationService _soDValidationService;
     private readonly ILogger<UserService> _logger;
 
     public UserService(
         IUserRepository userRepository,
         IPasswordService passwordService,
+        ISoDValidationService soDValidationService,
         ILogger<UserService> logger)
     {
         _userRepository = userRepository;
         _passwordService = passwordService;
+        _soDValidationService = soDValidationService;
         _logger = logger;
     }
 
@@ -203,16 +207,45 @@ public class UserService : IUserService
         return await _userRepository.GetUserPermissionsAsync(userId, cancellationToken);
     }
 
-    public async Task<bool> AssignRoleAsync(string userId, string roleId, string assignedBy, CancellationToken cancellationToken = default)
+    public async Task<SoDValidationResult> AssignRoleAsync(string userId, string roleId, string assignedBy, CancellationToken cancellationToken = default)
     {
         try
         {
-            return await _userRepository.AssignRoleAsync(userId, roleId, assignedBy, cancellationToken);
+            var validation = await _soDValidationService.ValidateRoleAssignmentAsync(userId, roleId, cancellationToken);
+
+            if (!validation.IsAllowed)
+            {
+                _logger.LogWarning(
+                    "SoD validation blocked role assignment for user {UserId} and role {RoleId} with {ConflictCount} conflict(s)",
+                    userId,
+                    roleId,
+                    validation.Conflicts.Count);
+                return validation;
+            }
+
+            var applied = await _userRepository.AssignRoleAsync(userId, roleId, assignedBy, cancellationToken);
+            validation.WasApplied = applied;
+
+            if (!applied)
+            {
+                _logger.LogWarning("Role assignment for user {UserId} and role {RoleId} returned no changes", userId, roleId);
+            }
+            else if (validation.HasWarnings)
+            {
+                var ruleNames = string.Join(", ", validation.Conflicts.Select(c => c.RuleName));
+                _logger.LogWarning(
+                    "Role assignment for user {UserId} and role {RoleId} applied with SoD warnings: {Warnings}",
+                    userId,
+                    roleId,
+                    ruleNames);
+            }
+
+            return validation;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error assigning role {RoleId} to user {UserId}", roleId, userId);
-            return false;
+            throw;
         }
     }
 

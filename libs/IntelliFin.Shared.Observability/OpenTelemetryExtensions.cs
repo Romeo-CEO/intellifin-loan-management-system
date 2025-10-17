@@ -210,13 +210,9 @@ public static class OpenTelemetryExtensions
     }
 }
 
-    /// <summary>
-    /// A simple adaptive sampler that samples a small percentage of traces and always records errors.
-    /// </summary>
-    public sealed class AdaptiveSampler : Sampler
-    {
-        // Base Sampler.Description is not virtual in some OpenTelemetry versions; use 'new' to avoid override errors
-        public new string Description => "IntelliFinAdaptiveSampler";
+public sealed class AdaptiveSampler : Sampler
+{
+    public new string Description => "IntelliFinAdaptiveSampler";
 
     public override SamplingResult ShouldSample(in SamplingParameters samplingParameters)
     {
@@ -275,7 +271,7 @@ public sealed class RabbitMqPropagator : TextMapPropagator
 
     public override ISet<string> Fields => PropagatorFields;
 
-    public override PropagationContext Extract<T>(PropagationContext context, T carrier, Func<T, string, IEnumerable<string>> getter)
+    public override PropagationContext Extract<T>(PropagationContext context, T carrier, Func<T, string, IEnumerable<string>?> getter)
     {
         ArgumentNullException.ThrowIfNull(getter);
 

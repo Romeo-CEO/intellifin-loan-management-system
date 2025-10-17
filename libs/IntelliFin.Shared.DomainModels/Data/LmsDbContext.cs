@@ -37,6 +37,10 @@ public class LmsDbContext : DbContext
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<ServiceAccount> ServiceAccounts => Set<ServiceAccount>();
+    public DbSet<ServiceCredential> ServiceCredentials => Set<ServiceCredential>();
+    public DbSet<SoDRule> SoDRules => Set<SoDRule>();
+    public DbSet<TokenRevocation> TokenRevocations => Set<TokenRevocation>();
     
     // Sprint 3 Entities
     public DbSet<CreditAssessment> CreditAssessments => Set<CreditAssessment>();
@@ -57,9 +61,10 @@ public class LmsDbContext : DbContext
     public DbSet<EventProcessingStatus> EventProcessingStatus => Set<EventProcessingStatus>();
     public DbSet<EventRoutingRule> EventRoutingRules => Set<EventRoutingRule>();
     public DbSet<EventRoutingLog> EventRoutingLogs => Set<EventRoutingLog>();
-    public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
-    public DbSet<PerformanceLog> PerformanceLogs => Set<PerformanceLog>();
-    public DbSet<HealthCheckLog> HealthCheckLogs => Set<HealthCheckLog>();
+    // TODO: Add these entities when observability entities are created
+    // public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
+    // public DbSet<PerformanceLog> PerformanceLogs => Set<PerformanceLog>();
+    // public DbSet<HealthCheckLog> HealthCheckLogs => Set<HealthCheckLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -178,6 +183,74 @@ public class LmsDbContext : DbContext
             b.HasIndex(x => x.TenantId)
              .HasDatabaseName("IX_AuditEvents_TenantId")
              .HasFilter("[TenantId] IS NOT NULL");
+        });
+
+        modelBuilder.Entity<ServiceAccount>(b =>
+        {
+            b.ToTable("ServiceAccounts");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.ClientId).HasMaxLength(150).IsRequired();
+            b.HasIndex(x => x.ClientId).IsUnique();
+            b.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Description).HasMaxLength(500);
+            b.Property(x => x.ScopesJson).HasColumnName("ScopesJson").HasColumnType("nvarchar(max)").IsRequired();
+            b.Property(x => x.IsActive).HasDefaultValue(true);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.CreatedBy).HasMaxLength(200).IsRequired();
+            b.Property(x => x.UpdatedBy).HasMaxLength(200);
+            b.Property(x => x.KeycloakClientId).HasMaxLength(200);
+            b.Property(x => x.KeycloakSecretVaultPath).HasMaxLength(500);
+            b.HasMany(x => x.Credentials)
+                .WithOne(x => x.ServiceAccount)
+                .HasForeignKey(x => x.ServiceAccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ServiceCredential>(b =>
+        {
+            b.ToTable("ServiceCredentials");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.SecretHash).HasMaxLength(200).IsRequired();
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.CreatedBy).HasMaxLength(200).IsRequired();
+            b.Property(x => x.RevokedBy).HasMaxLength(200);
+            b.Property(x => x.RevocationReason).HasMaxLength(500);
+            b.HasIndex(x => new { x.ServiceAccountId, x.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<SoDRule>(b =>
+        {
+            b.ToTable("SoDRules");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Description).HasMaxLength(1000);
+            b.Property(x => x.Enforcement)
+                .HasConversion<string>()
+                .HasMaxLength(50)
+                .IsRequired();
+            b.Property(x => x.ConflictingPermissionsJson)
+                .HasColumnName("ConflictingPermissions")
+                .HasColumnType("nvarchar(max)")
+                .HasConversion(
+                    v => v,
+                    v => string.IsNullOrWhiteSpace(v) ? "[]" : v);
+            b.Ignore(x => x.ConflictingPermissions);
+            b.Property(x => x.IsActive).HasDefaultValue(true);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.CreatedBy).HasMaxLength(200).IsRequired();
+            b.Property(x => x.UpdatedBy).HasMaxLength(200);
+            b.HasIndex(x => new { x.IsActive, x.Enforcement });
+        });
+
+        modelBuilder.Entity<TokenRevocation>(b =>
+        {
+            b.ToTable("TokenRevocations");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TokenId).HasMaxLength(200).IsRequired();
+            b.Property(x => x.RevokedAtUtc).IsRequired();
+            b.Property(x => x.RevokedBy).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Reason).HasMaxLength(500);
+            b.HasIndex(x => x.TokenId).IsUnique();
         });
 
         // Sprint 3 Entity Configurations
