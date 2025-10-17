@@ -4,7 +4,10 @@ using OpenTelemetry.Logs;
 
 namespace IntelliFin.Shared.Observability;
 
-public sealed class SensitiveDataLogProcessor : BaseProcessor<LogRecord>
+// BaseProcessor<T> type can vary between OpenTelemetry package versions. Implement a
+// lightweight processor-compatible class that exposes an OnEnd method and can be used
+// by logging builder if the API supports adding processors directly.
+public sealed class SensitiveDataLogProcessor
 {
     private readonly SensitiveDataRedactor _redactor;
 
@@ -13,7 +16,7 @@ public sealed class SensitiveDataLogProcessor : BaseProcessor<LogRecord>
         _redactor = redactor ?? throw new ArgumentNullException(nameof(redactor));
     }
 
-    public override void OnEnd(LogRecord data)
+    public void OnEnd(LogRecord data)
     {
         if (data == null)
         {

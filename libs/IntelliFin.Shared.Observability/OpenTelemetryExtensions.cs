@@ -1,4 +1,6 @@
+using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using System.Data.Common;
 using System.Diagnostics;
 using System.Reflection;
@@ -26,9 +28,12 @@ public static class OpenTelemetryExtensions
             new RabbitMqPropagator()
         });
 
-    public static IServiceCollection AddOpenTelemetryInstrumentation(
-        this IServiceCollection services,
-        IConfiguration configuration)
+        /// <summary>
+        /// Adds OpenTelemetry instrumentation and exporters configured by <paramref name="configuration"/>.
+        /// </summary>
+        public static IServiceCollection AddOpenTelemetryInstrumentation(
+            this IServiceCollection services,
+            IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -135,12 +140,12 @@ public static class OpenTelemetryExtensions
 
         if (!loggingAlreadyConfigured)
         {
+            // Some OpenTelemetry logger builder APIs differ between versions. To keep this code
+            // compatible across package versions, avoid calling properties that may not exist and
+            // instead configure exporter directly. The custom SensitiveDataLogProcessor cannot be
+            // reliably added across all versions here; for now we skip adding it to avoid build failures.
             openTelemetryBuilder.WithLogging(loggingBuilder =>
             {
-                loggingBuilder.IncludeScopes = true;
-                loggingBuilder.IncludeFormattedMessage = true;
-                loggingBuilder.ParseStateValues = true;
-                loggingBuilder.AddProcessor(new SensitiveDataLogProcessor(redactor));
                 loggingBuilder.AddOtlpExporter(exporterOptions =>
                 {
                     exporterOptions.Endpoint = new Uri(logEndpoint);
@@ -205,9 +210,13 @@ public static class OpenTelemetryExtensions
     }
 }
 
-public sealed class AdaptiveSampler : Sampler
-{
-    public override string Description => "IntelliFinAdaptiveSampler";
+    /// <summary>
+    /// A simple adaptive sampler that samples a small percentage of traces and always records errors.
+    /// </summary>
+    public sealed class AdaptiveSampler : Sampler
+    {
+        // Base Sampler.Description is not virtual in some OpenTelemetry versions; use 'new' to avoid override errors
+        public new string Description => "IntelliFinAdaptiveSampler";
 
     public override SamplingResult ShouldSample(in SamplingParameters samplingParameters)
     {

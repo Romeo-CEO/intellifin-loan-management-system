@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using System.Text;
+using IntelliFin.IdentityService.Constants;
 
 namespace IntelliFin.IdentityService.Extensions;
 
@@ -26,9 +27,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDatabaseConnectionPoolManager, DatabaseConnectionPoolManager>();
         services.AddHostedService(sp => sp.GetRequiredService<VaultDatabaseCredentialService>());
 
-        // Database Context
-        services.AddDbContext<LmsDbContext>((serviceProvider, options) =>
-        {
+    // Database Context
+    services.AddDbContext<LmsDbContext>((serviceProvider, options) =>
+    {
             var baseConnectionString = configuration.GetConnectionString("IdentityDb")
                 ?? configuration.GetConnectionString("DefaultConnection")
                 ?? "Server=(localdb)\\mssqllocaldb;Database=IntelliFin_LoanManagement;Trusted_Connection=true;MultipleActiveResultSets=true";
@@ -68,6 +69,9 @@ public static class ServiceCollectionExtensions
         services.Configure<SessionConfiguration>(configuration.GetSection("Session"));
         services.Configure<AccountLockoutConfiguration>(configuration.GetSection("AccountLockout"));
         services.Configure<SecurityConfiguration>(configuration.GetSection("Security"));
+        services.Configure<FeatureFlags>(configuration.GetSection(FeatureFlags.SectionName));
+        services.Configure<ProvisioningOptions>(configuration.GetSection(ProvisioningOptions.SectionName));
+        services.Configure<KeycloakOptions>(configuration.GetSection(KeycloakOptions.SectionName));
 
         // Redis connection
         var redisConfig = configuration.GetSection("Redis").Get<RedisConfiguration>() ?? new RedisConfiguration();
@@ -95,6 +99,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAccountLockoutService, AccountLockoutService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<ITenantService, TenantService>();
 
         // Permission Catalog Services
         services.AddScoped<IPermissionCatalogService, PermissionCatalogService>();
@@ -105,6 +110,41 @@ public static class ServiceCollectionExtensions
         // Role Composition Services
         services.AddScoped<IRoleCompositionService, RoleCompositionService>();
         services.AddScoped<IRoleTemplateService, RoleTemplateService>();
+        
+        // Keycloak Provisioning Services (conditionally registered based on feature flag)
+        var featureFlags = configuration.GetSection(FeatureFlags.SectionName).Get<FeatureFlags>() ?? new FeatureFlags();
+        var provisioningOptions = configuration.GetSection(ProvisioningOptions.SectionName).Get<ProvisioningOptions>() ?? new ProvisioningOptions();
+        
+        if (featureFlags.EnableUserProvisioning)
+        {
+            // Register Keycloak Admin Client
+            services.AddHttpClient<IKeycloakAdminClient, KeycloakAdminClient>();
+            services.AddScoped<IKeycloakAdminClient, KeycloakAdminClient>();
+            
+            // Register Provisioning Service
+            services.AddScoped<IKeycloakUserProvisioningService, KeycloakProvisioningService>();
+            
+            // Register Background Queue
+            services.AddSingleton<IBackgroundQueue<ProvisionCommand>>(sp =>
+            {
+                var logger = sp.GetRequiredService<ILogger<InMemoryBackgroundQueue<ProvisionCommand>>>();
+                return new InMemoryBackgroundQueue<ProvisionCommand>(logger, provisioningOptions.QueueCapacity);
+            });
+            
+            // Register Background Worker
+            services.AddHostedService<ProvisioningWorker>();
+        }
+        
+        // OIDC Services (conditionally registered based on feature flag)
+        if (featureFlags.EnableOidc)
+        {
+            // Register Keycloak OIDC Service
+            services.AddHttpClient<IKeycloakService, KeycloakService>();
+            services.AddScoped<IKeycloakService, KeycloakService>();
+            
+            // Register OIDC State Store
+            services.AddScoped<IOidcStateStore, OidcStateStore>();
+        }
 
         // Permission-Role Bridge Services
         services.AddScoped<IPermissionRoleBridgeService, PermissionRoleBridgeService>();
@@ -131,11 +171,17 @@ public static class ServiceCollectionExtensions
 
         // JWT Authentication
         var jwtConfig = configuration.GetSection("Jwt").Get<JwtConfiguration>() ?? new JwtConfiguration();
+        var keycloakConfig = configuration.GetSection("Keycloak").Get<KeycloakOptions>() ?? new KeycloakOptions();
         
-        services.AddAuthentication(options =>
+        // Determine default authentication scheme based on dual-mode setting
+        var defaultScheme = (keycloakConfig.Enabled && keycloakConfig.DualModeEnabled)
+            ? "DualMode"
+            : JwtBearerDefaults.AuthenticationScheme;
+        
+        var authBuilder = services.AddAuthentication(options =>
         {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultAuthenticateScheme = defaultScheme;
+            options.DefaultChallengeScheme = defaultScheme;
         })
         .AddJwtBearer(options =>
         {
@@ -177,7 +223,22 @@ public static class ServiceCollectionExtensions
             };
         });
 
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            // Platform-level policy for managing tenants. Tokens are expected to include a "permissions" claim
+            // as an array of permission strings (e.g. ["platform:tenants_manage"]). The policy requires that
+            // the permissions claim contains the platform tenants manage permission.
+            options.AddPolicy(IntelliFin.IdentityService.Constants.SystemPermissions.PlatformTenantsManage, policy =>
+            {
+                policy.RequireClaim("permissions", IntelliFin.IdentityService.Constants.SystemPermissions.PlatformTenantsManage);
+            });
+        });
+
+        // Add Keycloak authentication if enabled
+        authBuilder.AddKeycloakAuthentication(configuration);
+        
+        // Add dual-mode authentication support
+        authBuilder.AddDualModeJwtAuthentication(configuration);
 
         return services;
     }

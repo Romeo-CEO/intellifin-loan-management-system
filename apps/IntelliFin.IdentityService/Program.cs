@@ -24,7 +24,8 @@ builder.Services.AddOpenTelemetryInstrumentation(builder.Configuration);
     // Add services
     builder.Services.AddControllers();
     builder.Services.AddOpenApi();
-    builder.Services.AddHealthChecks();
+    builder.Services.AddHealthChecks()
+        .AddKeycloakHealthChecks(builder.Configuration);
 
     // Add Identity Services
     builder.Services.AddIdentityServices(builder.Configuration);

@@ -82,38 +82,62 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("EventId");
 
                     b.Property<string>("Action")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Actor")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("ActorId");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Data")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("Details");
 
                     b.Property<string>("EntityId")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("EntityType")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("Entity");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("OccurredAtUtc")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("Timestamp")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EntityType", "EntityId", "OccurredAtUtc");
+                    b.HasIndex("Actor")
+                        .HasDatabaseName("IX_AuditEvents_ActorId");
+
+                    b.HasIndex("OccurredAtUtc")
+                        .HasDatabaseName("IX_AuditEvents_Timestamp");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("IX_AuditEvents_TenantId")
+                        .HasFilter("[TenantId] IS NOT NULL");
 
                     b.ToTable("AuditEvents", (string)null);
                 });
@@ -322,6 +346,182 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                     b.ToTable("DocumentVerifications", (string)null);
                 });
 
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.ErrorLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CorrelationId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Source")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("StackTrace")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ErrorLogs");
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.EventProcessingStatus", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ErrorDetails")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("ProcessedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ProcessingResult")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.HasIndex("EventType");
+
+                    b.HasIndex("ProcessedAt");
+
+                    b.HasIndex("ProcessingResult");
+
+                    b.ToTable("EventProcessingStatus", (string)null);
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.EventRoutingLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Destinations")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("RouteTimestamp")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("RuleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SourceService")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.HasIndex("EventType");
+
+                    b.HasIndex("RouteTimestamp");
+
+                    b.HasIndex("RuleId");
+
+                    b.HasIndex("SourceService", "RouteTimestamp");
+
+                    b.ToTable("EventRoutingLogs", (string)null);
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.EventRoutingRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Conditions")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("ConsumerType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsumerType");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Priority");
+
+                    b.HasIndex("EventType", "IsActive");
+
+                    b.ToTable("EventRoutingRules", (string)null);
+                });
+
             modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.GLAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -389,11 +589,11 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                             AccountCode = "1000",
                             AccountType = "",
                             Category = "Asset",
-                            CreatedAt = new DateTime(2025, 9, 6, 10, 23, 27, 700, DateTimeKind.Utc).AddTicks(8734),
+                            CreatedAt = new DateTime(2025, 10, 15, 14, 19, 27, 127, DateTimeKind.Utc).AddTicks(2700),
                             CurrentBalance = 0m,
                             IsActive = true,
                             IsContraAccount = false,
-                            LastModified = new DateTime(2025, 9, 6, 10, 23, 27, 700, DateTimeKind.Utc).AddTicks(8740),
+                            LastModified = new DateTime(2025, 10, 15, 14, 19, 27, 127, DateTimeKind.Utc).AddTicks(2704),
                             Level = 0,
                             Name = "Cash and Bank"
                         },
@@ -403,11 +603,11 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                             AccountCode = "1100",
                             AccountType = "",
                             Category = "Asset",
-                            CreatedAt = new DateTime(2025, 9, 6, 10, 23, 27, 701, DateTimeKind.Utc).AddTicks(1795),
+                            CreatedAt = new DateTime(2025, 10, 15, 14, 19, 27, 127, DateTimeKind.Utc).AddTicks(5501),
                             CurrentBalance = 0m,
                             IsActive = true,
                             IsContraAccount = false,
-                            LastModified = new DateTime(2025, 9, 6, 10, 23, 27, 701, DateTimeKind.Utc).AddTicks(1799),
+                            LastModified = new DateTime(2025, 10, 15, 14, 19, 27, 127, DateTimeKind.Utc).AddTicks(5503),
                             Level = 0,
                             Name = "Loans Receivable"
                         },
@@ -417,11 +617,11 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                             AccountCode = "2000",
                             AccountType = "",
                             Category = "Liability",
-                            CreatedAt = new DateTime(2025, 9, 6, 10, 23, 27, 701, DateTimeKind.Utc).AddTicks(2207),
+                            CreatedAt = new DateTime(2025, 10, 15, 14, 19, 27, 127, DateTimeKind.Utc).AddTicks(5515),
                             CurrentBalance = 0m,
                             IsActive = true,
                             IsContraAccount = false,
-                            LastModified = new DateTime(2025, 9, 6, 10, 23, 27, 701, DateTimeKind.Utc).AddTicks(2211),
+                            LastModified = new DateTime(2025, 10, 15, 14, 19, 27, 127, DateTimeKind.Utc).AddTicks(5516),
                             Level = 0,
                             Name = "Customer Deposits"
                         },
@@ -431,11 +631,11 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                             AccountCode = "3000",
                             AccountType = "",
                             Category = "Equity",
-                            CreatedAt = new DateTime(2025, 9, 6, 10, 23, 27, 701, DateTimeKind.Utc).AddTicks(2220),
+                            CreatedAt = new DateTime(2025, 10, 15, 14, 19, 27, 127, DateTimeKind.Utc).AddTicks(5521),
                             CurrentBalance = 0m,
                             IsActive = true,
                             IsContraAccount = false,
-                            LastModified = new DateTime(2025, 9, 6, 10, 23, 27, 701, DateTimeKind.Utc).AddTicks(2220),
+                            LastModified = new DateTime(2025, 10, 15, 14, 19, 27, 127, DateTimeKind.Utc).AddTicks(5522),
                             Level = 0,
                             Name = "Share Capital"
                         },
@@ -445,11 +645,11 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                             AccountCode = "4000",
                             AccountType = "",
                             Category = "Income",
-                            CreatedAt = new DateTime(2025, 9, 6, 10, 23, 27, 701, DateTimeKind.Utc).AddTicks(2226),
+                            CreatedAt = new DateTime(2025, 10, 15, 14, 19, 27, 127, DateTimeKind.Utc).AddTicks(5561),
                             CurrentBalance = 0m,
                             IsActive = true,
                             IsContraAccount = false,
-                            LastModified = new DateTime(2025, 9, 6, 10, 23, 27, 701, DateTimeKind.Utc).AddTicks(2226),
+                            LastModified = new DateTime(2025, 10, 15, 14, 19, 27, 127, DateTimeKind.Utc).AddTicks(5562),
                             Level = 0,
                             Name = "Interest Income"
                         },
@@ -459,11 +659,11 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                             AccountCode = "5000",
                             AccountType = "",
                             Category = "Expense",
-                            CreatedAt = new DateTime(2025, 9, 6, 10, 23, 27, 701, DateTimeKind.Utc).AddTicks(2231),
+                            CreatedAt = new DateTime(2025, 10, 15, 14, 19, 27, 127, DateTimeKind.Utc).AddTicks(5566),
                             CurrentBalance = 0m,
                             IsActive = true,
                             IsContraAccount = false,
-                            LastModified = new DateTime(2025, 9, 6, 10, 23, 27, 701, DateTimeKind.Utc).AddTicks(2231),
+                            LastModified = new DateTime(2025, 10, 15, 14, 19, 27, 127, DateTimeKind.Utc).AddTicks(5567),
                             Level = 0,
                             Name = "Operational Expenses"
                         });
@@ -607,6 +807,31 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                     b.ToTable("GLEntryLines", (string)null);
                 });
 
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.HealthCheckLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Component")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("HealthCheckLogs");
+                });
+
             modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.LoanApplication", b =>
                 {
                     b.Property<Guid>("Id")
@@ -747,7 +972,7 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                             BaseInterestRate = 0m,
                             Category = "",
                             Code = "SALARY",
-                            CreatedAtUtc = new DateTime(2025, 9, 6, 10, 23, 27, 694, DateTimeKind.Utc).AddTicks(8436),
+                            CreatedAtUtc = new DateTime(2025, 10, 15, 14, 19, 27, 124, DateTimeKind.Utc).AddTicks(8653),
                             Description = "",
                             InterestRateAnnualPercent = 24.00m,
                             IsActive = true,
@@ -764,7 +989,7 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                             BaseInterestRate = 0m,
                             Category = "",
                             Code = "PAYROLL",
-                            CreatedAtUtc = new DateTime(2025, 9, 6, 10, 23, 27, 694, DateTimeKind.Utc).AddTicks(8436),
+                            CreatedAtUtc = new DateTime(2025, 10, 15, 14, 19, 27, 124, DateTimeKind.Utc).AddTicks(8653),
                             Description = "",
                             InterestRateAnnualPercent = 28.00m,
                             IsActive = true,
@@ -781,7 +1006,7 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                             BaseInterestRate = 0m,
                             Category = "",
                             Code = "SME",
-                            CreatedAtUtc = new DateTime(2025, 9, 6, 10, 23, 27, 694, DateTimeKind.Utc).AddTicks(8436),
+                            CreatedAtUtc = new DateTime(2025, 10, 15, 14, 19, 27, 124, DateTimeKind.Utc).AddTicks(8653),
                             Description = "",
                             InterestRateAnnualPercent = 32.00m,
                             IsActive = true,
@@ -792,6 +1017,203 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                             Name = "SME Working Capital",
                             TermMonthsDefault = 18
                         });
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.NotificationLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("Cost")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset?>("DeliveredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("GatewayResponse")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("MaxRetries")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PersonalizationData")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RecipientId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RecipientType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("SentAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("TemplateId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("RecipientId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("TemplateId");
+
+                    b.HasIndex("BranchId", "CreatedAt");
+
+                    b.HasIndex("RecipientId", "CreatedAt");
+
+                    b.ToTable("NotificationLogs", (string)null);
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.NotificationTemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PersonalizationTokens")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Name", "Version")
+                        .IsUnique();
+
+                    b.HasIndex("Category", "Channel", "IsActive");
+
+                    b.ToTable("NotificationTemplates", (string)null);
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.PerformanceLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CorrelationId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<double>("DurationMs")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PerformanceLogs");
                 });
 
             modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.Permission", b =>
@@ -949,51 +1371,75 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                     b.HasData(
                         new
                         {
-                            Id = "role-ceo",
-                            CreatedAt = new DateTime(2025, 9, 6, 10, 23, 27, 694, DateTimeKind.Utc).AddTicks(8436),
+                            Id = "role-system-admin",
+                            CreatedAt = new DateTime(2025, 10, 15, 14, 19, 27, 124, DateTimeKind.Utc).AddTicks(8653),
                             CreatedBy = "system",
-                            Description = "Chief Executive Officer",
+                            Description = "Global administrator with full platform access",
                             IsActive = true,
                             IsSystemRole = true,
                             Level = 1,
-                            Name = "CEO",
-                            Type = 3
+                            Name = "System Administrator",
+                            Type = 0
                         },
                         new
                         {
-                            Id = "role-manager",
-                            CreatedAt = new DateTime(2025, 9, 6, 10, 23, 27, 694, DateTimeKind.Utc).AddTicks(8436),
+                            Id = "role-finance-manager",
+                            CreatedAt = new DateTime(2025, 10, 15, 14, 19, 27, 124, DateTimeKind.Utc).AddTicks(8653),
                             CreatedBy = "system",
-                            Description = "Branch Manager",
+                            Description = "Oversees finance operations and financial controls",
                             IsActive = true,
                             IsSystemRole = true,
                             Level = 2,
-                            Name = "Manager",
+                            Name = "Finance Manager",
                             Type = 3
                         },
                         new
                         {
-                            Id = "role-officer",
-                            CreatedAt = new DateTime(2025, 9, 6, 10, 23, 27, 694, DateTimeKind.Utc).AddTicks(8436),
+                            Id = "role-compliance-officer",
+                            CreatedAt = new DateTime(2025, 10, 15, 14, 19, 27, 124, DateTimeKind.Utc).AddTicks(8653),
                             CreatedBy = "system",
-                            Description = "Loan Officer",
+                            Description = "Manages regulatory compliance and audit readiness",
                             IsActive = true,
                             IsSystemRole = true,
-                            Level = 3,
-                            Name = "LoanOfficer",
-                            Type = 1
+                            Level = 2,
+                            Name = "Compliance Officer",
+                            Type = 2
                         },
                         new
                         {
-                            Id = "role-analyst",
-                            CreatedAt = new DateTime(2025, 9, 6, 10, 23, 27, 694, DateTimeKind.Utc).AddTicks(8436),
+                            Id = "role-underwriter",
+                            CreatedAt = new DateTime(2025, 10, 15, 14, 19, 27, 124, DateTimeKind.Utc).AddTicks(8653),
                             CreatedBy = "system",
-                            Description = "Credit Analyst",
+                            Description = "Performs credit underwriting and risk assessments",
                             IsActive = true,
                             IsSystemRole = true,
                             Level = 3,
-                            Name = "Analyst",
-                            Type = 1
+                            Name = "Underwriter",
+                            Type = 2
+                        },
+                        new
+                        {
+                            Id = "role-loan-officer",
+                            CreatedAt = new DateTime(2025, 10, 15, 14, 19, 27, 124, DateTimeKind.Utc).AddTicks(8653),
+                            CreatedBy = "system",
+                            Description = "Originates and manages loan applications",
+                            IsActive = true,
+                            IsSystemRole = true,
+                            Level = 3,
+                            Name = "Loan Officer",
+                            Type = 2
+                        },
+                        new
+                        {
+                            Id = "role-collections-officer",
+                            CreatedAt = new DateTime(2025, 10, 15, 14, 19, 27, 124, DateTimeKind.Utc).AddTicks(8653),
+                            CreatedBy = "system",
+                            Description = "Handles collections activities and payment follow-up",
+                            IsActive = true,
+                            IsSystemRole = true,
+                            Level = 3,
+                            Name = "Collections Officer",
+                            Type = 2
                         });
                 });
 
@@ -1036,6 +1482,270 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                     b.ToTable("RolePermissions", (string)null);
                 });
 
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.ServiceAccount", b =>
+                {
+                    b.Property<Guid>("ServiceAccountId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ClientId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("ServiceAccountId");
+
+                    b.HasIndex("ClientId")
+                        .IsUnique();
+
+                    b.ToTable("ServiceAccounts", (string)null);
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.ServiceCredential", b =>
+                {
+                    b.Property<Guid>("CredentialId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SecretHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("ServiceAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("CredentialId");
+
+                    b.HasIndex("ServiceAccountId");
+
+                    b.ToTable("ServiceCredentials", (string)null);
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.SoDRule", b =>
+                {
+                    b.Property<Guid>("RuleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ConflictingPermissions")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Enforcement")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("strict");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("RuleName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("RuleId");
+
+                    b.HasIndex("RuleName")
+                        .IsUnique();
+
+                    b.ToTable("SoDRules", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            RuleId = new Guid("20000000-0000-0000-0000-000000000001"),
+                            ConflictingPermissions = "[\"loans:create\", \"loans:approve\"]",
+                            Description = "Prevent a single user from originating and approving the same loan",
+                            Enforcement = "strict",
+                            IsActive = true,
+                            RuleName = "sod-loan-approval"
+                        },
+                        new
+                        {
+                            RuleId = new Guid("20000000-0000-0000-0000-000000000002"),
+                            ConflictingPermissions = "[\"gl:post\", \"gl:reverse\"]",
+                            Description = "Prevent a single user from posting and reversing the same GL entries",
+                            Enforcement = "strict",
+                            IsActive = true,
+                            RuleName = "sod-gl-posting"
+                        },
+                        new
+                        {
+                            RuleId = new Guid("20000000-0000-0000-0000-000000000003"),
+                            ConflictingPermissions = "[\"clients:create\", \"compliance:manage\"]",
+                            Description = "Block when client onboarding and compliance approval are handled by the same user",
+                            Enforcement = "strict",
+                            IsActive = true,
+                            RuleName = "sod-client-approval"
+                        },
+                        new
+                        {
+                            RuleId = new Guid("20000000-0000-0000-0000-000000000004"),
+                            ConflictingPermissions = "[\"payments:record\", \"payments:reverse\"]",
+                            Description = "Warn if the same user records and reverses customer payments during reconciliation",
+                            Enforcement = "warning",
+                            IsActive = true,
+                            RuleName = "sod-payment-reconciliation"
+                        });
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.Tenant", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Settings")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("TenantId");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Tenants", (string)null);
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.TenantBranch", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("TenantId", "BranchId");
+
+                    b.ToTable("TenantBranches", (string)null);
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.TenantUser", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("AssignedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Role")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("TenantId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("TenantUsers", (string)null);
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.TokenRevocation", b =>
+                {
+                    b.Property<Guid>("RevocationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RevokedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("TokenId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("RevocationId");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("TokenId")
+                        .IsUnique();
+
+                    b.ToTable("TokenRevocations", (string)null);
+                });
+
             modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.User", b =>
                 {
                     b.Property<string>("Id")
@@ -1047,6 +1757,12 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                     b.Property<string>("BranchId")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("BranchName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BranchRegion")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -1134,7 +1850,7 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                         {
                             Id = "user-admin",
                             AccessFailedCount = 0,
-                            CreatedAt = new DateTime(2025, 9, 6, 10, 23, 27, 694, DateTimeKind.Utc).AddTicks(8436),
+                            CreatedAt = new DateTime(2025, 10, 15, 14, 19, 27, 124, DateTimeKind.Utc).AddTicks(8653),
                             CreatedBy = "system",
                             Email = "admin@intellifin.com",
                             EmailConfirmed = true,
@@ -1196,8 +1912,8 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                         new
                         {
                             UserId = "user-admin",
-                            RoleId = "role-ceo",
-                            AssignedAt = new DateTime(2025, 9, 6, 10, 23, 27, 694, DateTimeKind.Utc).AddTicks(8436),
+                            RoleId = "role-system-admin",
+                            AssignedAt = new DateTime(2025, 10, 15, 14, 19, 27, 124, DateTimeKind.Utc).AddTicks(8653),
                             AssignedBy = "system",
                             IsActive = true,
                             Metadata = "{}"
@@ -1283,6 +1999,15 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                     b.Navigation("Client");
                 });
 
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.EventRoutingLog", b =>
+                {
+                    b.HasOne("IntelliFin.Shared.DomainModels.Entities.EventRoutingRule", "Rule")
+                        .WithMany("RoutingLogs")
+                        .HasForeignKey("RuleId");
+
+                    b.Navigation("Rule");
+                });
+
             modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.GLAccount", b =>
                 {
                     b.HasOne("IntelliFin.Shared.DomainModels.Entities.GLAccount", "ParentAccount")
@@ -1343,6 +2068,16 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.NotificationLog", b =>
+                {
+                    b.HasOne("IntelliFin.Shared.DomainModels.Entities.NotificationTemplate", "Template")
+                        .WithMany("NotificationLogs")
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Template");
+                });
+
             modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.Permission", b =>
                 {
                     b.HasOne("IntelliFin.Shared.DomainModels.Entities.Permission", "ParentPermission")
@@ -1391,6 +2126,47 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.ServiceCredential", b =>
+                {
+                    b.HasOne("IntelliFin.Shared.DomainModels.Entities.ServiceAccount", "ServiceAccount")
+                        .WithMany("Credentials")
+                        .HasForeignKey("ServiceAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ServiceAccount");
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.TenantBranch", b =>
+                {
+                    b.HasOne("IntelliFin.Shared.DomainModels.Entities.Tenant", "Tenant")
+                        .WithMany("TenantBranches")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.TenantUser", b =>
+                {
+                    b.HasOne("IntelliFin.Shared.DomainModels.Entities.Tenant", "Tenant")
+                        .WithMany("TenantUsers")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("IntelliFin.Shared.DomainModels.Entities.User", "User")
+                        .WithMany("TenantUsers")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.UserRole", b =>
                 {
                     b.HasOne("IntelliFin.Shared.DomainModels.Entities.Role", "Role")
@@ -1433,6 +2209,11 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                     b.Navigation("RiskIndicators");
                 });
 
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.EventRoutingRule", b =>
+                {
+                    b.Navigation("RoutingLogs");
+                });
+
             modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.GLAccount", b =>
                 {
                     b.Navigation("GLBalances");
@@ -1461,6 +2242,11 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                     b.Navigation("ValidationRules");
                 });
 
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.NotificationTemplate", b =>
+                {
+                    b.Navigation("NotificationLogs");
+                });
+
             modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.Permission", b =>
                 {
                     b.Navigation("ChildPermissions");
@@ -1477,8 +2263,22 @@ namespace IntelliFin.Shared.DomainModels.Migrations
                     b.Navigation("UserRoles");
                 });
 
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.ServiceAccount", b =>
+                {
+                    b.Navigation("Credentials");
+                });
+
+            modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.Tenant", b =>
+                {
+                    b.Navigation("TenantBranches");
+
+                    b.Navigation("TenantUsers");
+                });
+
             modelBuilder.Entity("IntelliFin.Shared.DomainModels.Entities.User", b =>
                 {
+                    b.Navigation("TenantUsers");
+
                     b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
