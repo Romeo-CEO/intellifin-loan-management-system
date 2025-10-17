@@ -1,4 +1,5 @@
 using IntelliFin.IdentityService.Configuration;
+using IntelliFin.IdentityService.Constants;
 using IntelliFin.IdentityService.Models;
 using IntelliFin.IdentityService.Services;
 using IntelliFin.Shared.Audit;
@@ -12,6 +13,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using System.Text;
+using Polly;
+using Polly.Extensions.Http;
 
 namespace IntelliFin.IdentityService.Extensions;
 
@@ -64,6 +67,8 @@ public static class ServiceCollectionExtensions
         // Configuration
         services.Configure<JwtConfiguration>(configuration.GetSection("Jwt"));
         services.Configure<PasswordConfiguration>(configuration.GetSection("Password"));
+        services.Configure<ServiceAccountConfiguration>(configuration.GetSection("ServiceAccounts"));
+        services.Configure<AuthorizationConfiguration>(configuration.GetSection("Authorization"));
         services.Configure<RedisConfiguration>(configuration.GetSection("Redis"));
         services.Configure<SessionConfiguration>(configuration.GetSection("Session"));
         services.Configure<AccountLockoutConfiguration>(configuration.GetSection("AccountLockout"));
@@ -95,6 +100,37 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAccountLockoutService, AccountLockoutService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<ISoDValidationService, SoDValidationService>();
+        services.AddScoped<IServiceAccountService, ServiceAccountService>();
+        services.AddScoped<IServiceTokenService, ServiceTokenService>();
+        services.AddScoped<ITokenIntrospectionService, TokenIntrospectionService>();
+        services.AddScoped<IPermissionCheckService, PermissionCheckService>();
+
+        services.AddSingleton<IKeycloakAdminClient, NullKeycloakAdminClient>();
+
+        services.AddHttpClient<IKeycloakTokenClient, KeycloakTokenClient>()
+            .AddPolicyHandler((provider, _) =>
+            {
+                var logger = provider.GetRequiredService<ILogger<KeycloakTokenClient>>();
+                return HttpPolicyExtensions
+                    .HandleTransientHttpError()
+                    .OrResult(response => (int)response.StatusCode >= 500)
+                    .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromMilliseconds(Math.Pow(2, retryAttempt) * 100),
+                        (outcome, _, retryAttempt, _) =>
+                        {
+                            if (outcome.Exception is not null)
+                            {
+                                logger.LogWarning(outcome.Exception, "Retrying Keycloak token request (attempt {Attempt})", retryAttempt);
+                            }
+                            else if (outcome.Result is not null)
+                            {
+                                logger.LogWarning(
+                                    "Retrying Keycloak token request due to status {StatusCode} (attempt {Attempt})",
+                                    outcome.Result.StatusCode,
+                                    retryAttempt);
+                            }
+                        });
+            });
 
         // Permission Catalog Services
         services.AddScoped<IPermissionCatalogService, PermissionCatalogService>();
@@ -177,7 +213,16 @@ public static class ServiceCollectionExtensions
             };
         });
 
-        services.AddAuthorization();
+        services.AddHttpClient("oidc-metadata");
+
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(AuthorizationPolicies.SystemTokenIntrospect, policy =>
+                policy.RequireClaim("scope", "system:token_introspect"));
+
+            options.AddPolicy(AuthorizationPolicies.SystemPermissionCheck, policy =>
+                policy.RequireClaim("scope", "system:permission_check"));
+        });
 
         return services;
     }

@@ -1,6 +1,7 @@
 using IntelliFin.IdentityService.Models;
 using IntelliFin.IdentityService.Services;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 
 namespace IntelliFin.IdentityService.Controllers;
 
@@ -401,15 +402,63 @@ public class UserController : ControllerBase
 
             var assignedBy = _tenantResolver.GetCurrentUserId() ?? "system";
             var result = await _userService.AssignRoleAsync(userId, roleId, assignedBy);
-            
-            if (!result)
+
+            if (!result.IsAllowed)
             {
-                return BadRequest(new { message = "Failed to assign role" });
+                return Conflict(new
+                {
+                    message = "Role assignment blocked due to Segregation of Duties conflict.",
+                    conflicts = result.Conflicts.Select(c => new
+                    {
+                        c.RuleId,
+                        c.RuleName,
+                        Enforcement = c.Enforcement.ToString(),
+                        ConflictingPermissions = c.ConflictingPermissions,
+                        TriggeringPermissions = c.TriggeringPermissions
+                    })
+                });
+            }
+
+            if (!result.WasApplied)
+            {
+                return StatusCode(500, new { message = "Failed to assign role" });
+            }
+
+            if (result.HasWarnings)
+            {
+                _logger.LogWarning(
+                    "Role {RoleId} assigned to user {UserId} with SoD warnings {Warnings}",
+                    roleId,
+                    userId,
+                    string.Join(", ", result.Conflicts.Select(c => c.RuleName)));
+
+                return Ok(new
+                {
+                    message = "Role assigned with warnings",
+                    warnings = result.Conflicts.Select(c => new
+                    {
+                        c.RuleId,
+                        c.RuleName,
+                        Enforcement = c.Enforcement.ToString(),
+                        ConflictingPermissions = c.ConflictingPermissions,
+                        TriggeringPermissions = c.TriggeringPermissions
+                    })
+                });
             }
 
             _logger.LogInformation("Assigned role {RoleId} to user {UserId} in tenant {TenantId}", roleId, userId, tenantId);
-            
+
             return Ok(new { message = "Role assigned successfully" });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Role assignment failed due to missing entity for user {UserId} or role {RoleId}", userId, roleId);
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Role assignment invalid for user {UserId} and role {RoleId}", userId, roleId);
+            return BadRequest(new { message = ex.Message });
         }
         catch (Exception ex)
         {
