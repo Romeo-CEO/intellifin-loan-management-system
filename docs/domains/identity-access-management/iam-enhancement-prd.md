@@ -551,7 +551,11 @@ Transform the Intellifin Identity Service from a custom JWT authentication syste
 
 ## Stories
 
-### Story 1.1: Database Schema Extensions for IAM Enhancement
+**Note:** Stories are organized across multiple epics for implementation. The original single-epic structure has been refactored into 6 epics for better development coordination and reduced integration complexity.
+
+### Epic 1: Foundation Setup
+
+#### Story 1.1: Database Schema Extensions for IAM Enhancement
 
 **As a** System Architect,  
 **I want** to extend the Identity database with new tables for tenancy, service accounts, SoD rules, and audit persistence,  
@@ -581,37 +585,7 @@ Transform the Intellifin Identity Service from a custom JWT authentication syste
 
 ---
 
-### Story 1.2: Baseline Role Templates and Seed Data
-
-**As a** System Administrator,  
-**I want** baseline role templates and default SoD rules seeded during deployment,  
-**so that** consistent role definitions are available across all environments.
-
-**Acceptance Criteria:**
-
-1. Seed roles: System Administrator, Loan Officer, Underwriter, Finance Manager, Collections Officer, Compliance Officer
-2. Permission-role mappings in AspNetRoleClaims
-3. Default SoD rules: sod-loan-approval, sod-gl-posting, sod-client-approval, sod-payment-reconciliation
-4. Idempotent seed data
-5. Audit trail for seed data
-
-**Integration Verification:**
-- IV1: Existing roles not modified/deleted
-- IV2: Existing users retain role assignments
-- IV3: Existing permission checks functional
-- IV4: No changes to active sessions
-- IV5: Existing authorization policies effective
-
-**Success Metrics:**
-- ✅ 6 baseline roles with correct permissions
-- ✅ 4 SoD rules seeded and active
-- ✅ Seed data idempotent (run 3x)
-- ✅ Execution time <10 seconds
-- ✅ Roles appear correctly in admin UI
-
----
-
-### Story 1.3: Keycloak Client Registration and Configuration
+#### Story 1.2: Keycloak Client Registration and Configuration
 
 **As a** System Integrator,  
 **I want** the Identity Service registered as an OIDC client in Keycloak,  
@@ -641,7 +615,7 @@ Transform the Intellifin Identity Service from a custom JWT authentication syste
 
 ---
 
-### Story 1.4: OIDC Client Library Integration
+#### Story 1.3: OIDC Client Library Integration
 
 **As a** Backend Developer,  
 **I want** OIDC client libraries integrated into Identity Service,  
@@ -671,7 +645,7 @@ Transform the Intellifin Identity Service from a custom JWT authentication syste
 
 ---
 
-### Story 1.5: Dual JWT Validation in API Gateway
+#### Story 1.4: Dual JWT Validation in API Gateway
 
 **As a** API Gateway Operator,  
 **I want** the Gateway to validate both custom and Keycloak tokens,  
@@ -701,7 +675,7 @@ Transform the Intellifin Identity Service from a custom JWT authentication syste
 
 ---
 
-### Story 1.6: User Provisioning to Keycloak
+#### Story 1.5: User Provisioning to Keycloak
 
 **As a** System Administrator,  
 **I want** existing users automatically provisioned to Keycloak,  
@@ -731,7 +705,69 @@ Transform the Intellifin Identity Service from a custom JWT authentication syste
 
 ---
 
-### Story 1.7: Multi-Tenancy: Tenant Management APIs
+#### Story 1.6: OIDC Authentication Flow Implementation
+
+**As a** Backend Developer,  
+**I want** complete OIDC authentication flow implementation,  
+**so that** users can authenticate via Keycloak OIDC.
+
+**Acceptance Criteria:**
+
+1. Authorization Code flow with PKCE implemented
+2. Token exchange and refresh token handling
+3. User session management via Keycloak
+4. Logout flow with session cleanup
+5. Integration tests for complete auth flow
+
+**Integration Verification:**
+- IV1: Custom JWT flow still works
+- IV2: OIDC flow completes successfully
+- IV3: Tokens validated by Gateway
+- IV4: Session persistence in Redis
+- IV5: Logout clears all sessions
+
+**Success Metrics:**
+- ✅ Complete auth flow functional
+- ✅ Token refresh works
+- ✅ Logout clears sessions
+- ✅ Performance <300ms at p95
+- ✅ All integration tests pass
+
+---
+
+#### Story 1.7: Baseline Role Templates and Seed Data
+
+**As a** System Administrator,  
+**I want** baseline role templates and default SoD rules seeded during deployment,  
+**so that** consistent role definitions are available across all environments.
+
+**Acceptance Criteria:**
+
+1. Seed roles: System Administrator, Loan Officer, Underwriter, Finance Manager, Collections Officer, Compliance Officer
+2. Permission-role mappings in AspNetRoleClaims
+3. Default SoD rules: sod-loan-approval, sod-gl-posting, sod-client-approval, sod-payment-reconciliation
+4. Idempotent seed data
+5. Audit trail for seed data
+
+**Integration Verification:**
+- IV1: Existing roles not modified/deleted
+- IV2: Existing users retain role assignments
+- IV3: Existing permission checks functional
+- IV4: No changes to active sessions
+- IV5: Existing authorization policies effective
+
+**Success Metrics:**
+- ✅ 6 baseline roles with correct permissions
+- ✅ 4 SoD rules seeded and active
+- ✅ Seed data idempotent (run 3x)
+- ✅ Execution time <10 seconds
+- ✅ Roles appear correctly in admin UI
+
+---
+
+### Epic 2: Multi-Tenancy
+
+#### Story 2.1: Tenant Management Service and APIs
 
 **As a** System Administrator,  
 **I want** APIs to create and manage tenants,  
@@ -761,7 +797,7 @@ Transform the Intellifin Identity Service from a custom JWT authentication syste
 
 ---
 
-### Story 1.8: Tenant Context in JWT Claims
+#### Story 2.2: Tenant Context in JWT Claims
 
 **As a** Backend Developer,  
 **I want** tenant information in JWT claims,  
@@ -791,7 +827,9 @@ Transform the Intellifin Identity Service from a custom JWT authentication syste
 
 ---
 
-### Story 1.9: Service-to-Service Authentication
+### Epic 3: Service-to-Service Authentication
+
+#### Story 3.1: Service Account Management
 
 **As a** Backend Service,  
 **I want** OAuth2 Client Credentials flow,  
@@ -821,7 +859,39 @@ Transform the Intellifin Identity Service from a custom JWT authentication syste
 
 ---
 
-### Story 1.10: Separation of Duties (SoD) Enforcement
+#### Story 3.2: OAuth2 Client Credentials Flow
+
+**As a** Backend Service,  
+**I want** OAuth2 Client Credentials flow implementation,  
+**so that** service-to-service authentication is fully functional.
+
+**Acceptance Criteria:**
+
+1. Token endpoint for client credentials grant
+2. Service token validation in Gateway
+3. Scope-based authorization for services
+4. Token caching for performance
+5. Metrics for service authentication
+
+**Integration Verification:**
+- IV1: Service tokens validate successfully
+- IV2: Scope restrictions enforced
+- IV3: User auth unaffected
+- IV4: Performance meets SLA
+- IV5: All service calls authenticated
+
+**Success Metrics:**
+- ✅ Client credentials grant works
+- ✅ Scopes enforced correctly
+- ✅ Token generation <100ms
+- ✅ Cache hit rate >90%
+- ✅ All metrics collected
+
+---
+
+### Epic 4: Compliance & Authorization
+
+#### Story 4.1: Separation of Duties (SoD) Enforcement
 
 **As a** Compliance Officer,  
 **I want** automated SoD violation prevention,  
@@ -851,7 +921,7 @@ Transform the Intellifin Identity Service from a custom JWT authentication syste
 
 ---
 
-### Story 1.11: Token Introspection and Permission Check APIs
+#### Story 4.2: Token Introspection and Permission Check APIs
 
 **As a** Downstream Service Developer,  
 **I want** APIs to introspect tokens and check permissions,  
@@ -881,7 +951,41 @@ Transform the Intellifin Identity Service from a custom JWT authentication syste
 
 ---
 
-### Story 1.12: Migration Orchestration and Cutover
+### Epic 5: Testing & Documentation
+
+#### Story 5.1: Comprehensive Testing and Documentation
+
+**As a** QA Engineer,  
+**I want** comprehensive test coverage and documentation,  
+**so that** the IAM enhancement is production-ready.
+
+**Acceptance Criteria:**
+
+1. Unit tests for all services (>80% coverage)
+2. Integration tests for auth flows
+3. Load testing scenarios
+4. API documentation (OpenAPI/Swagger)
+5. Deployment runbooks
+
+**Integration Verification:**
+- IV1: All unit tests pass
+- IV2: Integration tests pass
+- IV3: Load tests meet SLA
+- IV4: Documentation complete
+- IV5: Runbooks tested
+
+**Success Metrics:**
+- ✅ Test coverage >80%
+- ✅ All tests pass
+- ✅ Load test: 1000 req/sec
+- ✅ Documentation approved
+- ✅ Runbooks validated
+
+---
+
+### Epic 6: Migration & Self-Service
+
+#### Story 6.1: Migration Orchestration and Cutover
 
 **As a** DevOps Engineer,  
 **I want** automated migration scripts,  
@@ -911,7 +1015,7 @@ Transform the Intellifin Identity Service from a custom JWT authentication syste
 
 ---
 
-### Story 1.13: Self-Service Password Reset and Account Management
+#### Story 6.2: Self-Service Password Reset and Account Management
 
 **As a** End User,  
 **I want** self-service account management,  
@@ -943,26 +1047,53 @@ Transform the Intellifin Identity Service from a custom JWT authentication syste
 
 ## Story Dependencies
 
-**Parallel Stories:**
-- Stories 1-2 can run in parallel
+**Epic 1 (Foundation):**
+- Stories 1.1-1.2 can run in parallel
+- Story 1.3 requires Story 1.2
+- Story 1.4 requires Stories 1.2-1.3
+- Story 1.5 requires Stories 1.1, 1.3
+- Story 1.6 requires Stories 1.3-1.4
+- Story 1.7 requires Story 1.1
 
-**Sequential Dependencies:**
-- Story 4 requires Story 3
-- Story 5 requires Stories 3-4
-- Story 6 requires Stories 1, 4
-- Story 8 requires Story 7
-- Story 12 requires Stories 1-11
-- Story 13 requires Stories 3-6
+**Epic 2 (Multi-Tenancy):**
+- Story 2.1 requires Story 1.1
+- Story 2.2 requires Stories 2.1, 1.5
+
+**Epic 3 (Service Auth):**
+- Story 3.1 requires Story 1.1
+- Story 3.2 requires Stories 3.1, 1.4
+
+**Epic 4 (Compliance):**
+- Story 4.1 requires Story 1.7
+- Story 4.2 requires Stories 1.4, 1.5
+
+**Epic 5 (Testing):**
+- Story 5.1 requires all Stories 1.1-4.2
+
+**Epic 6 (Migration):**
+- Story 6.1 requires all Stories 1.1-4.2
+- Story 6.2 requires Stories 1.3, 1.4, 6.1
+
+**Cross-Epic Parallelization:**
+- Epic 1 must complete before other epics
+- Epics 2, 3 can run in parallel after Epic 1
+- Epic 4 can start after Epic 1
+- Epic 5 runs throughout development
+- Epic 6 requires all prior epics complete
 
 ## Estimated Timeline
 
-- Foundation (Stories 1-2): 1 week
-- Keycloak Integration (Stories 3-6): 2-3 weeks
-- Multi-Tenancy & Features (Stories 7-11): 3-4 weeks
-- Migration & Cutover (Story 12): 1 week + 30-day window
-- Self-Service (Story 13): 1 week
+**By Epic:**
+- Epic 1 (Foundation): 3-4 weeks
+- Epic 2 (Multi-Tenancy): 2 weeks (parallel with Epic 3)
+- Epic 3 (Service Auth): 2 weeks (parallel with Epic 2)
+- Epic 4 (Compliance): 2 weeks (parallel with Epics 2-3)
+- Epic 5 (Testing): Ongoing throughout
+- Epic 6 (Migration): 2 weeks + 30-day migration window
 
-**Total: 8-10 weeks development + 30-day migration period**
+**Total: 9-10 weeks development + 30-day migration period**
+
+**Critical Path:** Epic 1 → Epic 6 (Stories 1.1-1.7 → 6.1 → 6.2)
 
 ---
 
