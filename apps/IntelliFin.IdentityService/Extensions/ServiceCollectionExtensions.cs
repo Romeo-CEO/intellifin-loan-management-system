@@ -222,6 +222,9 @@ public static class ServiceCollectionExtensions
 
             options.AddPolicy(AuthorizationPolicies.SystemPermissionCheck, policy =>
                 policy.RequireClaim("scope", "system:permission_check"));
+
+            options.AddPolicy(AuthorizationPolicies.PlatformServiceAccounts, policy =>
+                policy.RequireClaim("scope", "platform:service_accounts"));
         });
 
         return services;

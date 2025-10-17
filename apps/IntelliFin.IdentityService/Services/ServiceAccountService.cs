@@ -402,4 +402,58 @@ public class ServiceAccountService : IServiceAccountService
         var base64 = Convert.ToBase64String(data);
         return base64.Replace('+', '-').Replace('/', '_').TrimEnd('=');
     }
+
+    public async Task<ServiceAccountDto> GetServiceAccountAsync(Guid serviceAccountId, CancellationToken ct = default)
+    {
+        var account = await _dbContext.ServiceAccounts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == serviceAccountId, ct);
+
+        if (account is null)
+        {
+            throw new KeyNotFoundException($"Service account {serviceAccountId} not found");
+        }
+
+        return new ServiceAccountDto
+        {
+            Id = account.Id,
+            ClientId = account.ClientId,
+            Name = account.Name,
+            Description = account.Description,
+            IsActive = account.IsActive,
+            CreatedAtUtc = account.CreatedAtUtc,
+            UpdatedAtUtc = account.UpdatedAtUtc,
+            DeactivatedAtUtc = account.DeactivatedAtUtc,
+            Scopes = account.GetScopes(),
+            Credential = null // Never return credentials in GET requests
+        };
+    }
+
+    public async Task<IEnumerable<ServiceAccountDto>> ListServiceAccountsAsync(bool? isActive = null, CancellationToken ct = default)
+    {
+        var query = _dbContext.ServiceAccounts.AsNoTracking();
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == isActive.Value);
+        }
+
+        var accounts = await query
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ToListAsync(ct);
+
+        return accounts.Select(account => new ServiceAccountDto
+        {
+            Id = account.Id,
+            ClientId = account.ClientId,
+            Name = account.Name,
+            Description = account.Description,
+            IsActive = account.IsActive,
+            CreatedAtUtc = account.CreatedAtUtc,
+            UpdatedAtUtc = account.UpdatedAtUtc,
+            DeactivatedAtUtc = account.DeactivatedAtUtc,
+            Scopes = account.GetScopes(),
+            Credential = null // Never return credentials in LIST requests
+        });
+    }
 }

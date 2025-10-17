@@ -7,4 +7,6 @@ public interface IServiceAccountService
     Task<ServiceAccountDto> CreateServiceAccountAsync(ServiceAccountCreateRequest request, CancellationToken ct = default);
     Task<ServiceCredentialDto> RotateSecretAsync(Guid serviceAccountId, CancellationToken ct = default);
     Task RevokeServiceAccountAsync(Guid serviceAccountId, CancellationToken ct = default);
+    Task<ServiceAccountDto> GetServiceAccountAsync(Guid serviceAccountId, CancellationToken ct = default);
+    Task<IEnumerable<ServiceAccountDto>> ListServiceAccountsAsync(bool? isActive = null, CancellationToken ct = default);
 }

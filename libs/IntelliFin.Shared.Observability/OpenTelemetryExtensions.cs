@@ -143,7 +143,7 @@ public static class OpenTelemetryExtensions
 
 public sealed class AdaptiveSampler : Sampler
 {
-    public override string Description => "IntelliFinAdaptiveSampler";
+    public new string Description => "IntelliFinAdaptiveSampler";
 
     public override SamplingResult ShouldSample(in SamplingParameters samplingParameters)
     {
@@ -202,7 +202,7 @@ public sealed class RabbitMqPropagator : TextMapPropagator
 
     public override ISet<string> Fields => PropagatorFields;
 
-    public override PropagationContext Extract<T>(PropagationContext context, T carrier, Func<T, string, IEnumerable<string>> getter)
+    public override PropagationContext Extract<T>(PropagationContext context, T carrier, Func<T, string, IEnumerable<string>?> getter)
     {
         ArgumentNullException.ThrowIfNull(getter);
 

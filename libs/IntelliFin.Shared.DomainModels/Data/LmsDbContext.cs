@@ -50,9 +50,10 @@ public class LmsDbContext : DbContext
     public DbSet<EventProcessingStatus> EventProcessingStatus => Set<EventProcessingStatus>();
     public DbSet<EventRoutingRule> EventRoutingRules => Set<EventRoutingRule>();
     public DbSet<EventRoutingLog> EventRoutingLogs => Set<EventRoutingLog>();
-    public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
-    public DbSet<PerformanceLog> PerformanceLogs => Set<PerformanceLog>();
-    public DbSet<HealthCheckLog> HealthCheckLogs => Set<HealthCheckLog>();
+    // TODO: Add these entities when observability entities are created
+    // public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
+    // public DbSet<PerformanceLog> PerformanceLogs => Set<PerformanceLog>();
+    // public DbSet<HealthCheckLog> HealthCheckLogs => Set<HealthCheckLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
