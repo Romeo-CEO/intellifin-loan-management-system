@@ -10,7 +10,7 @@ public class RoleService : IRoleService
     private readonly ILogger<RoleService> _logger;
     
     // In-memory storage for demo purposes - would use EF Core DbContext in production
-    private static readonly List<Role> _roles = new()
+    private readonly List<Role> _roles = new()
     {
         new Role
         {
@@ -72,8 +72,8 @@ public class RoleService : IRoleService
         }
     };
 
-    private static readonly List<RoleRule> _roleRules = new();
-    private static readonly Dictionary<string, List<string>> _userRoles = new();
+    private readonly List<RoleRule> _roleRules = new();
+    private readonly Dictionary<string, List<string>> _userRoles = new();
 
     public RoleService(ILogger<RoleService> logger)
     {
@@ -319,7 +319,7 @@ public class RoleService : IRoleService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deactivating role {RoleId}", roleId);
-            return Task.FromResult(false);
+            throw;
         }
     }
 

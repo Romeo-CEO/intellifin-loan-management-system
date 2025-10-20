@@ -15,4 +15,10 @@ public class KeycloakTokenResponse
 
     [JsonPropertyName("scope")]
     public string? Scope { get; set; }
+
+    [JsonPropertyName("refresh_token")]
+    public string? RefreshToken { get; set; }
+
+    [JsonPropertyName("id_token")]
+    public string? IdToken { get; set; }
 }

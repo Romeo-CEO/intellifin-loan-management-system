@@ -76,17 +76,17 @@ public class OidcController : ControllerBase
             });
 
             // Log audit event
-            await _auditService.LogEventAsync(new AuditEvent
+await _auditService.LogAsync(new AuditEvent
             {
                 Action = "LoginStarted",
                 Entity = "OidcFlow",
                 EntityId = state,
-                Details = JsonSerializer.Serialize(new
+                Details = new Dictionary<string, object>
                 {
-                    CorrelationId = correlationId,
-                    ReturnUrl = returnUrl,
-                    Method = "OIDC"
-                }),
+                    ["CorrelationId"] = correlationId,
+                    ["ReturnUrl"] = returnUrl ?? string.Empty,
+                    ["Method"] = "OIDC"
+                },
                 ActorId = "Anonymous"
             });
 
@@ -105,17 +105,17 @@ public class OidcController : ControllerBase
         {
             _logger.LogError(ex, "Error initiating OIDC login. CorrelationId: {CorrelationId}", correlationId);
 
-            await _auditService.LogEventAsync(new AuditEvent
+await _auditService.LogAsync(new AuditEvent
             {
                 Action = "LoginFailed",
                 Entity = "OidcFlow",
                 EntityId = correlationId.ToString(),
-                Details = JsonSerializer.Serialize(new
+                Details = new Dictionary<string, object>
                 {
-                    CorrelationId = correlationId,
-                    Error = ex.Message,
-                    Method = "OIDC"
-                }),
+                    ["CorrelationId"] = correlationId,
+                    ["Error"] = ex.Message,
+                    ["Method"] = "OIDC"
+                },
                 ActorId = "Anonymous"
             });
 
@@ -152,17 +152,17 @@ public class OidcController : ControllerBase
             {
                 _logger.LogWarning("State {State} not found or expired", state);
                 
-                await _auditService.LogEventAsync(new AuditEvent
+await _auditService.LogAsync(new AuditEvent
                 {
                     Action = "LoginFailed",
                     Entity = "OidcFlow",
                     EntityId = state,
-                    Details = JsonSerializer.Serialize(new
+Details = new Dictionary<string, object>
                     {
-                        CorrelationId = correlationId,
-                        Error = "Invalid or expired state",
-                        Method = "OIDC"
-                    }),
+                        ["CorrelationId"] = correlationId,
+                        ["Error"] = "Invalid or expired state",
+                        ["Method"] = "OIDC"
+                    },
                     ActorId = "Anonymous"
                 });
 
@@ -178,17 +178,17 @@ public class OidcController : ControllerBase
                 _logger.LogWarning("User agent mismatch for state {State}", state);
                 await _stateStore.RemoveAsync(state);
 
-                await _auditService.LogEventAsync(new AuditEvent
+await _auditService.LogAsync(new AuditEvent
                 {
                     Action = "LoginFailed",
                     Entity = "OidcFlow",
                     EntityId = state,
-                    Details = JsonSerializer.Serialize(new
+Details = new Dictionary<string, object>
                     {
-                        CorrelationId = correlationId,
-                        Error = "User agent mismatch (potential CSRF)",
-                        Method = "OIDC"
-                    }),
+                        ["CorrelationId"] = correlationId,
+                        ["Error"] = "User agent mismatch (potential CSRF)",
+                        ["Method"] = "OIDC"
+                    },
                     ActorId = "Anonymous"
                 });
 
@@ -202,17 +202,17 @@ public class OidcController : ControllerBase
                 _logger.LogError("Failed to exchange code for tokens");
                 await _stateStore.RemoveAsync(state);
 
-                await _auditService.LogEventAsync(new AuditEvent
+await _auditService.LogAsync(new AuditEvent
                 {
                     Action = "LoginFailed",
                     Entity = "OidcFlow",
                     EntityId = state,
-                    Details = JsonSerializer.Serialize(new
+Details = new Dictionary<string, object>
                     {
-                        CorrelationId = correlationId,
-                        Error = "Token exchange failed",
-                        Method = "OIDC"
-                    }),
+                        ["CorrelationId"] = correlationId,
+                        ["Error"] = "Token exchange failed",
+                        ["Method"] = "OIDC"
+                    },
                     ActorId = "Anonymous"
                 });
 
@@ -226,17 +226,17 @@ public class OidcController : ControllerBase
                 _logger.LogError("ID token validation failed");
                 await _stateStore.RemoveAsync(state);
 
-                await _auditService.LogEventAsync(new AuditEvent
+await _auditService.LogAsync(new AuditEvent
                 {
                     Action = "LoginFailed",
                     Entity = "OidcFlow",
                     EntityId = state,
-                    Details = JsonSerializer.Serialize(new
+Details = new Dictionary<string, object>
                     {
-                        CorrelationId = correlationId,
-                        Error = "ID token validation failed",
-                        Method = "OIDC"
-                    }),
+                        ["CorrelationId"] = correlationId,
+                        ["Error"] = "ID token validation failed",
+                        ["Method"] = "OIDC"
+                    },
                     ActorId = "Anonymous"
                 });
 
@@ -265,18 +265,18 @@ public class OidcController : ControllerBase
             Response.Cookies.Delete("oidc.nonce");
 
             // Log successful login
-            await _auditService.LogEventAsync(new AuditEvent
-            {
-                Action = "LoginSucceeded",
+await _auditService.LogAsync(new AuditEvent
+                {
+                    Action = "LoginSucceeded",
                 Entity = "User",
                 EntityId = response.User.Id,
-                Details = JsonSerializer.Serialize(new
+Details = new Dictionary<string, object>
                 {
-                    CorrelationId = correlationId,
-                    Username = response.User.Username,
-                    Method = "OIDC",
-                    SessionId = sessionId
-                }),
+                    ["CorrelationId"] = correlationId,
+                    ["Username"] = response.User.Username,
+                    ["Method"] = "OIDC",
+                    ["SessionId"] = sessionId
+                },
                 ActorId = response.User.Id
             });
 
@@ -292,17 +292,17 @@ public class OidcController : ControllerBase
         {
             _logger.LogError(ex, "Error processing OIDC callback. CorrelationId: {CorrelationId}", correlationId);
 
-            await _auditService.LogEventAsync(new AuditEvent
+await _auditService.LogAsync(new AuditEvent
             {
                 Action = "LoginFailed",
                 Entity = "OidcFlow",
                 EntityId = state ?? "unknown",
-                Details = JsonSerializer.Serialize(new
-                {
-                    CorrelationId = correlationId,
-                    Error = ex.Message,
-                    Method = "OIDC"
-                }),
+Details = new Dictionary<string, object>
+            {
+                ["CorrelationId"] = correlationId,
+                ["Error"] = ex.Message,
+                ["Method"] = "OIDC"
+            },
                 ActorId = "Anonymous"
             });
 
@@ -331,15 +331,15 @@ public class OidcController : ControllerBase
             {
                 await _sessionService.RevokeAllSessionsAsync(userId);
 
-                await _auditService.LogEventAsync(new AuditEvent
+await _auditService.LogAsync(new AuditEvent
                 {
                     Action = "Logout",
                     Entity = "User",
                     EntityId = userId,
-                    Details = JsonSerializer.Serialize(new
-                    {
-                        Method = "OIDC"
-                    }),
+Details = new Dictionary<string, object>
+                {
+                    ["Method"] = "OIDC"
+                },
                     ActorId = userId
                 });
             }
@@ -424,24 +424,18 @@ public class OidcController : ControllerBase
 
     private async Task<string> CreateSessionAsync(UserInfo user, KeycloakTokenResponse tokens)
     {
-        // Create session info
-        var sessionInfo = new SessionInfo
-        {
-            SessionId = Guid.NewGuid().ToString(),
-            UserId = user.Id,
-            Username = user.Username,
-            Email = user.Email,
-            CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddSeconds(tokens.ExpiresIn),
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            UserAgent = Request.Headers["User-Agent"].ToString()
-        };
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = Request.Headers["User-Agent"].ToString();
 
-        // Store session (implementation depends on ISessionService)
-        await _sessionService.CreateSessionAsync(sessionInfo);
+        var session = await _sessionService.CreateSessionAsync(
+            userId: user.Id,
+            username: user.Username,
+            deviceId: null,
+            ipAddress: ip,
+            userAgent: userAgent);
 
         // Set session cookie
-        Response.Cookies.Append("session_id", sessionInfo.SessionId, new CookieOptions
+        Response.Cookies.Append("session_id", session.SessionId, new CookieOptions
         {
             HttpOnly = true,
             Secure = true,
@@ -449,6 +443,6 @@ public class OidcController : ControllerBase
             MaxAge = TimeSpan.FromSeconds(tokens.ExpiresIn)
         });
 
-        return sessionInfo.SessionId;
+        return session.SessionId;
     }
 }

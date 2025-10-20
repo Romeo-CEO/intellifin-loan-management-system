@@ -150,8 +150,8 @@ public class AuthController : ControllerBase
                     Email = userClaims.Email,
                     FirstName = userClaims.FirstName,
                     LastName = userClaims.LastName,
-                    Roles = userClaims.Roles,
-                    Permissions = userClaims.Permissions,
+                    Roles = userClaims.Roles.ToList(),
+                    Permissions = userClaims.Permissions.ToList(),
                     BranchId = userClaims.BranchId,
                     BranchName = userClaims.BranchName,
                     BranchRegion = userClaims.BranchRegion,
@@ -371,7 +371,7 @@ public class AuthController : ControllerBase
                 Email = User.FindFirst("email")?.Value ?? string.Empty,
                 FirstName = User.FindFirst("given_name")?.Value ?? string.Empty,
                 LastName = User.FindFirst("family_name")?.Value ?? string.Empty,
-                Roles = User.FindAll("role").Select(c => c.Value).ToArray(),
+                Roles = User.FindAll("role").Select(c => c.Value).ToList(),
                 BranchId = User.FindFirst("branch_id")?.Value,
                 IsActive = true
             };

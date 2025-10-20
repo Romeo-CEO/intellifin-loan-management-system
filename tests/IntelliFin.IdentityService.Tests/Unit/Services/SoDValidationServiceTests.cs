@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
+using AuditEvent = IntelliFin.IdentityService.Models.AuditEvent;
 namespace IntelliFin.IdentityService.Tests.Unit.Services;
 
 public class SoDValidationServiceTests

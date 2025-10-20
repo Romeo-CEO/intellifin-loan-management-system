@@ -275,6 +275,11 @@ public class SessionService : ISessionService
         }
     }
 
+    public Task<int> RevokeAllSessionsAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        return InvalidateUserSessionsAsync(userId, null, cancellationToken);
+    }
+
     private async Task EnforceConcurrentSessionLimitAsync(string userId, string currentSessionId)
     {
         try

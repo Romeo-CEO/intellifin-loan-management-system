@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+using AuditEvent = IntelliFin.IdentityService.Models.AuditEvent;
 namespace IntelliFin.IdentityService.Services;
 
 public class ServiceTokenService : IServiceTokenService

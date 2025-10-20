@@ -4,6 +4,7 @@ using IntelliFin.Shared.DomainModels.Data;
 using IntelliFin.Shared.DomainModels.Entities;
 using Microsoft.EntityFrameworkCore;
 
+using AuditEvent = IntelliFin.IdentityService.Models.AuditEvent;
 namespace IntelliFin.IdentityService.Services;
 
 public class PermissionCheckService : IPermissionCheckService

@@ -1,3 +1,2 @@
-global using IntelliFin.Contracts.Requests;
-global using IntelliFin.Contracts.Responses;
-global using IntelliFin.Contracts.Models;
+// Contract aliases are defined in ContractsAliases.cs to avoid ambiguous types
+// Intentionally left blank to prevent global type conflicts

@@ -77,22 +77,22 @@ public class ProvisioningWorker : BackgroundService
             await _resiliencePolicy.ExecuteAsync(async (ct) =>
             {
                 using var scope = _serviceProvider.CreateScope();
-                var provisioningService = scope.ServiceProvider.GetRequiredService<IKeycloakUserProvisioningService>();
+var provisioningService = scope.ServiceProvider.GetRequiredService<IUserProvisioningService>();
                 var auditService = scope.ServiceProvider.GetRequiredService<IAuditService>();
 
                 try
                 {
                     // Log start
-                    await auditService.LogEventAsync(new Models.AuditEvent
+                    await auditService.LogAsync(new Models.AuditEvent
                     {
                         Action = "ProvisionStarted",
                         Entity = "User",
                         EntityId = userId,
-                        Details = System.Text.Json.JsonSerializer.Serialize(new
+                        Details = new Dictionary<string, object>
                         {
-                            command.Reason,
-                            CorrelationId = correlationId
-                        }),
+                            ["Reason"] = command.Reason,
+                            ["CorrelationId"] = correlationId
+                        },
                         ActorId = "System"
                     }, ct);
 
@@ -102,17 +102,17 @@ public class ProvisioningWorker : BackgroundService
                     if (result.Success)
                     {
                         // Log success
-                        await auditService.LogEventAsync(new Models.AuditEvent
+                        await auditService.LogAsync(new Models.AuditEvent
                         {
                             Action = "ProvisionSucceeded",
                             Entity = "User",
                             EntityId = userId,
-                            Details = System.Text.Json.JsonSerializer.Serialize(new
+                            Details = new Dictionary<string, object>
                             {
-                                result.KeycloakUserId,
-                                result.Action,
-                                CorrelationId = correlationId
-                            }),
+                                ["KeycloakUserId"] = result.KeycloakUserId ?? string.Empty,
+                                ["Action"] = result.Action.ToString(),
+                                ["CorrelationId"] = correlationId
+                            },
                             ActorId = "System"
                         }, ct);
 
@@ -126,16 +126,16 @@ public class ProvisioningWorker : BackgroundService
                     else
                     {
                         // Log failure
-                        await auditService.LogEventAsync(new Models.AuditEvent
+                        await auditService.LogAsync(new Models.AuditEvent
                         {
                             Action = "ProvisionFailed",
                             Entity = "User",
                             EntityId = userId,
-                            Details = System.Text.Json.JsonSerializer.Serialize(new
+                            Details = new Dictionary<string, object>
                             {
-                                result.ErrorMessage,
-                                CorrelationId = correlationId
-                            }),
+                                ["ErrorMessage"] = result.ErrorMessage ?? string.Empty,
+                                ["CorrelationId"] = correlationId
+                            },
                             ActorId = "System"
                         }, ct);
 
@@ -152,17 +152,17 @@ public class ProvisioningWorker : BackgroundService
                 catch (Exception ex)
                 {
                     // Log failure and rethrow for retry policy
-                    await auditService.LogEventAsync(new Models.AuditEvent
+                    await auditService.LogAsync(new Models.AuditEvent
                     {
                         Action = "ProvisionFailed",
                         Entity = "User",
                         EntityId = userId,
-                        Details = System.Text.Json.JsonSerializer.Serialize(new
+                        Details = new Dictionary<string, object>
                         {
-                            Error = ex.Message,
-                            ExceptionType = ex.GetType().Name,
-                            CorrelationId = correlationId
-                        }),
+                            ["Error"] = ex.Message,
+                            ["ExceptionType"] = ex.GetType().Name,
+                            ["CorrelationId"] = correlationId
+                        },
                         ActorId = "System"
                     }, ct);
 

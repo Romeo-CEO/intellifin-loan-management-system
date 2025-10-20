@@ -1,0 +1,84 @@
+{
+  "roles": [
+    {
+      "roleName": "System Administrator",
+      "description": "Full system access for platform administration",
+      "permissions": [
+        "platform:*", "users:*", "roles:*", "tenants:*",
+        "services:*", "audit:*", "system:*"
+      ]
+    },
+    {
+      "roleName": "Loan Officer",
+      "description": "Front-office loan origination and client management",
+      "permissions": [
+        "loans:view", "loans:create", "loans:update",
+        "clients:view", "clients:create", "clients:update",
+        "documents:view", "documents:upload"
+      ]
+    },
+    {
+      "roleName": "Underwriter",
+      "description": "Loan evaluation and approval decisions",
+      "permissions": [
+        "loans:view", "loans:update", "loans:approve", "loans:reject",
+        "documents:view", "credit:view", "credit:request"
+      ]
+    },
+    {
+      "roleName": "Finance Manager",
+      "description": "Financial operations and general ledger management",
+      "permissions": [
+        "loans:view", "gl:view", "gl:post",
+        "payments:view", "payments:create",
+        "disbursements:view", "disbursements:approve",
+        "reports:financial"
+      ]
+    },
+    {
+      "roleName": "Collections Officer",
+      "description": "Late payment recovery and collection management",
+      "permissions": [
+        "loans:view", "payments:view", "payments:create",
+        "collections:view", "collections:create", "collections:update",
+        "communications:send"
+      ]
+    },
+    {
+      "roleName": "Compliance Officer",
+      "description": "Regulatory compliance monitoring and audit review",
+      "permissions": [
+        "loans:view", "clients:view",
+        "audit:view", "audit:export",
+        "reports:compliance", "reports:regulatory",
+        "sod:view", "sod:override"
+      ]
+    }
+  ],
+  "sodRules": [
+    {
+      "ruleName": "sod-loan-create-approve",
+      "description": "Prevent same user from creating and approving loans",
+      "conflictingPermissions": ["loans:create", "loans:approve"],
+      "enforcement": "strict"
+    },
+    {
+      "ruleName": "sod-disbursement-approval",
+      "description": "Prevent same user from approving and disbursing loans",
+      "conflictingPermissions": ["loans:disburse", "loans:approve"],
+      "enforcement": "strict"
+    },
+    {
+      "ruleName": "sod-gl-posting",
+      "description": "Prevent same user from posting and reversing GL entries",
+      "conflictingPermissions": ["gl:post", "gl:reverse"],
+      "enforcement": "strict"
+    },
+    {
+      "ruleName": "sod-payment-reconciliation",
+      "description": "Warn when same user can create and reconcile payments",
+      "conflictingPermissions": ["payments:create", "payments:reconcile"],
+      "enforcement": "warning"
+    }
+  ]
+}

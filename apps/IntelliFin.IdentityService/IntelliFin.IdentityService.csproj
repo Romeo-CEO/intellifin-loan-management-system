@@ -10,11 +10,14 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="9.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.8" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.1" />
     <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.2.1" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.2.1" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="StackExchange.Redis" Version="2.8.16" />
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
@@ -32,10 +35,18 @@
     <ProjectReference Include="..\..\libs\IntelliFin.Shared.Logging\IntelliFin.Shared.Logging.csproj" />
     <ProjectReference Include="..\..\libs\IntelliFin.Shared.Validation\IntelliFin.Shared.Validation.csproj" />
     <ProjectReference Include="..\..\libs\IntelliFin.Shared.Audit\IntelliFin.Shared.Audit.csproj" />
+    <ProjectReference Include="..\..\libs\IntelliFin.Contracts\IntelliFin.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\libs\IntelliFin.Shared.Observability\IntelliFin.Shared.Observability.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Data\Seeds\BaselineRolesSeed.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

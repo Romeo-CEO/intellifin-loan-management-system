@@ -1173,96 +1173,9 @@ public class PlatformAnalyticsDashboardResponse
 #endregion
 
 
-// --- Appended Models for AuthorizationController ---
+// --- Removed duplicated authorization response/request models to avoid name conflicts ---
 
-public class PermissionCheckResponse
-{
-    public string UserId { get; set; } = string.Empty;
-    public string Permission { get; set; } = string.Empty;
-    public bool HasPermission { get; set; }
-    public DateTime CheckedAt { get; set; } = DateTime.UtcNow;
-    public string CheckedBy { get; set; } = string.Empty;
-}
-
-public class BulkPermissionCheckRequest
-{
-    // Use string[] to match service signatures that expect arrays
-    public string[] Permissions { get; set; } = Array.Empty<string>();
-}
-
-public class BulkPermissionCheckResponse
-{
-    public string UserId { get; set; } = string.Empty;
-    public Dictionary<string, bool> Results { get; set; } = new();
-    public DateTime CheckedAt { get; set; } = DateTime.UtcNow;
-    public string CheckedBy { get; set; } = string.Empty;
-}
-
-public class UserPermissionsResponse
-{
-    public string UserId { get; set; } = string.Empty;
-    public IEnumerable<string> Permissions { get; set; } = Array.Empty<string>();
-    public DateTime RetrievedAt { get; set; } = DateTime.UtcNow;
-    public string RetrievedBy { get; set; } = string.Empty;
-}
-
-public class UserRulesResponse
-{
-    public string UserId { get; set; } = string.Empty;
-    public Dictionary<string, string> Rules { get; set; } = new();
-    public DateTime RetrievedAt { get; set; } = DateTime.UtcNow;
-    public string RetrievedBy { get; set; } = string.Empty;
-}
-
-public class RuleEvaluationRequest
-{
-    public object Value { get; set; } = new();
-}
-
-public class RuleEvaluationResponse
-{
-    public string UserId { get; set; } = string.Empty;
-    public string RuleType { get; set; } = string.Empty;
-    public object EvaluatedValue { get; set; } = new();
-    public RuleEvaluationResult Result { get; set; } = new();
-    public DateTime EvaluatedAt { get; set; } = DateTime.UtcNow;
-    public string EvaluatedBy { get; set; } = string.Empty;
-}
-
-public class ActionValidationRequest
-{
-    public Dictionary<string, object> Context { get; set; } = new();
-}
-
-public class ActionValidationResult
-{
-    public bool IsAuthorized { get; set; }
-    public string Reason { get; set; } = string.Empty;
-
-    // Map of failed rule -> reason
-    public Dictionary<string, string> FailedRules { get; set; } = new();
-
-    // Optional: the evaluated item (action/permission) from AuthorizationResult
-    public string? EvaluatedItem { get; set; }
-
-    // Optional: required permission for the action
-    public string? RequiredPermission { get; set; }
-
-    // Detailed rule evaluation results
-    public RuleEvaluationResult[] RuleResults { get; set; } = Array.Empty<RuleEvaluationResult>();
-}
-
-public class ActionValidationResponse
-{
-    public string UserId { get; set; } = string.Empty;
-    public string Action { get; set; } = string.Empty;
-    public Dictionary<string, object> Context { get; set; } = new();
-    public ActionValidationResult Result { get; set; } = new();
-    public DateTime ValidatedAt { get; set; } = DateTime.UtcNow;
-    public string ValidatedBy { get; set; } = string.Empty;
-}
-
-// Replace minimal RuleValidationResult with the fuller validation model used by services/controllers
+// Keep RuleValidationResult for rule engine validation API
 public class RuleValidationResult
 {
     /// <summary>

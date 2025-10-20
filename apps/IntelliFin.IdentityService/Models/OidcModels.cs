@@ -18,18 +18,6 @@ public class LogoutResponse
     public bool Success { get; set; } = true;
 }
 
-/// <summary>
-/// Token response from Keycloak
-/// </summary>
-public class KeycloakTokenResponse
-{
-    public string AccessToken { get; set; } = string.Empty;
-    public string RefreshToken { get; set; } = string.Empty;
-    public string IdToken { get; set; } = string.Empty;
-    public int ExpiresIn { get; set; }
-    public string TokenType { get; set; } = "Bearer";
-    public string Scope { get; set; } = string.Empty;
-}
 
 /// <summary>
 /// User information from Keycloak
@@ -81,4 +69,8 @@ public class UserInfo
     // Tenant context (new fields)
     public string? TenantId { get; set; }
     public string? TenantName { get; set; }
+
+    // Additional flags
+    public bool RequiresTwoFactor { get; set; }
+    public bool IsActive { get; set; }
 }

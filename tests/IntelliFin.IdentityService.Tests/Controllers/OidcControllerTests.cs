@@ -74,7 +74,7 @@ public class OidcControllerTests
             It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _mockAuditService.Setup(x => x.LogEventAsync(
+_mockAuditService.Setup(x => x.LogAsync(
             It.IsAny<AuditEvent>(),
             It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -96,7 +96,7 @@ public class OidcControllerTests
             It.IsAny<CancellationToken>()), Times.Once);
 
         // Verify audit event was logged
-        _mockAuditService.Verify(x => x.LogEventAsync(
+_mockAuditService.Verify(x => x.LogAsync(
             It.Is<AuditEvent>(e => e.Action == "LoginStarted"),
             It.IsAny<CancellationToken>()), Times.Once);
 
@@ -130,7 +130,7 @@ public class OidcControllerTests
         _mockStateStore.Setup(x => x.GetAsync(state, It.IsAny<CancellationToken>()))
             .ReturnsAsync((OidcStateData?)null);
 
-        _mockAuditService.Setup(x => x.LogEventAsync(
+_mockAuditService.Setup(x => x.LogAsync(
             It.IsAny<AuditEvent>(),
             It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -143,7 +143,7 @@ public class OidcControllerTests
         Assert.NotNull(badRequestResult.Value);
 
         // Verify LoginFailed audit event was logged
-        _mockAuditService.Verify(x => x.LogEventAsync(
+_mockAuditService.Verify(x => x.LogAsync(
             It.Is<AuditEvent>(e => e.Action == "LoginFailed"),
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -172,7 +172,7 @@ public class OidcControllerTests
         _mockStateStore.Setup(x => x.RemoveAsync(state, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _mockAuditService.Setup(x => x.LogEventAsync(
+_mockAuditService.Setup(x => x.LogAsync(
             It.IsAny<AuditEvent>(),
             It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -188,10 +188,10 @@ public class OidcControllerTests
         _mockStateStore.Verify(x => x.RemoveAsync(state, It.IsAny<CancellationToken>()), Times.Once);
 
         // Verify CSRF failure audit event
-        _mockAuditService.Verify(x => x.LogEventAsync(
+_mockAuditService.Verify(x => x.LogAsync(
             It.Is<AuditEvent>(e => 
                 e.Action == "LoginFailed" && 
-                e.Details.Contains("CSRF")),
+                e.Details != null && e.Details.ContainsKey("Error") && e.Details["Error"].ToString()!.Contains("CSRF")),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -233,7 +233,7 @@ public class OidcControllerTests
         _mockStateStore.Setup(x => x.RemoveAsync(state, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _mockAuditService.Setup(x => x.LogEventAsync(
+_mockAuditService.Setup(x => x.LogAsync(
             It.IsAny<AuditEvent>(),
             It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -305,13 +305,19 @@ public class OidcControllerTests
         _mockKeycloakService.Setup(x => x.GetUserInfoAsync(tokens.AccessToken, It.IsAny<CancellationToken>()))
             .ReturnsAsync(userInfo);
 
-        _mockSessionService.Setup(x => x.CreateSessionAsync(It.IsAny<SessionInfo>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+_mockSessionService.Setup(x => x.CreateSessionAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string?>(),
+            It.IsAny<string?>(),
+            It.IsAny<string?>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SessionInfo { SessionId = "sess-1", UserId = "user-123", Username = "john.doe", CreatedAt = DateTime.UtcNow, ExpiresAt = DateTime.UtcNow.AddHours(1), IsActive = true });
 
         _mockStateStore.Setup(x => x.RemoveAsync(state, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _mockAuditService.Setup(x => x.LogEventAsync(
+_mockAuditService.Setup(x => x.LogAsync(
             It.IsAny<AuditEvent>(),
             It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -337,12 +343,16 @@ public class OidcControllerTests
         _mockStateStore.Verify(x => x.RemoveAsync(state, It.IsAny<CancellationToken>()), Times.Once);
 
         // Verify session was created
-        _mockSessionService.Verify(x => x.CreateSessionAsync(
-            It.Is<SessionInfo>(s => s.UserId == "user-123"),
+_mockSessionService.Verify(x => x.CreateSessionAsync(
+            It.Is<string>(id => id == "user-123"),
+            It.Is<string>(name => name == "john.doe"),
+            It.IsAny<string?>(),
+            It.IsAny<string?>(),
+            It.IsAny<string?>(),
             It.IsAny<CancellationToken>()), Times.Once);
 
         // Verify LoginSucceeded audit event
-        _mockAuditService.Verify(x => x.LogEventAsync(
+_mockAuditService.Verify(x => x.LogAsync(
             It.Is<AuditEvent>(e => 
                 e.Action == "LoginSucceeded" && 
                 e.EntityId == "user-123"),
@@ -376,7 +386,7 @@ public class OidcControllerTests
         _mockStateStore.Setup(x => x.RemoveAsync(state, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _mockAuditService.Setup(x => x.LogEventAsync(
+_mockAuditService.Setup(x => x.LogAsync(
             It.IsAny<AuditEvent>(),
             It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -389,10 +399,10 @@ public class OidcControllerTests
         Assert.Equal(500, statusResult.StatusCode);
 
         // Verify failure was logged
-        _mockAuditService.Verify(x => x.LogEventAsync(
+_mockAuditService.Verify(x => x.LogAsync(
             It.Is<AuditEvent>(e => 
                 e.Action == "LoginFailed" &&
-                e.Details.Contains("Token exchange failed")),
+                e.Details != null && e.Details.ContainsKey("Error") && e.Details["Error"].ToString()!.Contains("Token exchange failed")),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -417,13 +427,13 @@ public class OidcControllerTests
         };
         _controller.ControllerContext.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(claims));
 
-        _mockSessionService.Setup(x => x.RevokeAllSessionsAsync(userId, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+_mockSessionService.Setup(x => x.RevokeAllSessionsAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
 
         _mockKeycloakService.Setup(x => x.GenerateLogoutUrl(idToken, returnUrl))
             .Returns(expectedLogoutUrl);
 
-        _mockAuditService.Setup(x => x.LogEventAsync(
+_mockAuditService.Setup(x => x.LogAsync(
             It.IsAny<AuditEvent>(),
             It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -442,7 +452,7 @@ public class OidcControllerTests
         _mockSessionService.Verify(x => x.RevokeAllSessionsAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
 
         // Verify logout audit event
-        _mockAuditService.Verify(x => x.LogEventAsync(
+_mockAuditService.Verify(x => x.LogAsync(
             It.Is<AuditEvent>(e => 
                 e.Action == "Logout" && 
                 e.EntityId == userId),
@@ -558,7 +568,7 @@ public class OidcControllerTests
             It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _mockAuditService.Setup(x => x.LogEventAsync(
+_mockAuditService.Setup(x => x.LogAsync(
             It.IsAny<AuditEvent>(),
             It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);

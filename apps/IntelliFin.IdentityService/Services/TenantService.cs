@@ -5,6 +5,7 @@ using IntelliFin.Shared.DomainModels.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
+using AuditEvent = IntelliFin.IdentityService.Models.AuditEvent;
 namespace IntelliFin.IdentityService.Services;
 
 /// <summary>
@@ -16,7 +17,7 @@ public class TenantService : ITenantService
     private readonly IAuditService _auditService;
     private readonly IBackgroundQueue<ProvisionCommand>? _provisioningQueue;
     private readonly ILogger<TenantService> _logger;
-    private readonly FeatureFlags _featureFlags;
+    private readonly IOptions<FeatureFlags> _featureFlags;
 
     public TenantService(
         LmsDbContext dbContext,
@@ -28,7 +29,7 @@ public class TenantService : ITenantService
         _dbContext = dbContext;
         _auditService = auditService;
         _logger = logger;
-        _featureFlags = featureFlags.Value;
+        _featureFlags = featureFlags;
         _provisioningQueue = provisioningQueue;
     }
 
@@ -134,7 +135,7 @@ public class TenantService : ITenantService
         }, ct);
 
         // Trigger provisioning if enabled
-        if (_featureFlags.EnableUserProvisioning && _provisioningQueue != null)
+        if (_featureFlags.Value.EnableUserProvisioning && _provisioningQueue != null)
         {
             await _provisioningQueue.QueueAsync(new ProvisionCommand
             {
@@ -180,7 +181,7 @@ public class TenantService : ITenantService
         }, ct);
 
         // Trigger provisioning if enabled
-        if (_featureFlags.EnableUserProvisioning && _provisioningQueue != null)
+        if (_featureFlags.Value.EnableUserProvisioning && _provisioningQueue != null)
         {
             await _provisioningQueue.QueueAsync(new ProvisionCommand
             {

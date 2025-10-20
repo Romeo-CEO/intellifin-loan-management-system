@@ -1,6 +1,6 @@
 # IAM Enhancement Implementation Status
 
-**Last Updated:** 2025-10-17  
+**Last Updated:** 2025-10-20
 **Branch:** codex/implement-vault-backed-runtime-secrets  
 **Completed Stories:** 12 of 16
 
@@ -94,20 +94,16 @@
 
 ---
 
-### ❌ Story 1.7: Baseline Role Templates and Seed Data
-**Status:** NOT IMPLEMENTED  
+### ✅ Story 1.7: Baseline Role Templates and Seed Data
+**Status:** COMPLETE  
 **Evidence:**
-- ❌ No seed data files found
-- ❌ No BaselineSeedService found
-- ❌ No baseline role templates JSON
+- ✅ Seed file `apps/IntelliFin.IdentityService/Data/Seeds/BaselineRolesSeed.json` present and copied on publish
+- ✅ Baseline seeding implemented in `Services/BaselineSeedService.cs` with transactions and audit logging
+- ✅ Public API `Controllers/Platform/SeedController.cs` with endpoints: POST /api/platform/seed/baseline, POST /api/platform/seed/baseline/validate
+- ✅ Service wired in DI (`ServiceCollectionExtensions.cs`) and startup hook in `Program.cs` guarded by `SeedBaselineData`
+- ✅ Idempotency verified by unit tests `tests/IntelliFin.IdentityService.Tests/Services/BaselineSeedServiceTests.cs`
 
-**Remaining Work:**
-- Create `Data/Seeds/BaselineRolesSeed.json`
-- Create `Services/IBaselineSeedService.cs`
-- Create `Services/BaselineSeedService.cs`
-- Create `Controllers/Platform/SeedController.cs`
-- Register service in DI
-- Add startup seed logic
+**Remaining Work:** None
 
 ---
 

@@ -1,4 +1,5 @@
 using IntelliFin.IdentityService.Extensions;
+using IntelliFin.IdentityService.Services;
 using Serilog;
 using IntelliFin.Shared.Observability;
 
@@ -41,6 +42,22 @@ builder.Services.AddOpenTelemetryInstrumentation(builder.Configuration);
     // Configure pipeline
     app.ConfigureIdentityApplication();
 
+    // Baseline seed on startup (dev or when enabled)
+    if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("SeedBaselineData"))
+    {
+        using var scope = app.Services.CreateScope();
+        var seedService = scope.ServiceProvider.GetRequiredService<IBaselineSeedService>();
+        var seedResult = await seedService.SeedBaselineDataAsync();
+        if (seedResult.Success)
+        {
+            Log.Information("Baseline seed completed: Roles={Roles}, Perms={Perms}, SoDRules={Rules}", seedResult.RolesCreated, seedResult.PermissionsCreated, seedResult.SoDRulesCreated);
+        }
+        else
+        {
+            Log.Warning("Baseline seed had errors: {Errors}", string.Join(", ", seedResult.Errors));
+        }
+    }
+
     Log.Information("IntelliFin Identity Service configured successfully");
 
     await app.RunAsync();
@@ -53,3 +70,5 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+public partial class Program { }
