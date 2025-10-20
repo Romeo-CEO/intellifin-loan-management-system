@@ -39,14 +39,29 @@ The Client Management service is the single source of truth for all customer dat
 **Logging:** Structured with correlation IDs in all entries  
 **Authentication:** JWT bearer tokens with claims-based authorization
 
+### ✅ Story 1.3: Client CRUD Operations (COMPLETED)
+
+**What's Working:**
+- Client entity with 35+ properties (personal, employment, contact, compliance, risk)
+- EF Core configuration with unique indexes and constraints
+- ClientService with CRUD operations using Result<T> pattern
+- ClientController REST API (POST, GET x2, PUT endpoints)
+- FluentValidation validators (NRC format, phone format, age validation)
+- EF Core migration: AddClientEntity
+- Unit tests (10 tests, 90%+ coverage)
+- Integration tests (12 tests, E2E with authentication)
+
+**Database:** Clients table with 6 indexes  
+**API Endpoints:** 4 REST endpoints with JWT authentication  
+**Validation:** NRC format, phone format, age 18+, email format
+
 ### 🚧 In Progress / Upcoming
 
-- **Story 1.3:** Client CRUD Operations (Next)
-- **Story 1.4:** Client Versioning (SCD-2)
+- **Story 1.4:** Client Versioning (SCD-2) (Next)
 - **Story 1.5:** AdminService Audit Integration
 - **Story 1.6:** KycDocument Integration
 - **Story 1.7:** Communications Integration
-- ... (17 stories total, 2 complete)
+- ... (17 stories total, 3 complete)
 
 ---
 
@@ -198,31 +213,56 @@ dotnet test --logger "console;verbosity=detailed"
 | `/` | GET | Service information | ✅ Working |
 | `/health` | GET | General health check | ✅ Working |
 | `/health/db` | GET | Database health check | ✅ Working |
+| `POST /api/clients` | POST | Create client | ✅ Working (Story 1.3) |
+| `GET /api/clients/{id}` | GET | Get client by ID | ✅ Working (Story 1.3) |
+| `GET /api/clients/by-nrc/{nrc}` | GET | Get client by NRC | ✅ Working (Story 1.3) |
+| `PUT /api/clients/{id}` | PUT | Update client | ✅ Working (Story 1.3) |
 
-### Future Endpoints (Story 1.3+)
+### Future Endpoints (Story 1.4+)
 
 | Endpoint | Method | Description | Story |
 |----------|--------|-------------|-------|
-| `POST /api/clients` | POST | Create client | 1.3 |
-| `GET /api/clients/{id}` | GET | Get client by ID | 1.3 |
-| `PUT /api/clients/{id}` | PUT | Update client | 1.3 |
-| `DELETE /api/clients/{id}` | DELETE | Soft delete client | 1.3 |
-| `GET /api/clients?nrc=...` | GET | Search by NRC | 1.3 |
+| `GET /api/clients/{id}/versions` | GET | Get client version history | 1.4 |
+| `GET /api/clients/{id}/versions/{versionId}` | GET | Get specific version | 1.4 |
+| `GET /api/clients/{id}/documents` | GET | Get client documents | 1.6 |
+| `POST /api/clients/{id}/documents` | POST | Upload document | 1.6 |
 
 ---
 
 ## Database Schema
 
-### Current State (Story 1.1)
+### Current State (Stories 1.1-1.3)
 
-**Migration:** `20251020000000_InitialCreate`  
-**Tables:** None (migration infrastructure only)
+**Migrations:**
+- `20251020000000_InitialCreate` - Migration infrastructure
+- `20251020000001_AddClientEntity` - Clients table
 
-### Future Tables (Story 1.3+)
+**Tables:**
+- ✅ `Clients` (Story 1.3) - Core client records with 35+ columns
+
+### Client Table Structure
+
+| Column | Type | Constraints | Purpose |
+|--------|------|-------------|---------|
+| Id | GUID | PK, NEWSEQUENTIALID() | Primary key |
+| Nrc | nvarchar(11) | NOT NULL, UNIQUE | National ID |
+| PayrollNumber | nvarchar(50) | UNIQUE (filtered) | PMEC integration |
+| FirstName | nvarchar(100) | NOT NULL | Personal info |
+| LastName | nvarchar(100) | NOT NULL | Personal info |
+| DateOfBirth | datetime2 | NOT NULL | Personal info |
+| Gender | nvarchar(10) | NOT NULL | Personal info |
+| KycStatus | nvarchar(20) | NOT NULL, DEFAULT 'Pending' | Compliance |
+| Status | nvarchar(20) | NOT NULL, DEFAULT 'Active' | Lifecycle |
+| VersionNumber | int | NOT NULL, DEFAULT 1, >= 1 | Versioning |
+| ... | ... | ... | 25+ more fields |
+
+**Indexes:** 6 indexes (including 2 unique)  
+**Constraints:** 1 check constraint on VersionNumber
+
+### Future Tables (Story 1.4+)
 
 | Table | Story | Purpose |
 |-------|-------|---------|
-| `Clients` | 1.3 | Core client records |
 | `ClientVersions` | 1.4 | Temporal versioning (SCD-2) |
 | `ClientDocuments` | 1.6 | Document metadata |
 | `CommunicationConsents` | 1.7 | Communication preferences |

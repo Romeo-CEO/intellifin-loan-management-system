@@ -1,3 +1,5 @@
+using IntelliFin.ClientManagement.Domain.Entities;
+using IntelliFin.ClientManagement.Infrastructure.Persistence.Configurations;
 using Microsoft.EntityFrameworkCore;
 
 namespace IntelliFin.ClientManagement.Infrastructure.Persistence;
@@ -12,12 +14,19 @@ public class ClientManagementDbContext : DbContext
     {
     }
 
+    /// <summary>
+    /// Clients (Story 1.3)
+    /// </summary>
+    public DbSet<Client> Clients => Set<Client>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         
-        // Entity configurations will be added here in future stories
-        // Story 1.3: Client CRUD Operations will add Client entity
+        // Apply entity configurations
+        modelBuilder.ApplyConfiguration(new ClientConfiguration());
+        
+        // Future entity configurations will be added here:
         // Story 1.4: Client Versioning will add ClientVersion entity
         // Story 1.6: KycDocument Integration will add ClientDocument entity
         // Story 1.7: Communications Integration will add CommunicationConsent entity

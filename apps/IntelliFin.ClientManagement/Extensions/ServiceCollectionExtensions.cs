@@ -151,9 +151,13 @@ public static class ServiceCollectionExtensions
         // Add HttpContextAccessor for correlation ID enricher
         services.AddHttpContextAccessor();
 
-        // Placeholder for future services (Story 1.3+)
-        // services.AddScoped<IClientService, ClientService>();
-        // services.AddScoped<IClientRepository, ClientRepository>();
+        // Register domain services (Story 1.3)
+        services.AddScoped<Services.IClientService, Services.ClientService>();
+
+        // Future services will be added here:
+        // Story 1.4: ClientVersionService
+        // Story 1.6: DocumentService
+        // Story 1.13: RiskScoringService
 
         return services;
     }
