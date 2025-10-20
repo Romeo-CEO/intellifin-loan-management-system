@@ -39,6 +39,9 @@
     <ProjectReference Include="..\..\apps\IntelliFin.LoanOrigination\IntelliFin.LoanOrigination.csproj" />
     <ProjectReference Include="..\..\apps\IntelliFin.Communications\IntelliFin.Communications.csproj" />
     <ProjectReference Include="..\..\apps\IntelliFin.AdminService\IntelliFin.AdminService.csproj" />
+    <ProjectReference Include="..\..\apps\IntelliFin.FinancialService\IntelliFin.FinancialService.csproj" />
+    <ProjectReference Include="..\..\libs\IntelliFin.Shared.Audit\IntelliFin.Shared.Audit.csproj" />
+    <ProjectReference Include="..\..\libs\IntelliFin.Shared.Observability\IntelliFin.Shared.Observability.csproj" />
   </ItemGroup>
 
 </Project>

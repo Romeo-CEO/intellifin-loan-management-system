@@ -1,4 +1,5 @@
-﻿using IntelliFin.FinancialService.Models;
+﻿using IntelliFin.FinancialService.Exceptions;
+using IntelliFin.FinancialService.Models;
 using IntelliFin.FinancialService.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -89,6 +90,11 @@ public class GeneralLedgerController : ControllerBase
                 return Ok(result);
             }
             return BadRequest(result);
+        }
+        catch (AuditForwardingException ex)
+        {
+            _logger.LogError(ex, "Audit forwarding failed while posting journal entry for reference {Reference}", request.Reference);
+            return StatusCode(503, new { message = "Audit trail unavailable", detail = ex.Message });
         }
         catch (Exception ex)
         {

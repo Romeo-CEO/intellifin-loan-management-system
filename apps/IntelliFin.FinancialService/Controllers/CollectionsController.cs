@@ -1,4 +1,5 @@
-﻿using IntelliFin.FinancialService.Models;
+﻿using IntelliFin.FinancialService.Exceptions;
+using IntelliFin.FinancialService.Models;
 using IntelliFin.FinancialService.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -122,6 +123,11 @@ public class CollectionsController : ControllerBase
             var result = await _collectionsService.ProcessDeductionCycleAsync(request);
             return Ok(result);
         }
+        catch (AuditForwardingException ex)
+        {
+            _logger.LogError(ex, "Audit forwarding failed while processing deduction cycle {Period}", request.Period);
+            return StatusCode(503, new { message = "Audit trail unavailable", detail = ex.Message });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing deduction cycle for period {Period}", request.Period);
@@ -143,6 +149,11 @@ public class CollectionsController : ControllerBase
                 return Ok(result);
             }
             return BadRequest(result);
+        }
+        catch (AuditForwardingException ex)
+        {
+            _logger.LogError(ex, "Audit forwarding failed while recording payment for loan {LoanId}", request.LoanId);
+            return StatusCode(503, new { message = "Audit trail unavailable", detail = ex.Message });
         }
         catch (Exception ex)
         {

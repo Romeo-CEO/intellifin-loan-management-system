@@ -1,4 +1,6 @@
-﻿using IntelliFin.FinancialService.Models;
+﻿using IntelliFin.FinancialService.Exceptions;
+using IntelliFin.FinancialService.Models;
+using IntelliFin.Shared.Audit;
 using Microsoft.Extensions.Logging;
 
 namespace IntelliFin.FinancialService.Services;
@@ -6,10 +8,12 @@ namespace IntelliFin.FinancialService.Services;
 public class CollectionsService : ICollectionsService
 {
     private readonly ILogger<CollectionsService> _logger;
+    private readonly IAuditClient _auditClient;
 
-    public CollectionsService(ILogger<CollectionsService> logger)
+    public CollectionsService(ILogger<CollectionsService> logger, IAuditClient auditClient)
     {
         _logger = logger;
+        _auditClient = auditClient;
     }
 
     public async Task<CollectionsAccount?> GetCollectionsAccountAsync(string loanId)
@@ -152,11 +156,11 @@ public class CollectionsService : ICollectionsService
     public async Task<DeductionCycleResult> ProcessDeductionCycleAsync(CreateDeductionCycleRequest request)
     {
         _logger.LogInformation("Processing deduction cycle for period {Period}", request.Period);
-        
+
         // TODO: Implement actual deduction cycle processing
         await Task.Delay(100);
-        
-        return new DeductionCycleResult
+
+        var result = new DeductionCycleResult
         {
             CycleId = Guid.NewGuid().ToString(),
             Period = request.Period,
@@ -165,21 +169,50 @@ public class CollectionsService : ICollectionsService
             TotalAmount = request.LoanIds.Count * 500.00m,
             Status = DeductionCycleStatus.Completed
         };
+
+        await ForwardAuditAsync(
+            "system",
+            "CollectionsDeductionCycleProcessed",
+            "CollectionsDeductionCycle",
+            result.CycleId,
+            new
+            {
+                request.Period,
+                result.TotalItems,
+                result.TotalAmount
+            });
+
+        return result;
     }
 
     public async Task<PaymentResult> RecordPaymentAsync(RecordPaymentRequest request)
     {
         _logger.LogInformation("Recording payment for loan {LoanId}, amount {Amount}", request.LoanId, request.Amount);
-        
+
         // TODO: Implement actual payment recording
         await Task.Delay(30);
-        
-        return new PaymentResult
+
+        var result = new PaymentResult
         {
             Success = true,
             PaymentId = Guid.NewGuid().ToString(),
             Message = "Payment recorded successfully"
         };
+
+        await ForwardAuditAsync(
+            "system",
+            "CollectionsPaymentRecorded",
+            "CollectionsPayment",
+            result.PaymentId!,
+            new
+            {
+                request.LoanId,
+                request.Amount,
+                Method = request.Method.ToString(),
+                request.ExternalReference
+            });
+
+        return result;
     }
 
     public async Task<CollectionsReport> GenerateCollectionsReportAsync(DateTime reportDate)
@@ -213,10 +246,32 @@ public class CollectionsService : ICollectionsService
     public async Task<bool> UpdateAccountStatusAsync(string loanId, CollectionsStatus status)
     {
         _logger.LogInformation("Updating account status for loan {LoanId} to {Status}", loanId, status);
-        
+
         // TODO: Implement actual database update
         await Task.Delay(20);
-        
+
         return true;
+    }
+
+    private async Task ForwardAuditAsync(string actor, string action, string entityType, string entityId, object eventData)
+    {
+        var payload = new AuditEventPayload
+        {
+            Actor = string.IsNullOrWhiteSpace(actor) ? "system" : actor,
+            Action = action,
+            EntityType = entityType,
+            EntityId = entityId,
+            EventData = eventData,
+            Timestamp = DateTime.UtcNow
+        };
+
+        try
+        {
+            await _auditClient.LogEventAsync(payload);
+        }
+        catch (Exception ex)
+        {
+            throw new AuditForwardingException("Failed to forward audit event to Admin Service", ex);
+        }
     }
 }

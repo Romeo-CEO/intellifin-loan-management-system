@@ -24,4 +24,5 @@ public interface IUserRepository
     Task<bool> UpdateLockoutAsync(string userId, DateTimeOffset? lockoutEnd, int accessFailedCount, CancellationToken cancellationToken = default);
     Task<bool> AssignRoleAsync(string userId, string roleId, string assignedBy, CancellationToken cancellationToken = default);
     Task<bool> RemoveRoleAsync(string userId, string roleId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<TenantUser>> GetUserTenantsAsync(string userId, CancellationToken cancellationToken = default);
 }

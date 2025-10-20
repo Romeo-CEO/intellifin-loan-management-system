@@ -182,7 +182,6 @@ public sealed class AccessElevationService : IAccessElevationService
         elevation.ExpiresAt = DateTime.UtcNow.AddMinutes(approvedDuration);
         elevation.UpdatedAt = DateTime.UtcNow;
         _dbContext.ElevationRequests.Update(elevation);
-        await _dbContext.SaveChangesAsync(cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(elevation.CamundaProcessInstanceId))
         {
@@ -244,12 +243,13 @@ public sealed class AccessElevationService : IAccessElevationService
         elevation.RejectedAt = DateTime.UtcNow;
         elevation.UpdatedAt = DateTime.UtcNow;
         _dbContext.ElevationRequests.Update(elevation);
-        await _dbContext.SaveChangesAsync(cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(elevation.CamundaProcessInstanceId))
         {
             await _camundaWorkflowService.CompleteManagerApprovalAsync(elevation.CamundaProcessInstanceId, approved: false, cancellationToken);
         }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
         await _notificationService.NotifyRequesterRejectedAsync(elevation, reason, cancellationToken);
 

@@ -1,8 +1,13 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
+using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Text.Json;
+using IntelliFin.AdminService.ExceptionHandling;
 using IntelliFin.AdminService.Models;
 using IntelliFin.AdminService.Options;
 using Microsoft.Extensions.Logging;
@@ -13,6 +18,8 @@ namespace IntelliFin.AdminService.Services;
 public sealed class CamundaWorkflowService : ICamundaWorkflowService
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+    private static readonly Meter Meter = new("IntelliFin.AdminService.Camunda", "1.0.0");
+    private static readonly Counter<long> FailureCounter = Meter.CreateCounter<long>("camunda.workflow.failures");
 
     private readonly HttpClient _httpClient;
     private readonly IOptionsMonitor<CamundaOptions> _optionsMonitor;
@@ -34,11 +41,12 @@ public sealed class CamundaWorkflowService : ICamundaWorkflowService
     public async Task<string?> StartElevationWorkflowAsync(ElevationRequest request, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
     {
         var options = _optionsMonitor.CurrentValue;
-        if (string.IsNullOrWhiteSpace(options.BaseUrl))
+        if (ShouldFailOpen(options, "access_elevation", request.ElevationId.ToString()))
         {
-            _logger.LogWarning("Camunda base URL not configured; returning synthetic process instance id for elevation {ElevationId}", request.ElevationId);
-            return $"offline-{Guid.NewGuid():N}";
+            return null;
         }
+
+        EnsureConfigured(options);
 
         var payload = new
         {
@@ -51,28 +59,8 @@ public sealed class CamundaWorkflowService : ICamundaWorkflowService
             requestedDuration = request.RequestedDuration
         };
 
-        try
-        {
-            var response = await _httpClient.PostAsJsonAsync("workflows/access-elevation", payload, SerializerOptions, cancellationToken);
-            if (response.IsSuccessStatusCode)
-            {
-                var content = await response.Content.ReadFromJsonAsync<CamundaStartResponse>(SerializerOptions, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(content?.ProcessInstanceId))
-                {
-                    return content.ProcessInstanceId;
-                }
-            }
-            else
-            {
-                _logger.LogWarning("Camunda elevation workflow start returned status {StatusCode} for elevation {ElevationId}", response.StatusCode, request.ElevationId);
-            }
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogWarning(ex, "Failed to invoke Camunda workflow for elevation {ElevationId}", request.ElevationId);
-        }
-
-        return $"fallback-{Guid.NewGuid():N}";
+        var response = await _httpClient.PostAsJsonAsync("workflows/access-elevation", payload, SerializerOptions, cancellationToken).ConfigureAwait(false);
+        return await ReadProcessInstanceIdAsync(response, "workflows/access-elevation", "access_elevation", request.ElevationId.ToString(), cancellationToken).ConfigureAwait(false);
     }
 
     public async Task CompleteManagerApprovalAsync(string processInstanceId, bool approved, CancellationToken cancellationToken)
@@ -83,36 +71,27 @@ public sealed class CamundaWorkflowService : ICamundaWorkflowService
         }
 
         var options = _optionsMonitor.CurrentValue;
-        if (string.IsNullOrWhiteSpace(options.BaseUrl))
+        if (ShouldFailOpen(options, "access_elevation_approval", processInstanceId))
         {
-            _logger.LogDebug("Camunda base URL not configured; skipping completion for process {ProcessInstanceId}", processInstanceId);
             return;
         }
 
-        var payload = new { approved };
+        EnsureConfigured(options);
 
-        try
-        {
-            var response = await _httpClient.PostAsJsonAsync($"workflows/access-elevation/{processInstanceId}/approval", payload, SerializerOptions, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Camunda manager approval completion returned status {StatusCode} for process {ProcessInstanceId}", response.StatusCode, processInstanceId);
-            }
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogWarning(ex, "Failed to complete Camunda approval for process {ProcessInstanceId}", processInstanceId);
-        }
+        var payload = new { approved };
+        var response = await _httpClient.PostAsJsonAsync($"workflows/access-elevation/{processInstanceId}/approval", payload, SerializerOptions, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, $"workflows/access-elevation/{processInstanceId}/approval", "access_elevation_approval", processInstanceId, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<string?> StartConfigurationChangeWorkflowAsync(ConfigurationChange change, ConfigurationPolicy policy, string requestorName, CancellationToken cancellationToken)
     {
         var options = _optionsMonitor.CurrentValue;
-        if (string.IsNullOrWhiteSpace(options.BaseUrl))
+        if (ShouldFailOpen(options, "config_change", change.ChangeRequestId.ToString()))
         {
-            _logger.LogDebug("Camunda base URL not configured; returning synthetic id for configuration change {ChangeId}", change.ChangeRequestId);
-            return $"config-offline-{Guid.NewGuid():N}";
+            return null;
         }
+
+        EnsureConfigured(options);
 
         var payload = new
         {
@@ -126,28 +105,8 @@ public sealed class CamundaWorkflowService : ICamundaWorkflowService
             requiresApproval = policy.RequiresApproval
         };
 
-        try
-        {
-            var response = await _httpClient.PostAsJsonAsync("workflows/config-change", payload, SerializerOptions, cancellationToken);
-            if (response.IsSuccessStatusCode)
-            {
-                var content = await response.Content.ReadFromJsonAsync<CamundaStartResponse>(SerializerOptions, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(content?.ProcessInstanceId))
-                {
-                    return content.ProcessInstanceId;
-                }
-            }
-            else
-            {
-                _logger.LogWarning("Camunda configuration workflow start returned {StatusCode} for change {ChangeId}", response.StatusCode, change.ChangeRequestId);
-            }
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogWarning(ex, "Failed to invoke Camunda configuration workflow for change {ChangeId}", change.ChangeRequestId);
-        }
-
-        return $"config-fallback-{Guid.NewGuid():N}";
+        var response = await _httpClient.PostAsJsonAsync("workflows/config-change", payload, SerializerOptions, cancellationToken).ConfigureAwait(false);
+        return await ReadProcessInstanceIdAsync(response, "workflows/config-change", "config_change", change.ChangeRequestId.ToString(), cancellationToken).ConfigureAwait(false);
     }
 
     public async Task CompleteConfigurationChangeWorkflowAsync(string? processInstanceId, bool approved, string comments, CancellationToken cancellationToken)
@@ -158,90 +117,50 @@ public sealed class CamundaWorkflowService : ICamundaWorkflowService
         }
 
         var options = _optionsMonitor.CurrentValue;
-        if (string.IsNullOrWhiteSpace(options.BaseUrl))
+        if (ShouldFailOpen(options, "config_change_approval", processInstanceId))
         {
-            _logger.LogDebug("Camunda base URL not configured; skipping completion for config process {ProcessId}", processInstanceId);
             return;
         }
 
-        var payload = new { approved, comments };
+        EnsureConfigured(options);
 
-        try
-        {
-            var response = await _httpClient.PostAsJsonAsync($"workflows/config-change/{processInstanceId}/approval", payload, SerializerOptions, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Camunda config approval completion returned {StatusCode} for process {ProcessId}", response.StatusCode, processInstanceId);
-            }
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogWarning(ex, "Failed to complete Camunda configuration workflow for process {ProcessId}", processInstanceId);
-        }
+        var payload = new { approved, comments };
+        var response = await _httpClient.PostAsJsonAsync($"workflows/config-change/{processInstanceId}/approval", payload, SerializerOptions, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, $"workflows/config-change/{processInstanceId}/approval", "config_change_approval", processInstanceId, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<string?> StartRecertificationCampaignAsync(string campaignId, CancellationToken cancellationToken)
     {
         var options = _optionsMonitor.CurrentValue;
-        if (string.IsNullOrWhiteSpace(options.BaseUrl))
+        if (ShouldFailOpen(options, "recertification_campaign", campaignId))
         {
-            _logger.LogDebug("Camunda base URL not configured; returning synthetic id for recertification campaign {CampaignId}", campaignId);
-            return $"recert-offline-{Guid.NewGuid():N}";
+            return null;
         }
+
+        EnsureConfigured(options);
 
         var payload = new { campaignId };
-
-        try
-        {
-            var response = await _httpClient.PostAsJsonAsync("workflows/recertification", payload, SerializerOptions, cancellationToken);
-            if (response.IsSuccessStatusCode)
-            {
-                var content = await response.Content.ReadFromJsonAsync<CamundaStartResponse>(SerializerOptions, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(content?.ProcessInstanceId))
-                {
-                    return content.ProcessInstanceId;
-                }
-            }
-            else
-            {
-                _logger.LogWarning("Camunda recertification workflow start returned {StatusCode} for campaign {CampaignId}", response.StatusCode, campaignId);
-            }
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogWarning(ex, "Failed to start Camunda recertification workflow for campaign {CampaignId}", campaignId);
-        }
-
-        return $"recert-fallback-{Guid.NewGuid():N}";
+        var response = await _httpClient.PostAsJsonAsync("workflows/recertification", payload, SerializerOptions, cancellationToken).ConfigureAwait(false);
+        return await ReadProcessInstanceIdAsync(response, "workflows/recertification", "recertification_campaign", campaignId, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task CompleteRecertificationTaskAsync(string? camundaTaskId, Guid taskId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(camundaTaskId))
         {
-            _logger.LogDebug("No Camunda task id provided for recertification task {TaskId}", taskId);
             return;
         }
 
         var options = _optionsMonitor.CurrentValue;
-        if (string.IsNullOrWhiteSpace(options.BaseUrl))
+        if (ShouldFailOpen(options, "recertification_task", camundaTaskId))
         {
-            _logger.LogDebug("Camunda base URL not configured; skipping completion for recertification task {TaskId}", taskId);
             return;
         }
 
-        try
-        {
-            var response = await _httpClient.PostAsJsonAsync($"workflows/recertification/{camundaTaskId}/complete", new { taskId }, SerializerOptions, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Camunda recertification completion returned {StatusCode} for task {TaskId}", response.StatusCode, taskId);
-            }
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogWarning(ex, "Failed to complete Camunda recertification task {TaskId}", taskId);
-        }
+        EnsureConfigured(options);
+
+        var response = await _httpClient.PostAsJsonAsync($"workflows/recertification/{camundaTaskId}/complete", new { taskId }, SerializerOptions, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, $"workflows/recertification/{camundaTaskId}/complete", "recertification_task", camundaTaskId, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<string?> StartIncidentWorkflowAsync(OperationalIncident incident, CancellationToken cancellationToken)
@@ -249,11 +168,18 @@ public sealed class CamundaWorkflowService : ICamundaWorkflowService
         var camundaOptions = _optionsMonitor.CurrentValue;
         var incidentOptions = _incidentOptions.CurrentValue;
 
-        if (string.IsNullOrWhiteSpace(camundaOptions.BaseUrl) || string.IsNullOrWhiteSpace(incidentOptions.IncidentWorkflowProcessId))
+        if (string.IsNullOrWhiteSpace(incidentOptions.IncidentWorkflowProcessId))
         {
-            _logger.LogDebug("Camunda incident workflow not configured; returning synthetic id for incident {IncidentId}", incident.IncidentId);
-            return $"incident-offline-{Guid.NewGuid():N}";
+            _logger.LogWarning("Incident workflow process id is not configured; skipping Camunda incident workflow for {IncidentId}", incident.IncidentId);
+            return null;
         }
+
+        if (ShouldFailOpen(camundaOptions, "incident_workflow", incident.IncidentId.ToString()))
+        {
+            return null;
+        }
+
+        EnsureConfigured(camundaOptions);
 
         var payload = new
         {
@@ -268,28 +194,8 @@ public sealed class CamundaWorkflowService : ICamundaWorkflowService
             automationStatus = incident.AutomationStatus
         };
 
-        try
-        {
-            var response = await _httpClient.PostAsJsonAsync($"workflows/{incidentOptions.IncidentWorkflowProcessId}", payload, SerializerOptions, cancellationToken);
-            if (response.IsSuccessStatusCode)
-            {
-                var content = await response.Content.ReadFromJsonAsync<CamundaStartResponse>(SerializerOptions, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(content?.ProcessInstanceId))
-                {
-                    return content.ProcessInstanceId;
-                }
-            }
-            else
-            {
-                _logger.LogWarning("Camunda incident workflow start returned {StatusCode} for incident {IncidentId}", response.StatusCode, incident.IncidentId);
-            }
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogWarning(ex, "Failed to invoke Camunda incident workflow for incident {IncidentId}", incident.IncidentId);
-        }
-
-        return $"incident-fallback-{Guid.NewGuid():N}";
+        var response = await _httpClient.PostAsJsonAsync($"workflows/{incidentOptions.IncidentWorkflowProcessId}", payload, SerializerOptions, cancellationToken).ConfigureAwait(false);
+        return await ReadProcessInstanceIdAsync(response, $"workflows/{incidentOptions.IncidentWorkflowProcessId}", "incident_workflow", incident.IncidentId.ToString(), cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<string?> StartPostIncidentReviewAsync(OperationalIncident incident, DateTime dueAtUtc, CancellationToken cancellationToken)
@@ -297,11 +203,18 @@ public sealed class CamundaWorkflowService : ICamundaWorkflowService
         var camundaOptions = _optionsMonitor.CurrentValue;
         var incidentOptions = _incidentOptions.CurrentValue;
 
-        if (string.IsNullOrWhiteSpace(camundaOptions.BaseUrl) || string.IsNullOrWhiteSpace(incidentOptions.PostmortemWorkflowProcessId))
+        if (string.IsNullOrWhiteSpace(incidentOptions.PostmortemWorkflowProcessId))
         {
-            _logger.LogDebug("Camunda post-incident workflow not configured; skipping schedule for incident {IncidentId}", incident.IncidentId);
+            _logger.LogWarning("Postmortem workflow process id is not configured; skipping Camunda post-incident workflow for {IncidentId}", incident.IncidentId);
             return null;
         }
+
+        if (ShouldFailOpen(camundaOptions, "incident_postmortem", incident.IncidentId.ToString()))
+        {
+            return null;
+        }
+
+        EnsureConfigured(camundaOptions);
 
         var payload = new
         {
@@ -313,23 +226,78 @@ public sealed class CamundaWorkflowService : ICamundaWorkflowService
             owner = incident.CreatedBy
         };
 
-        try
-        {
-            var response = await _httpClient.PostAsJsonAsync($"workflows/{incidentOptions.PostmortemWorkflowProcessId}", payload, SerializerOptions, cancellationToken);
-            if (response.IsSuccessStatusCode)
-            {
-                var content = await response.Content.ReadFromJsonAsync<CamundaStartResponse>(SerializerOptions, cancellationToken);
-                return content?.ProcessInstanceId;
-            }
+        var response = await _httpClient.PostAsJsonAsync($"workflows/{incidentOptions.PostmortemWorkflowProcessId}", payload, SerializerOptions, cancellationToken).ConfigureAwait(false);
+        return await ReadProcessInstanceIdAsync(response, $"workflows/{incidentOptions.PostmortemWorkflowProcessId}", "incident_postmortem", incident.IncidentId.ToString(), cancellationToken).ConfigureAwait(false);
+    }
 
-            _logger.LogWarning("Camunda post-incident workflow start returned {StatusCode} for incident {IncidentId}", response.StatusCode, incident.IncidentId);
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+    private bool ShouldFailOpen(CamundaOptions options, string workflowType, string entityId)
+    {
+        if (options.FailOpen)
         {
-            _logger.LogWarning(ex, "Failed to schedule Camunda post-incident workflow for incident {IncidentId}", incident.IncidentId);
+            var correlationId = Activity.Current?.TraceId.ToString();
+            _logger.LogWarning(
+                "Camunda FailOpen enabled; skipping workflow {WorkflowType} for {EntityId} (CorrelationId: {CorrelationId})",
+                workflowType,
+                entityId,
+                correlationId);
+            return true;
         }
 
-        return null;
+        return false;
+    }
+
+    private void EnsureConfigured(CamundaOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.BaseUrl))
+        {
+            throw new InvalidOperationException("Camunda BaseUrl configuration is required when fail-open is disabled.");
+        }
+    }
+
+    private async Task<string> ReadProcessInstanceIdAsync(HttpResponseMessage response, string endpoint, string workflowType, string entityId, CancellationToken cancellationToken)
+    {
+        if (!response.IsSuccessStatusCode)
+        {
+            await ThrowCamundaExceptionAsync(response, endpoint, workflowType, entityId, cancellationToken).ConfigureAwait(false);
+        }
+
+        var content = await response.Content.ReadFromJsonAsync<CamundaStartResponse>(SerializerOptions, cancellationToken).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(content?.ProcessInstanceId))
+        {
+            return content.ProcessInstanceId;
+        }
+
+        await ThrowCamundaExceptionAsync(response, endpoint, workflowType, entityId, cancellationToken, "Camunda response did not include a processInstanceId.").ConfigureAwait(false);
+        return string.Empty; // Unreachable
+    }
+
+    private async Task EnsureSuccessAsync(HttpResponseMessage response, string endpoint, string workflowType, string entityId, CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        await ThrowCamundaExceptionAsync(response, endpoint, workflowType, entityId, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task ThrowCamundaExceptionAsync(HttpResponseMessage response, string endpoint, string workflowType, string entityId, CancellationToken cancellationToken, string? overrideMessage = null)
+    {
+        var correlationId = Activity.Current?.TraceId.ToString();
+        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var statusCode = response.StatusCode;
+
+        _logger.LogWarning(
+            "Camunda workflow failure. WorkflowType={WorkflowType} EntityId={EntityId} Status={StatusCode} CorrelationId={CorrelationId} Body={Body}",
+            workflowType,
+            entityId,
+            (int)statusCode,
+            correlationId,
+            body);
+
+        FailureCounter.Add(1, new KeyValuePair<string, object?>("workflow_type", workflowType), new KeyValuePair<string, object?>("status_code", (int)statusCode));
+
+        throw new CamundaWorkflowException(statusCode, endpoint, workflowType, overrideMessage ?? body, correlationId);
     }
 
     private sealed record CamundaStartResponse(string? ProcessInstanceId);

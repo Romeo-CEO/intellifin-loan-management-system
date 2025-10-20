@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\libs\IntelliFin.Shared.Authentication\IntelliFin.Shared.Authentication.csproj" />
     <ProjectReference Include="..\..\libs\IntelliFin.Shared.Logging\IntelliFin.Shared.Logging.csproj" />
     <ProjectReference Include="..\..\libs\IntelliFin.Shared.Validation\IntelliFin.Shared.Validation.csproj" />
+    <ProjectReference Include="..\..\libs\IntelliFin.Shared.Audit\IntelliFin.Shared.Audit.csproj" />
   </ItemGroup>
 
   <ItemGroup>

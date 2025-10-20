@@ -22,4 +22,6 @@ public interface ISessionService
     Task<int> CleanupExpiredSessionsAsync(CancellationToken cancellationToken = default);
     
     Task<bool> ExtendSessionAsync(string sessionId, TimeSpan extension, CancellationToken cancellationToken = default);
+
+    Task<int> RevokeAllSessionsAsync(string userId, CancellationToken cancellationToken = default);
 }

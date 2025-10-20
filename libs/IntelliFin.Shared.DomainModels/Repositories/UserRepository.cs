@@ -218,4 +218,12 @@ public class UserRepository : IUserRepository
         // If not found or already inactive, consider it a success
         return true;
     }
+
+    public async Task<IEnumerable<TenantUser>> GetUserTenantsAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        return await _context.TenantUsers
+            .Include(tu => tu.Tenant)
+            .Where(tu => tu.UserId == userId)
+            .ToListAsync(cancellationToken);
+    }
 }

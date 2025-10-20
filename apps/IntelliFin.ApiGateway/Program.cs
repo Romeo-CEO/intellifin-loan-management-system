@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 using IntelliFin.ApiGateway.Middleware;
 using IntelliFin.ApiGateway.Options;
 using IntelliFin.ApiGateway.Security;
+using IntelliFin.ApiGateway.Secrets;
 using IntelliFin.Shared.DomainModels.Data;
 using IntelliFin.Shared.DomainModels.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -20,7 +22,6 @@ using Microsoft.IdentityModel.Tokens;
 using Yarp.ReverseProxy;
 using IntelliFin.Shared.Observability;
 
-const string LegacySchemeName = "Legacy";
 const string KeycloakSchemeName = "Keycloak";
 const string TokenTypeItemKey = "__token_type";
 const string BranchRegionHeader = "X-Branch-Region";
@@ -28,6 +29,9 @@ const string BranchRegionHeader = "X-Branch-Region";
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenTelemetryInstrumentation(builder.Configuration);
+
+var bootstrapSecretResolver = new EnvironmentSecretResolver(builder.Configuration);
+builder.Services.AddSingleton<ISecretResolver>(_ => bootstrapSecretResolver);
 
 // Configuration
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
@@ -66,15 +70,34 @@ builder.Services.AddHttpLogging(logging =>
     logging.LoggingFields = HttpLoggingFields.All;
 });
 
-builder.Services.AddDbContext<LmsDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") ??
-        "Server=(localdb)\\mssqllocaldb;Database=IntelliFin_LoanManagement;Trusted_Connection=true;MultipleActiveResultSets=true"));
+builder.Services.AddDbContext<LmsDbContext>((sp, options) =>
+{
+    var resolver = sp.GetRequiredService<ISecretResolver>();
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var connectionString = resolver.Resolve("APIGATEWAY_DB_CONNECTION_STRING")
+        ?? configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("DefaultConnection must be provided via environment variables or development overrides.");
+
+    options.UseSqlServer(connectionString);
+});
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddScoped<IAuditService, AuditService>();
 
-builder.Services.Configure<LegacyJwtOptions>(builder.Configuration.GetSection("Authentication:LegacyJwt"));
-builder.Services.Configure<KeycloakJwtOptions>(builder.Configuration.GetSection("Authentication:KeycloakJwt"));
-builder.Services.Configure<DualTokenSupportOptions>(builder.Configuration.GetSection("Authentication:DualTokenSupport"));
+var keycloakSection = builder.Configuration.GetSection("Authentication:KeycloakJwt");
+var keycloakOptions = new KeycloakJwtOptions();
+keycloakSection.Bind(keycloakOptions);
+
+var keycloakValidator = new KeycloakJwtOptionsValidator(builder.Environment);
+var validationResult = keycloakValidator.Validate(nameof(KeycloakJwtOptions), keycloakOptions);
+if (validationResult is { Failed: true, Failures: { Length: > 0 } failures })
+{
+    throw new OptionsValidationException(nameof(KeycloakJwtOptions), typeof(KeycloakJwtOptions), failures);
+}
+
+builder.Services.AddSingleton<IValidateOptions<KeycloakJwtOptions>>(keycloakValidator);
+builder.Services.AddOptions<KeycloakJwtOptions>()
+    .Bind(keycloakSection)
+    .ValidateOnStart();
 
 // YARP Reverse Proxy
 builder.Services.AddReverseProxy()
@@ -127,126 +150,34 @@ builder.Services.AddReverseProxy()
       });
 
 // JWT Authentication
-var legacyJwtOptions = builder.Configuration.GetSection("Authentication:LegacyJwt").Get<LegacyJwtOptions>() ?? new();
-var keycloakJwtOptions = builder.Configuration.GetSection("Authentication:KeycloakJwt").Get<KeycloakJwtOptions>() ?? new();
-
 builder.Services.AddAuthentication(options =>
     {
-        options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddPolicyScheme(JwtBearerDefaults.AuthenticationScheme, "DualJwt", options =>
-    {
-        options.ForwardDefaultSelector = context =>
-        {
-            var authorization = context.Request.Headers.Authorization.FirstOrDefault();
-            if (string.IsNullOrWhiteSpace(authorization))
-            {
-                return null;
-            }
-
-            var token = authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
-                ? authorization[7..].Trim()
-                : authorization.Trim();
-
-            var handler = new JwtSecurityTokenHandler();
-            if (!handler.CanReadToken(token))
-            {
-                return null;
-            }
-
-            var jwt = handler.ReadJwtToken(token);
-            if (!string.IsNullOrWhiteSpace(jwt.Issuer))
-            {
-                if (!string.IsNullOrEmpty(keycloakJwtOptions.Authority) &&
-                    jwt.Issuer.StartsWith(keycloakJwtOptions.Authority, StringComparison.OrdinalIgnoreCase))
-                {
-                    return KeycloakSchemeName;
-                }
-
-                if (!string.IsNullOrEmpty(keycloakJwtOptions.Issuer) &&
-                    jwt.Issuer.StartsWith(keycloakJwtOptions.Issuer, StringComparison.OrdinalIgnoreCase))
-                {
-                    return KeycloakSchemeName;
-                }
-
-                if (!string.IsNullOrEmpty(legacyJwtOptions.ValidIssuer) &&
-                    string.Equals(jwt.Issuer, legacyJwtOptions.ValidIssuer, StringComparison.OrdinalIgnoreCase))
-                {
-                    return LegacySchemeName;
-                }
-            }
-
-            return LegacySchemeName;
-        };
-    })
-    .AddJwtBearer(LegacySchemeName, options =>
-    {
-        if (!string.IsNullOrWhiteSpace(legacyJwtOptions.Authority))
-        {
-            options.Authority = legacyJwtOptions.Authority;
-        }
-
-        options.RequireHttpsMetadata = legacyJwtOptions.RequireHttps;
-        options.SaveToken = true;
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(legacyJwtOptions.SigningKey ?? "dev-key")),
-            ValidateIssuer = !string.IsNullOrWhiteSpace(legacyJwtOptions.ValidIssuer),
-            ValidIssuer = legacyJwtOptions.ValidIssuer,
-            ValidateAudience = !string.IsNullOrWhiteSpace(legacyJwtOptions.Audience),
-            ValidAudience = legacyJwtOptions.Audience,
-            ClockSkew = TimeSpan.FromMinutes(1)
-        };
-
-        options.Events = new JwtBearerEvents
-        {
-            OnTokenValidated = async context =>
-            {
-                context.HttpContext.Items[TokenTypeItemKey] = LegacySchemeName;
-
-                var dualTokenOptions = context.HttpContext.RequestServices.GetService<IOptionsMonitor<DualTokenSupportOptions>>()?.CurrentValue;
-                if (dualTokenOptions is not null && dualTokenOptions.Enabled)
-                {
-                    var now = DateTimeOffset.UtcNow;
-                    var legacySupportEnd = dualTokenOptions.GetLegacySupportEnd(now);
-                    if (now > legacySupportEnd)
-                    {
-                        context.Fail("Legacy token support window expired.");
-                        return;
-                    }
-                }
-
-                await LogTokenValidationAsync(context, LegacySchemeName);
-            }
-        };
+        options.DefaultScheme = KeycloakSchemeName;
+        options.DefaultChallengeScheme = KeycloakSchemeName;
     })
     .AddJwtBearer(KeycloakSchemeName, options =>
     {
-        if (!string.IsNullOrWhiteSpace(keycloakJwtOptions.Authority))
-        {
-            options.Authority = keycloakJwtOptions.Authority;
-        }
-
-        if (!string.IsNullOrWhiteSpace(keycloakJwtOptions.MetadataAddress))
-        {
-            options.MetadataAddress = keycloakJwtOptions.MetadataAddress;
-        }
-
-        if (!string.IsNullOrWhiteSpace(keycloakJwtOptions.Audience))
-        {
-            options.Audience = keycloakJwtOptions.Audience;
-        }
-        options.RequireHttpsMetadata = keycloakJwtOptions.RequireHttps;
+        options.Authority = keycloakOptions.Authority;
+        options.RequireHttpsMetadata = keycloakOptions.RequireHttps;
         options.SaveToken = true;
+
+        if (!string.IsNullOrWhiteSpace(keycloakOptions.MetadataAddress))
+        {
+            options.MetadataAddress = keycloakOptions.MetadataAddress;
+        }
+
+        if (!string.IsNullOrWhiteSpace(keycloakOptions.Audience))
+        {
+            options.Audience = keycloakOptions.Audience;
+        }
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            ValidateIssuer = !string.IsNullOrWhiteSpace(keycloakJwtOptions.Issuer),
-            ValidIssuer = string.IsNullOrWhiteSpace(keycloakJwtOptions.Issuer) ? null : keycloakJwtOptions.Issuer,
-            ValidateAudience = !string.IsNullOrWhiteSpace(keycloakJwtOptions.Audience),
-            ValidAudience = keycloakJwtOptions.Audience,
+            ValidateIssuer = true,
+            ValidIssuer = keycloakOptions.Issuer!,
+            ValidateAudience = true,
+            ValidAudience = keycloakOptions.Audience!,
             ClockSkew = TimeSpan.FromMinutes(1)
         };
 
@@ -254,7 +185,9 @@ builder.Services.AddAuthentication(options =>
         {
             OnTokenValidated = async context =>
             {
+                Activity.Current?.SetTag("app.auth.token_type", KeycloakSchemeName);
                 context.HttpContext.Items[TokenTypeItemKey] = KeycloakSchemeName;
+
                 var branchIdClaim = context.Principal?.FindFirstValue("branchId") ?? context.Principal?.FindFirstValue("branch_id");
                 if (!string.IsNullOrWhiteSpace(branchIdClaim))
                 {
@@ -281,7 +214,7 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization(options =>
 {
     options.DefaultPolicy = new AuthorizationPolicyBuilder()
-        .AddAuthenticationSchemes(LegacySchemeName, KeycloakSchemeName)
+        .AddAuthenticationSchemes(KeycloakSchemeName)
         .RequireAssertion(context =>
         {
             if (context.Resource is HttpContext httpContext &&
@@ -435,3 +368,5 @@ static async Task LogTokenValidationAsync(TokenValidatedContext context, string 
         logger?.LogWarning(ex, "Failed to record audit event for token validation");
     }
 }
+
+public partial class Program;

@@ -136,6 +136,8 @@ IntelliFin's System Administration layer represents a **V1 MVP foundation** that
 
 **FR12**: The Admin microservice shall collect and centralize audit events from all services, replacing the current audit implementation in FinancialService, with unified query API and compliance reporting.
 
+> Implementation status: FinancialService has removed the EF-backed `IAuditService` implementation and now emits all audit events through the shared `IAuditClient`, proxying read APIs to Admin Service (`/api/admin/audit/...`). Legacy SQL tables are locked read-only and a migration script (`tools/migrations/financial-service/export-audit-events.ps1`) is provided to backfill historical rows into the Admin Service chain.
+
 **FR13**: Audit logs shall implement tamper-evident cryptographic chaining where each audit event includes a hash of the previous event's data, creating a verifiable chain that detects tampering attempts.
 
 **FR14**: Audit logs shall be stored in MinIO with WORM (Write-Once-Read-Many) object locking enabled, enforcing 7-year retention per Bank of Zambia requirements with immutable storage guarantees.
@@ -157,6 +159,10 @@ IntelliFin's System Administration layer represents a **V1 MVP foundation** that
 **FR22**: Kubernetes NetworkPolicies shall implement micro-segmentation, restricting service-to-service communication to explicitly allowed paths and blocking lateral movement by default.
 
 **FR23**: OpenTelemetry SDK shall be integrated into all microservices, exporting traces to **Jaeger**, metrics to Prometheus, and logs to **Loki** via OTLP protocol.
+
+- Log export **must** leverage the shared `SensitiveDataLogProcessor` with configurable regex patterns to mask NRC numbers,
+  phone numbers, and any fields tagged as PII. Runtime configuration is sourced from `OpenTelemetry:Logs:*` settings to avoid
+  code changes when additional patterns are required.
 
 **FR24**: Grafana dashboards shall provide BoZ compliance metrics (audit event counts, access recertification status, security incidents), cost-performance metrics (per-service infrastructure spend, resource utilization), and SLA monitoring (request latency p50/p95/p99, error rates).
 

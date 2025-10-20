@@ -18,6 +18,8 @@
     <PackageReference Include="Testcontainers.MsSql" Version="3.10.0" />
     <PackageReference Include="Testcontainers.RabbitMq" Version="3.10.0" />
     <PackageReference Include="MassTransit.TestFramework" Version="8.5.2" />
+  <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.2.1" />
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -32,6 +34,8 @@
     <ProjectReference Include="..\..\apps\IntelliFin.IdentityService\IntelliFin.IdentityService.csproj" />
     <ProjectReference Include="..\..\apps\IntelliFin.LoanOrigination\IntelliFin.LoanOrigination.csproj" />
     <ProjectReference Include="..\..\apps\IntelliFin.Communications\IntelliFin.Communications.csproj" />
+    <ProjectReference Include="..\..\apps\IntelliFin.FinancialService\IntelliFin.FinancialService.csproj" />
+    <ProjectReference Include="..\..\libs\IntelliFin.Shared.Audit\IntelliFin.Shared.Audit.csproj" />
   </ItemGroup>
 
 </Project>

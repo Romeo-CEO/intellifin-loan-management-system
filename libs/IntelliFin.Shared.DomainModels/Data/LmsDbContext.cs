@@ -1,6 +1,8 @@
 ﻿using IntelliFin.Shared.DomainModels.Entities;
 using IntelliFin.Shared.DomainModels.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace IntelliFin.Shared.DomainModels.Data;
 
@@ -19,6 +21,15 @@ public class LmsDbContext : DbContext
     public DbSet<LoanProduct> LoanProducts => Set<LoanProduct>();
     public DbSet<GLAccount> GLAccounts => Set<GLAccount>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+
+    // IAM Entities (Story 1.1)
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<TenantUser> TenantUsers => Set<TenantUser>();
+    public DbSet<TenantBranch> TenantBranches => Set<TenantBranch>();
+    public DbSet<ServiceAccount> ServiceAccounts => Set<ServiceAccount>();
+    public DbSet<ServiceCredential> ServiceCredentials => Set<ServiceCredential>();
+    public DbSet<SoDRule> SoDRules => Set<SoDRule>();
+    public DbSet<TokenRevocation> TokenRevocations => Set<TokenRevocation>();
 
     // Identity and Authorization
     public DbSet<User> Users => Set<User>();
@@ -46,9 +57,10 @@ public class LmsDbContext : DbContext
     public DbSet<EventProcessingStatus> EventProcessingStatus => Set<EventProcessingStatus>();
     public DbSet<EventRoutingRule> EventRoutingRules => Set<EventRoutingRule>();
     public DbSet<EventRoutingLog> EventRoutingLogs => Set<EventRoutingLog>();
-    public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
-    public DbSet<PerformanceLog> PerformanceLogs => Set<PerformanceLog>();
-    public DbSet<HealthCheckLog> HealthCheckLogs => Set<HealthCheckLog>();
+    // TODO: Add these entities when observability entities are created
+    // public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
+    // public DbSet<PerformanceLog> PerformanceLogs => Set<PerformanceLog>();
+    // public DbSet<HealthCheckLog> HealthCheckLogs => Set<HealthCheckLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -133,13 +145,108 @@ public class LmsDbContext : DbContext
         {
             b.ToTable("AuditEvents");
             b.HasKey(x => x.Id);
-            b.Property(x => x.Actor).HasMaxLength(200).IsRequired();
-            b.Property(x => x.Action).HasMaxLength(200).IsRequired();
-            b.Property(x => x.EntityType).HasMaxLength(200).IsRequired();
-            b.Property(x => x.EntityId).HasMaxLength(200).IsRequired();
-            b.Property(x => x.OccurredAtUtc).IsRequired();
-            b.Property(x => x.Data);
-            b.HasIndex(x => new { x.EntityType, x.EntityId, x.OccurredAtUtc });
+            b.Property(x => x.Id)
+             .HasColumnName("EventId")
+             .ValueGeneratedOnAdd()
+             .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Throw);
+            b.Property(x => x.Actor)
+             .HasColumnName("ActorId")
+             .HasMaxLength(450)
+             .IsRequired();
+            b.Property(x => x.Action)
+             .HasMaxLength(100)
+             .IsRequired();
+            b.Property(x => x.EntityType)
+             .HasColumnName("Entity")
+             .HasMaxLength(100)
+             .IsRequired();
+            b.Property(x => x.EntityId)
+             .HasMaxLength(450)
+             .IsRequired();
+            b.Property(x => x.OccurredAtUtc)
+             .HasColumnName("Timestamp")
+             .HasDefaultValueSql("GETUTCDATE()")
+             .IsRequired();
+            b.Property(x => x.Data)
+             .HasColumnName("Details")
+             .IsRequired(false);
+            b.Property(x => x.IpAddress)
+             .HasMaxLength(50);
+            b.Property(x => x.BranchId);
+            b.Property(x => x.TenantId);
+            b.HasIndex(x => x.OccurredAtUtc).HasDatabaseName("IX_AuditEvents_Timestamp");
+            b.HasIndex(x => x.Actor).HasDatabaseName("IX_AuditEvents_ActorId");
+            b.HasIndex(x => x.TenantId)
+             .HasDatabaseName("IX_AuditEvents_TenantId")
+             .HasFilter("[TenantId] IS NOT NULL");
+        });
+
+        modelBuilder.Entity<ServiceAccount>(b =>
+        {
+            b.ToTable("ServiceAccounts");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.ClientId).HasMaxLength(150).IsRequired();
+            b.HasIndex(x => x.ClientId).IsUnique();
+            b.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Description).HasMaxLength(500);
+            b.Property(x => x.ScopesJson).HasColumnName("ScopesJson").HasColumnType("nvarchar(max)").IsRequired();
+            b.Property(x => x.IsActive).HasDefaultValue(true);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.CreatedBy).HasMaxLength(200).IsRequired();
+            b.Property(x => x.UpdatedBy).HasMaxLength(200);
+            b.Property(x => x.KeycloakClientId).HasMaxLength(200);
+            b.Property(x => x.KeycloakSecretVaultPath).HasMaxLength(500);
+            b.HasMany(x => x.Credentials)
+                .WithOne(x => x.ServiceAccount)
+                .HasForeignKey(x => x.ServiceAccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ServiceCredential>(b =>
+        {
+            b.ToTable("ServiceCredentials");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.SecretHash).HasMaxLength(200).IsRequired();
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.CreatedBy).HasMaxLength(200).IsRequired();
+            b.Property(x => x.RevokedBy).HasMaxLength(200);
+            b.Property(x => x.RevocationReason).HasMaxLength(500);
+            b.HasIndex(x => new { x.ServiceAccountId, x.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<SoDRule>(b =>
+        {
+            b.ToTable("SoDRules");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Description).HasMaxLength(1000);
+            b.Property(x => x.Enforcement)
+                .HasConversion<string>()
+                .HasMaxLength(50)
+                .IsRequired();
+            b.Property(x => x.ConflictingPermissionsJson)
+                .HasColumnName("ConflictingPermissions")
+                .HasColumnType("nvarchar(max)")
+                .HasConversion(
+                    v => v,
+                    v => string.IsNullOrWhiteSpace(v) ? "[]" : v);
+            b.Ignore(x => x.ConflictingPermissions);
+            b.Property(x => x.IsActive).HasDefaultValue(true);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.CreatedBy).HasMaxLength(200).IsRequired();
+            b.Property(x => x.UpdatedBy).HasMaxLength(200);
+            b.HasIndex(x => new { x.IsActive, x.Enforcement });
+        });
+
+        modelBuilder.Entity<TokenRevocation>(b =>
+        {
+            b.ToTable("TokenRevocations");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TokenId).HasMaxLength(200).IsRequired();
+            b.Property(x => x.RevokedAtUtc).IsRequired();
+            b.Property(x => x.RevokedBy).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Reason).HasMaxLength(500);
+            b.HasIndex(x => x.TokenId).IsUnique();
         });
 
         // Sprint 3 Entity Configurations
@@ -383,12 +490,14 @@ public class LmsDbContext : DbContext
             new GLAccount { Id = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa6"), AccountCode = "5000", Name = "Operational Expenses", Category = "Expense", IsActive = true }
         );
 
-        // Seed default roles
+        // Seed baseline IAM roles per PRD
         modelBuilder.Entity<Role>().HasData(
-            new Role { Id = "role-ceo", Name = "CEO", Description = "Chief Executive Officer", Type = RoleType.Organizational, IsSystemRole = true, Level = 1, CreatedBy = "system", CreatedAt = now },
-            new Role { Id = "role-manager", Name = "Manager", Description = "Branch Manager", Type = RoleType.Organizational, IsSystemRole = true, Level = 2, CreatedBy = "system", CreatedAt = now },
-            new Role { Id = "role-officer", Name = "LoanOfficer", Description = "Loan Officer", Type = RoleType.Standard, IsSystemRole = true, Level = 3, CreatedBy = "system", CreatedAt = now },
-            new Role { Id = "role-analyst", Name = "Analyst", Description = "Credit Analyst", Type = RoleType.Standard, IsSystemRole = true, Level = 3, CreatedBy = "system", CreatedAt = now }
+            new Role { Id = "role-system-admin", Name = "System Administrator", Description = "Global administrator with full platform access", Type = RoleType.System, IsSystemRole = true, Level = 1, CreatedBy = "system", CreatedAt = now },
+            new Role { Id = "role-finance-manager", Name = "Finance Manager", Description = "Oversees finance operations and financial controls", Type = RoleType.Organizational, IsSystemRole = true, Level = 2, CreatedBy = "system", CreatedAt = now },
+            new Role { Id = "role-compliance-officer", Name = "Compliance Officer", Description = "Manages regulatory compliance and audit readiness", Type = RoleType.Functional, IsSystemRole = true, Level = 2, CreatedBy = "system", CreatedAt = now },
+            new Role { Id = "role-underwriter", Name = "Underwriter", Description = "Performs credit underwriting and risk assessments", Type = RoleType.Functional, IsSystemRole = true, Level = 3, CreatedBy = "system", CreatedAt = now },
+            new Role { Id = "role-loan-officer", Name = "Loan Officer", Description = "Originates and manages loan applications", Type = RoleType.Functional, IsSystemRole = true, Level = 3, CreatedBy = "system", CreatedAt = now },
+            new Role { Id = "role-collections-officer", Name = "Collections Officer", Description = "Handles collections activities and payment follow-up", Type = RoleType.Functional, IsSystemRole = true, Level = 3, CreatedBy = "system", CreatedAt = now }
         );
 
         // Seed default admin user (password: Password123!)
@@ -408,9 +517,9 @@ public class LmsDbContext : DbContext
             }
         );
 
-        // Assign admin user to CEO role
+        // Assign admin user to System Administrator role
         modelBuilder.Entity<UserRole>().HasData(
-            new UserRole { UserId = "user-admin", RoleId = "role-ceo", AssignedBy = "system", AssignedAt = now }
+            new UserRole { UserId = "user-admin", RoleId = "role-system-admin", AssignedBy = "system", AssignedAt = now }
         );
 
         // Communication System Entity Configurations (Epic 1)
@@ -510,6 +619,50 @@ public class LmsDbContext : DbContext
             b.HasIndex(x => new { x.SourceService, x.RouteTimestamp });
             b.HasIndex(x => x.RouteTimestamp);
         });
+
+        // IAM Entities configuration (Story 1.1)
+        modelBuilder.Entity<Tenant>(b =>
+        {
+            b.ToTable("Tenants");
+            b.HasKey(x => x.TenantId);
+            b.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Code).HasMaxLength(50).IsRequired();
+            b.Property(x => x.IsActive).HasDefaultValue(true).IsRequired();
+            b.Property(x => x.CreatedAt).IsRequired();
+            b.HasIndex(x => x.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<TenantUser>(b =>
+        {
+            b.ToTable("TenantUsers");
+            b.HasKey(x => new { x.TenantId, x.UserId });
+            b.Property(x => x.Role).HasMaxLength(100);
+            b.Property(x => x.AssignedBy).HasMaxLength(450);
+            b.Property(x => x.AssignedAt).IsRequired();
+            b.HasOne(x => x.Tenant)
+             .WithMany(t => t.TenantUsers)
+             .HasForeignKey(x => x.TenantId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasOne(x => x.User)
+             .WithMany(u => u.TenantUsers)
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => x.UserId);
+        });
+
+        modelBuilder.Entity<TenantBranch>(b =>
+        {
+            b.ToTable("TenantBranches");
+            b.HasKey(x => new { x.TenantId, x.BranchId });
+            b.Property(x => x.CreatedAt).IsRequired();
+            b.HasOne(x => x.Tenant).WithMany(t => t.TenantBranches).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+
+
+
 
         base.OnModelCreating(modelBuilder);
     }

@@ -37,6 +37,7 @@ public class User
 
     // Navigation properties
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+    public virtual ICollection<TenantUser> TenantUsers { get; set; } = new List<TenantUser>();
     // Note: Branch navigation property will be added when Branch entity is created
 
     // Computed properties

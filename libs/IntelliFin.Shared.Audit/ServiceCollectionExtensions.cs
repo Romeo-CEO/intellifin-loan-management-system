@@ -7,7 +7,8 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddAuditClient(this IServiceCollection services, IConfiguration configuration)
     {
-        services.Configure<AuditClientOptions>(configuration.GetSection(AuditClientOptions.SectionName));
+        services.Configure<AuditClientOptions>(options =>
+            configuration.GetSection(AuditClientOptions.SectionName).Bind(options));
 
         services.AddHttpClient<IAuditClient, AuditClient>();
         return services;
