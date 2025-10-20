@@ -162,6 +162,9 @@ public static class ServiceCollectionExtensions
 
         // Baseline seed service
         services.AddScoped<IBaselineSeedService, BaselineSeedService>();
+
+        // Migration orchestration service
+        services.AddScoped<IMigrationOrchestrationService, MigrationOrchestrationService>();
         
         // Keycloak Provisioning Services (conditionally registered based on feature flag)
         var featureFlags = configuration.GetSection(FeatureFlags.SectionName).Get<FeatureFlags>() ?? new FeatureFlags();
@@ -294,6 +297,10 @@ public static class ServiceCollectionExtensions
 
             options.AddPolicy(AuthorizationPolicies.PlatformServiceAccounts, policy =>
                 policy.RequireClaim("scope", "platform:service_accounts"));
+
+            // Migration orchestration policy
+            options.AddPolicy("RequireSystemAdmin", policy =>
+                policy.RequireClaim("scope", "system:admin"));
         });
 
         // Add Keycloak authentication if enabled

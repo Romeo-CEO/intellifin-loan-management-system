@@ -1,0 +1,17 @@
+{
+  "title": "IAM Migration Dashboard",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    { "type": "stat", "title": "Current Phase", "gridPos": {"x":0,"y":0,"w":8,"h":4}, "options": {"reduceOptions": {"calcs": ["last"]}} },
+    { "type": "timeseries", "title": "Auth Success Rate", "gridPos": {"x":8,"y":0,"w":16,"h":8} },
+    { "type": "bargauge", "title": "Token Type Distribution", "gridPos": {"x":0,"y":4,"w":8,"h":8} },
+    { "type": "timeseries", "title": "API Gateway Latency (p95)", "gridPos": {"x":0,"y":12,"w":12,"h":8} },
+    { "type": "timeseries", "title": "Error Rate", "gridPos": {"x":12,"y":12,"w":12,"h":8} },
+    { "type": "table", "title": "Provisioning Progress", "gridPos": {"x":0,"y":20,"w":24,"h":8} }
+  ],
+  "templating": {"list": []},
+  "annotations": {"list": []}
+}
