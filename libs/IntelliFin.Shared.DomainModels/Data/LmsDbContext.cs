@@ -37,10 +37,6 @@ public class LmsDbContext : DbContext
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
-    public DbSet<ServiceAccount> ServiceAccounts => Set<ServiceAccount>();
-    public DbSet<ServiceCredential> ServiceCredentials => Set<ServiceCredential>();
-    public DbSet<SoDRule> SoDRules => Set<SoDRule>();
-    public DbSet<TokenRevocation> TokenRevocations => Set<TokenRevocation>();
     
     // Sprint 3 Entities
     public DbSet<CreditAssessment> CreditAssessments => Set<CreditAssessment>();
@@ -664,94 +660,9 @@ public class LmsDbContext : DbContext
             b.HasOne(x => x.Tenant).WithMany(t => t.TenantBranches).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<ServiceAccount>(b =>
-        {
-            b.ToTable("ServiceAccounts");
-            b.HasKey(x => x.ServiceAccountId);
-            b.Property(x => x.ClientId).HasMaxLength(100).IsRequired();
-            b.Property(x => x.Name).HasMaxLength(200).IsRequired();
-            b.Property(x => x.Description).HasMaxLength(500);
-            b.Property(x => x.IsActive).HasDefaultValue(true).IsRequired();
-            b.Property(x => x.CreatedAt).IsRequired();
-            b.Property(x => x.CreatedBy).HasMaxLength(450);
-            b.HasIndex(x => x.ClientId).IsUnique();
-        });
 
-        modelBuilder.Entity<ServiceCredential>(b =>
-        {
-            b.ToTable("ServiceCredentials");
-            b.HasKey(x => x.CredentialId);
-            b.Property(x => x.SecretHash).HasMaxLength(500).IsRequired();
-            b.Property(x => x.CreatedAt).IsRequired();
-            b.HasOne(x => x.ServiceAccount).WithMany(sa => sa.Credentials).HasForeignKey(x => x.ServiceAccountId).OnDelete(DeleteBehavior.Cascade);
-            b.HasIndex(x => x.ServiceAccountId);
-        });
 
-        modelBuilder.Entity<SoDRule>(b =>
-        {
-            b.ToTable("SoDRules");
-            b.HasKey(x => x.RuleId);
-            b.Property(x => x.RuleName).HasMaxLength(100).IsRequired();
-            b.Property(x => x.ConflictingPermissions).IsRequired();
-            b.Property(x => x.Enforcement).HasMaxLength(20).HasDefaultValue("strict").IsRequired();
-            b.Property(x => x.Description).HasMaxLength(500);
-            b.Property(x => x.IsActive).HasDefaultValue(true).IsRequired();
-            b.HasIndex(x => x.RuleName).IsUnique();
 
-            // Seed baseline SoD rules
-            b.HasData(
-                new SoDRule
-                {
-                    RuleId = Guid.Parse("20000000-0000-0000-0000-000000000001"),
-                    RuleName = "sod-loan-approval",
-                    ConflictingPermissions = "[\"loans:create\", \"loans:approve\"]",
-                    Enforcement = "strict",
-                    IsActive = true,
-                    Description = "Prevent a single user from originating and approving the same loan"
-                },
-                new SoDRule
-                {
-                    RuleId = Guid.Parse("20000000-0000-0000-0000-000000000002"),
-                    RuleName = "sod-gl-posting",
-                    ConflictingPermissions = "[\"gl:post\", \"gl:reverse\"]",
-                    Enforcement = "strict",
-                    IsActive = true,
-                    Description = "Prevent a single user from posting and reversing the same GL entries"
-                },
-                new SoDRule
-                {
-                    RuleId = Guid.Parse("20000000-0000-0000-0000-000000000003"),
-                    RuleName = "sod-client-approval",
-                    ConflictingPermissions = "[\"clients:create\", \"compliance:manage\"]",
-                    Enforcement = "strict",
-                    IsActive = true,
-                    Description = "Block when client onboarding and compliance approval are handled by the same user"
-                },
-                new SoDRule
-                {
-                    RuleId = Guid.Parse("20000000-0000-0000-0000-000000000004"),
-                    RuleName = "sod-payment-reconciliation",
-                    ConflictingPermissions = "[\"payments:record\", \"payments:reverse\"]",
-                    Enforcement = "warning",
-                    IsActive = true,
-                    Description = "Warn if the same user records and reverses customer payments during reconciliation"
-                }
-            );
-        });
-
-        modelBuilder.Entity<TokenRevocation>(b =>
-        {
-            b.ToTable("TokenRevocations");
-            b.HasKey(x => x.RevocationId);
-            b.Property(x => x.TokenId).HasMaxLength(100).IsRequired();
-            b.Property(x => x.UserId).HasMaxLength(450).IsRequired();
-            b.Property(x => x.RevokedAt).IsRequired();
-            b.Property(x => x.RevokedBy).HasMaxLength(450);
-            b.Property(x => x.Reason).HasMaxLength(200);
-            b.Property(x => x.ExpiresAt).IsRequired();
-            b.HasIndex(x => x.TokenId).IsUnique();
-            b.HasIndex(x => x.ExpiresAt);
-        });
 
         base.OnModelCreating(modelBuilder);
     }

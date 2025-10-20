@@ -18,13 +18,13 @@ public interface IKeycloakUserProvisioningService
 /// <summary>
 /// Implementation of user provisioning service
 /// </summary>
-public class KeycloakProvisioningService : IKeycloakUserProvisioningService
+public class KeycloakProvisioningService : IUserProvisioningService
 {
     private readonly IKeycloakAdminClient _keycloakAdmin;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<ApplicationRole> _roleManager;
     private readonly IUserRepository _userRepository;
-    private readonly ILogger<UserProvisioningService> _logger;
+private readonly ILogger<KeycloakProvisioningService> _logger;
 
     public KeycloakProvisioningService(
         IKeycloakAdminClient keycloakAdmin,
@@ -47,7 +47,7 @@ public class KeycloakProvisioningService : IKeycloakUserProvisioningService
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
-                return UserProvisioningResult.Failure($"User {userId} not found");
+                return ProvisioningResult.Failure($"User {userId} not found");
             }
 
             return await ProvisionUserInternalAsync(user, false, cancellationToken);
@@ -55,7 +55,7 @@ public class KeycloakProvisioningService : IKeycloakUserProvisioningService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error provisioning user {UserId}", userId);
-            return UserProvisioningResult.Failure($"Exception: {ex.Message}");
+            return ProvisioningResult.Failure($"Exception: {ex.Message}");
         }
     }
 
@@ -159,6 +159,42 @@ public class KeycloakProvisioningService : IKeycloakUserProvisioningService
         }
     }
 
+    // IUserProvisioningService overload without dry-run parameter
+    public Task<BulkProvisioningResult> ProvisionAllUsersAsync(CancellationToken cancellationToken = default)
+    {
+        return ProvisionAllUsersAsync(false, cancellationToken);
+    }
+
+    public async Task<ProvisioningResult> ProvisionUserByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+            {
+                return ProvisioningResult.Failure($"User with email {email} not found");
+            }
+
+            return await ProvisionUserInternalAsync(user, false, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error provisioning user by email {Email}", email);
+            return ProvisioningResult.Failure($"Exception: {ex.Message}");
+        }
+    }
+
+    public async Task<bool> IsUserProvisionedAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return false;
+        }
+
+        var existingUser = await FindKeycloakUserAsync(user, cancellationToken);
+        return existingUser != null;
+    }
 
     private async Task<ProvisioningResult> ProvisionUserInternalAsync(
         ApplicationUser user,
@@ -185,6 +221,7 @@ public class KeycloakProvisioningService : IKeycloakUserProvisioningService
 
             string keycloakUserId;
             ProvisioningAction action;
+            string? tempPassword = null;
             
             if (userExists)
             {
@@ -208,7 +245,7 @@ public class KeycloakProvisioningService : IKeycloakUserProvisioningService
                 }
                 
                 // Set temporary password (user will need to change on first login)
-                var tempPassword = GenerateTemporaryPassword();
+                tempPassword = GenerateTemporaryPassword();
                 var passwordSet = await _keycloakAdmin.SetTemporaryPasswordAsync(
                     keycloakUserId, tempPassword, cancellationToken);
 
@@ -224,7 +261,7 @@ public class KeycloakProvisioningService : IKeycloakUserProvisioningService
             // Sync user roles (idempotent)
             await SyncUserRolesAsync(user, keycloakUserId, cancellationToken);
 
-            return ProvisioningResult.Success(keycloakUserId, action);
+            return ProvisioningResult.CreateSuccess(keycloakUserId, action, action == ProvisioningAction.Created ? tempPassword : null);
         }
         catch (Exception ex)
         {
@@ -374,28 +411,32 @@ public class ProvisioningResult
     public string? ErrorMessage { get; set; }
     public ProvisioningAction Action { get; set; }
     public Dictionary<string, object> Details { get; set; } = new();
+    public bool AlreadyExisted { get; set; }
+    public string? TemporaryPassword { get; set; }
 
-    public static ProvisioningResult CreateSuccess(string keycloakUserId, ProvisioningAction action)
+    public static ProvisioningResult CreateSuccess(string keycloakUserId, ProvisioningAction action, string? temporaryPassword = null)
     {
         return new ProvisioningResult
         {
             Success = true,
             KeycloakUserId = keycloakUserId,
-            Action = action
+            Action = action,
+            TemporaryPassword = temporaryPassword
         };
     }
 
-    public static ProvisioningResult CreateSkipped(string keycloakUserId)
+    public static ProvisioningResult Skipped(string keycloakUserId)
     {
         return new ProvisioningResult
         {
             Success = true,
             KeycloakUserId = keycloakUserId,
-            Action = ProvisioningAction.Skipped
+            Action = ProvisioningAction.Skipped,
+            AlreadyExisted = true
         };
     }
 
-    public static ProvisioningResult CreateFailure(string errorMessage)
+    public static ProvisioningResult Failure(string errorMessage)
     {
         return new ProvisioningResult
         {
@@ -430,6 +471,7 @@ public class BulkProvisioningResult
     public int PendingCreates { get; set; }
     public List<string> Errors { get; set; } = new();
 
+    public int SuccessfulProvisions => CreatedUsers + UpdatedUsers;
     public int TotalProcessed => CreatedUsers + UpdatedUsers + SkippedProvisions + FailedProvisions;
     public double SuccessRate => TotalUsers > 0 
         ? (double)(CreatedUsers + UpdatedUsers) / TotalUsers * 100 

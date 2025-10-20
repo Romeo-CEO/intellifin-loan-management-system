@@ -11,6 +11,9 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.IdentityModel.JsonWebTokens;
+using AuditEvent = IntelliFin.IdentityService.Models.AuditEvent;
+using JwtReg = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames;
 using StackExchange.Redis;
 
 namespace IntelliFin.IdentityService.Services;
@@ -114,16 +117,16 @@ public class TokenIntrospectionService : ITokenIntrospectionService
 
         var claimsIdentity = validationResult.ClaimsIdentity;
         var claims = claimsIdentity?.Claims ?? Array.Empty<Claim>();
-        var subject = claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub || c.Type == ClaimTypes.NameIdentifier)?.Value;
+var subject = claims.FirstOrDefault(c => c.Type == JwtReg.Sub || c.Type == ClaimTypes.NameIdentifier)?.Value;
         var username = ResolveUsername(claims);
-        var email = claims.FirstOrDefault(c => c.Type == ClaimTypes.Email || c.Type == JwtRegisteredClaimNames.Email)?.Value;
+        var email = claims.FirstOrDefault(c => c.Type == ClaimTypes.Email || c.Type == JwtReg.Email)?.Value;
         var roles = ResolveRoles(claims);
         var permissions = ResolvePermissions(claims);
         var branchId = ResolveGuidClaim(claims, "branch_id");
         var tenantId = ResolveGuidClaim(claims, "tenant_id");
-        var tokenId = claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
-        var issuedAt = ResolveLongClaim(claims, JwtRegisteredClaimNames.Iat);
-        var expiresAt = ResolveLongClaim(claims, JwtRegisteredClaimNames.Exp);
+        var tokenId = claims.FirstOrDefault(c => c.Type == JwtReg.Jti)?.Value;
+        var issuedAt = ResolveLongClaim(claims, JwtReg.Iat);
+        var expiresAt = ResolveLongClaim(claims, JwtReg.Exp);
 
         if (!string.IsNullOrEmpty(tokenId))
         {
@@ -136,9 +139,10 @@ public class TokenIntrospectionService : ITokenIntrospectionService
 
         if (!string.IsNullOrEmpty(subject))
         {
-            var enrichment = await EnrichFromDirectoryAsync(subject, cancellationToken).ConfigureAwait(false);
-            if (enrichment is not null)
+            var enrichmentTuple = await EnrichFromDirectoryAsync(subject, cancellationToken).ConfigureAwait(false);
+            if (enrichmentTuple.HasValue)
             {
+                var enrichment = enrichmentTuple.Value;
                 roles = roles.Union(enrichment.Roles, StringComparer.OrdinalIgnoreCase).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
                 permissions = permissions.Union(enrichment.Permissions, StringComparer.OrdinalIgnoreCase).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
 

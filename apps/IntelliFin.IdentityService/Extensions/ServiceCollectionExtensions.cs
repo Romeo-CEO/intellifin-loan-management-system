@@ -30,8 +30,21 @@ public static class ServiceCollectionExtensions
         services.AddHostedService(sp => sp.GetRequiredService<VaultDatabaseCredentialService>());
 
     // Database Context
-    services.AddDbContext<LmsDbContext>((serviceProvider, options) =>
+    var useInMemory = configuration.GetValue<bool>("UseInMemoryDatabase") ||
+                      string.Equals(configuration["Database:Provider"], "InMemory", StringComparison.OrdinalIgnoreCase);
+
+    if (useInMemory)
     {
+        services.AddDbContext<LmsDbContext>(options =>
+        {
+            var dbName = configuration.GetValue<string>("InMemoryDatabaseName") ?? "IntelliFin_Identity_Tests";
+            options.UseInMemoryDatabase(dbName);
+        });
+    }
+    else
+    {
+        services.AddDbContext<LmsDbContext>((serviceProvider, options) =>
+        {
             var baseConnectionString = configuration.GetConnectionString("IdentityDb")
                 ?? configuration.GetConnectionString("DefaultConnection")
                 ?? "Server=(localdb)\\mssqllocaldb;Database=IntelliFin_LoanManagement;Trusted_Connection=true;MultipleActiveResultSets=true";
@@ -60,6 +73,7 @@ public static class ServiceCollectionExtensions
                 options.UseSqlServer(baseConnectionString);
             }
         });
+    }
 
         // Repositories
         services.AddScoped<IUserRepository, UserRepository>();
@@ -145,6 +159,9 @@ public static class ServiceCollectionExtensions
         // Role Composition Services
         services.AddScoped<IRoleCompositionService, RoleCompositionService>();
         services.AddScoped<IRoleTemplateService, RoleTemplateService>();
+
+        // Baseline seed service
+        services.AddScoped<IBaselineSeedService, BaselineSeedService>();
         
         // Keycloak Provisioning Services (conditionally registered based on feature flag)
         var featureFlags = configuration.GetSection(FeatureFlags.SectionName).Get<FeatureFlags>() ?? new FeatureFlags();
@@ -156,8 +173,8 @@ public static class ServiceCollectionExtensions
             services.AddHttpClient<IKeycloakAdminClient, KeycloakAdminClient>();
             services.AddScoped<IKeycloakAdminClient, KeycloakAdminClient>();
             
-            // Register Provisioning Service
-            services.AddScoped<IKeycloakUserProvisioningService, KeycloakProvisioningService>();
+// Register Provisioning Service
+            services.AddScoped<IUserProvisioningService, KeycloakProvisioningService>();
             
             // Register Background Queue
             services.AddSingleton<IBackgroundQueue<ProvisionCommand>>(sp =>

@@ -6,6 +6,7 @@ using IntelliFin.Shared.DomainModels.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+using AuditEvent = IntelliFin.IdentityService.Models.AuditEvent;
 namespace IntelliFin.IdentityService.Services;
 
 public class SoDValidationService : ISoDValidationService

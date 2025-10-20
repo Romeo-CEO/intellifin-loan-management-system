@@ -31,7 +31,7 @@ public class PlatformAuthorizationController : ControllerBase
     /// Checks if a specific user has a permission (Platform Plane can check any user)
     /// </summary>
     [HttpGet("users/{userId}/permissions/{permission}/check")]
-    public async Task<ActionResult<PermissionCheckResponse>> CheckUserPermission(string userId, string permission)
+    public async Task<ActionResult<PlatformPermissionCheckResponse>> CheckUserPermission(string userId, string permission)
     {
         try
         {
@@ -42,7 +42,7 @@ public class PlatformAuthorizationController : ControllerBase
 
             var hasPermission = await _authorizationService.HasPermissionAsync(userId, permission);
             
-            var response = new PermissionCheckResponse
+            var response = new PlatformPermissionCheckResponse
             {
                 UserId = userId,
                 Permission = permission,
@@ -267,7 +267,7 @@ public class BulkPermissionCheckRequest
 /// <summary>
 /// Response model for permission checks
 /// </summary>
-public class PermissionCheckResponse
+public class PlatformPermissionCheckResponse
 {
     public string UserId { get; set; } = string.Empty;
     public string Permission { get; set; } = string.Empty;

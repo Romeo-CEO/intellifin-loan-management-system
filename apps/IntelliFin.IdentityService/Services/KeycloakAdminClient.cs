@@ -12,6 +12,7 @@ namespace IntelliFin.IdentityService.Services;
 /// </summary>
 public interface IKeycloakAdminClient
 {
+    // User operations
     Task<string?> CreateUserAsync(KeycloakUserRepresentation user, CancellationToken cancellationToken = default);
     Task<KeycloakUserRepresentation?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<KeycloakUserRepresentation?> GetUserByIdAsync(string userId, CancellationToken cancellationToken = default);
@@ -20,6 +21,14 @@ public interface IKeycloakAdminClient
     Task<bool> SetTemporaryPasswordAsync(string userId, string password, CancellationToken cancellationToken = default);
     Task<bool> AssignRealmRoleAsync(string userId, string roleName, CancellationToken cancellationToken = default);
     Task<bool> RemoveRealmRoleAsync(string userId, string roleName, CancellationToken cancellationToken = default);
+
+    // Service account (client) registration
+    Task<KeycloakClientRegistrationResult?> RegisterServiceAccountAsync(
+        IntelliFin.Shared.DomainModels.Entities.ServiceAccount account,
+        string plainSecret,
+        IReadOnlyCollection<string> scopes,
+        CancellationToken cancellationToken = default);
+
     Task<string?> GetAdminAccessTokenAsync(CancellationToken cancellationToken = default);
 }
 
@@ -345,6 +354,18 @@ public class KeycloakAdminClient : IKeycloakAdminClient
             _logger.LogError(ex, "Error obtaining Keycloak admin access token");
             return null;
         }
+    }
+
+    // Placeholder implementation for service account registration (client credentials)
+    public async Task<KeycloakClientRegistrationResult?> RegisterServiceAccountAsync(
+        IntelliFin.Shared.DomainModels.Entities.ServiceAccount account,
+        string plainSecret,
+        IReadOnlyCollection<string> scopes,
+        CancellationToken cancellationToken = default)
+    {
+        // Not implemented yet; return null to indicate no external provisioning performed
+        _logger.LogDebug("RegisterServiceAccountAsync called for {ClientId} (scopes: {Scopes})", account.ClientId, string.Join(",", scopes));
+        return await Task.FromResult<KeycloakClientRegistrationResult?>(null);
     }
 
     private async Task EnsureAdminTokenAsync(CancellationToken cancellationToken)

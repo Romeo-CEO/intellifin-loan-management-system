@@ -54,8 +54,8 @@ public static class KeycloakAuthenticationExtensions
             return handler;
         });
         
-        // Register user provisioning service
-        services.AddScoped<IUserProvisioningService, UserProvisioningService>();
+// Register user provisioning service
+        services.AddScoped<IUserProvisioningService, KeycloakProvisioningService>();
 
         // Skip further configuration if Keycloak is not enabled
         if (!keycloakOptions.Enabled)

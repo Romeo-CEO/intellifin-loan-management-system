@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 
+using AuditEvent = IntelliFin.IdentityService.Models.AuditEvent;
 namespace IntelliFin.IdentityService.Tests.Services;
 
 public class TenantServiceTests : IDisposable

@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using AuditEvent = IntelliFin.IdentityService.Models.AuditEvent;
 namespace IntelliFin.IdentityService.Services;
 
 public class ServiceAccountService : IServiceAccountService

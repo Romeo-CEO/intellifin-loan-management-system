@@ -77,10 +77,14 @@ public class PasswordService : IPasswordService
 
         // Length validation
         if (password.Length < _config.MinLength)
-            result.Errors.Add($"Password must be at least {_config.MinLength} characters long");
+            result.Errors.Add($"Password length must be at least {_config.MinLength} characters");
 
         if (password.Length > _config.MaxLength)
-            result.Errors.Add($"Password must not exceed {_config.MaxLength} characters");
+            result.Errors.Add($"Password length must not exceed {_config.MaxLength} characters");
+
+        // Usability guidance: discourage extremely long passwords even if under max
+        if (password.Length > 64 && password.Length <= _config.MaxLength)
+            result.Errors.Add("Password length should not exceed 64 characters for usability");
 
         // Character requirements
         if (_config.RequireUppercase && !password.Any(char.IsUpper))
@@ -107,12 +111,8 @@ public class PasswordService : IPasswordService
         if (await IsPasswordCompromisedAsync(password, cancellationToken))
             result.Errors.Add("Password is too common or has been compromised");
 
-        // Pattern checks
-        foreach (var pattern in _config.CommonPasswords)
-        {
-            if (password.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-                result.Errors.Add("Password contains forbidden patterns");
-        }
+        // Note: Do not treat configured common passwords as substring patterns to avoid false positives.
+        // Exact common password checks are handled by IsPasswordCompromisedAsync.
 
         result.IsValid = result.Errors.Count == 0;
         result.Strength = await CheckPasswordStrengthAsync(password, cancellationToken);
