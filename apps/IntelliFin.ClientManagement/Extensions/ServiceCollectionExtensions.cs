@@ -1,6 +1,11 @@
+using FluentValidation;
 using IntelliFin.ClientManagement.Infrastructure.Persistence;
 using IntelliFin.ClientManagement.Infrastructure.Vault;
+using IntelliFin.Shared.Audit;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace IntelliFin.ClientManagement.Extensions;
 
@@ -54,6 +59,115 @@ public static class ServiceCollectionExtensions
                 tags: new[] { "database", "sql" }
             );
         
+        return services;
+    }
+
+    /// <summary>
+    /// Configures JWT authentication with IdentityService as authority
+    /// </summary>
+    public static IServiceCollection AddJwtAuthentication(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var authSection = configuration.GetSection("Authentication");
+        var authority = authSection["Authority"];
+        var audience = authSection["Audience"] ?? "intellifin.client-management";
+        var secretKey = authSection["SecretKey"] ?? configuration["JWT:SecretKey"];
+
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            // If using IdentityService as authority
+            if (!string.IsNullOrEmpty(authority))
+            {
+                options.Authority = authority;
+                options.Audience = audience;
+                options.RequireHttpsMetadata = authSection.GetValue<bool>("RequireHttpsMetadata", true);
+            }
+            // Otherwise use secret key validation
+            else if (!string.IsNullOrEmpty(secretKey))
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = authSection.GetValue<bool>("ValidateIssuer", true),
+                    ValidateAudience = authSection.GetValue<bool>("ValidateAudience", true),
+                    ValidateLifetime = authSection.GetValue<bool>("ValidateLifetime", true),
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = authSection["Issuer"] ?? "intellifin-identity",
+                    ValidAudience = audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+                };
+            }
+
+            options.Events = new JwtBearerEvents
+            {
+                OnAuthenticationFailed = context =>
+                {
+                    var logger = context.HttpContext.RequestServices
+                        .GetRequiredService<ILogger<Program>>();
+                    logger.LogWarning("Authentication failed: {Error}", context.Exception.Message);
+                    return Task.CompletedTask;
+                },
+                OnTokenValidated = context =>
+                {
+                    var logger = context.HttpContext.RequestServices
+                        .GetRequiredService<ILogger<Program>>();
+                    logger.LogDebug("Token validated for user: {User}", 
+                        context.Principal?.Identity?.Name ?? "unknown");
+                    return Task.CompletedTask;
+                }
+            };
+        });
+
+        services.AddAuthorization();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Configures FluentValidation for automatic model validation
+    /// </summary>
+    public static IServiceCollection AddFluentValidationConfiguration(
+        this IServiceCollection services)
+    {
+        services.AddValidatorsFromAssemblyContaining<Program>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registers application services
+    /// </summary>
+    public static IServiceCollection AddClientManagementServices(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Add audit client
+        services.AddAuditClient(configuration);
+
+        // Add HttpContextAccessor for correlation ID enricher
+        services.AddHttpContextAccessor();
+
+        // Placeholder for future services (Story 1.3+)
+        // services.AddScoped<IClientService, ClientService>();
+        // services.AddScoped<IClientRepository, ClientRepository>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Configures infrastructure services
+    /// </summary>
+    public static IServiceCollection AddClientManagementInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Infrastructure services will be added here in future stories
+        // Example: Document storage, message bus, cache, etc.
+
         return services;
     }
     

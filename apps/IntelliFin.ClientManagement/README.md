@@ -19,20 +19,34 @@ The Client Management service is the single source of truth for all customer dat
 - HashiCorp Vault integration for connection strings
 - Health check endpoints (`/health`, `/health/db`)
 - Initial migration infrastructure
-- Integration tests with TestContainers
+- Integration tests with TestContainers (7 tests)
 
 **Database:** `IntelliFin.ClientManagement`  
 **Service Account:** `client_svc` (to be configured)
 
+### ✅ Story 1.2: Shared Libraries & Dependency Injection (COMPLETED)
+
+**What's Working:**
+- Correlation ID middleware with auto-generation
+- Global exception handler with consistent error responses
+- JWT authentication (secret key validation for development)
+- Serilog structured logging with correlation ID enricher
+- FluentValidation infrastructure
+- Result<T> pattern for operation outcomes
+- Integration tests (12 tests)
+
+**Middleware:** Correlation ID → Exception Handler → Auth → Authorization  
+**Logging:** Structured with correlation IDs in all entries  
+**Authentication:** JWT bearer tokens with claims-based authorization
+
 ### 🚧 In Progress / Upcoming
 
-- **Story 1.2:** Shared Libraries & Dependency Injection (Next)
-- **Story 1.3:** Client CRUD Operations
+- **Story 1.3:** Client CRUD Operations (Next)
 - **Story 1.4:** Client Versioning (SCD-2)
 - **Story 1.5:** AdminService Audit Integration
 - **Story 1.6:** KycDocument Integration
 - **Story 1.7:** Communications Integration
-- ... (17 stories total)
+- ... (17 stories total, 2 complete)
 
 ---
 
