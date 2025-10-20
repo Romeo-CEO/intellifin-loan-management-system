@@ -13,11 +13,16 @@ public class ClientService : IClientService
 {
     private readonly ClientManagementDbContext _context;
     private readonly ILogger<ClientService> _logger;
+    private readonly IClientVersioningService _versioningService;
 
-    public ClientService(ClientManagementDbContext context, ILogger<ClientService> logger)
+    public ClientService(
+        ClientManagementDbContext context, 
+        ILogger<ClientService> logger,
+        IClientVersioningService versioningService)
     {
         _context = context;
         _logger = logger;
+        _versioningService = versioningService;
     }
 
     public async Task<Result<ClientResponse>> CreateClientAsync(CreateClientRequest request, string userId)
@@ -72,6 +77,22 @@ public class ClientService : IClientService
 
             _context.Clients.Add(client);
             await _context.SaveChangesAsync();
+
+            // Create initial version snapshot (version 1)
+            var versionResult = await _versioningService.CreateVersionAsync(
+                client,
+                "Initial client creation",
+                userId,
+                null, // IP address - could be added later
+                null  // Correlation ID - could be added later
+            );
+
+            if (versionResult.IsFailure)
+            {
+                _logger.LogWarning("Failed to create initial version for client {ClientId}: {Error}", 
+                    client.Id, versionResult.Error);
+                // Don't fail client creation if versioning fails, but log it
+            }
 
             _logger.LogInformation("Created client {ClientId} with NRC {Nrc} by user {UserId}", 
                 client.Id, client.Nrc, userId);
@@ -130,6 +151,8 @@ public class ClientService : IClientService
 
     public async Task<Result<ClientResponse>> UpdateClientAsync(Guid id, UpdateClientRequest request, string userId)
     {
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        
         try
         {
             var client = await _context.Clients.FindAsync(id);
@@ -138,6 +161,14 @@ public class ClientService : IClientService
             {
                 _logger.LogWarning("Client not found for update: {ClientId}", id);
                 return Result<ClientResponse>.Failure($"Client with ID {id} not found");
+            }
+
+            // Close current version (set IsCurrent=false, ValidTo=NOW)
+            var closeResult = await _versioningService.CloseCurrentVersionAsync(client.Id);
+            if (closeResult.IsFailure)
+            {
+                await transaction.RollbackAsync();
+                return Result<ClientResponse>.Failure(closeResult.Error);
             }
 
             // Update mutable fields only
@@ -156,15 +187,35 @@ public class ClientService : IClientService
             client.EmploymentStatus = request.EmploymentStatus;
             client.UpdatedAt = DateTime.UtcNow;
             client.UpdatedBy = userId;
+            client.VersionNumber++; // Increment version number
 
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Updated client {ClientId} by user {UserId}", client.Id, userId);
+            // Create new version snapshot
+            var versionResult = await _versioningService.CreateVersionAsync(
+                client,
+                "Client profile updated",
+                userId,
+                null, // IP address - could be added later
+                null  // Correlation ID - could be added later
+            );
+
+            if (versionResult.IsFailure)
+            {
+                await transaction.RollbackAsync();
+                return Result<ClientResponse>.Failure(versionResult.Error);
+            }
+
+            await transaction.CommitAsync();
+
+            _logger.LogInformation("Updated client {ClientId} to version {VersionNumber} by user {UserId}", 
+                client.Id, client.VersionNumber, userId);
 
             return Result<ClientResponse>.Success(MapToResponse(client));
         }
         catch (Exception ex)
         {
+            await transaction.RollbackAsync();
             _logger.LogError(ex, "Error updating client {ClientId}", id);
             return Result<ClientResponse>.Failure($"Error updating client: {ex.Message}");
         }
