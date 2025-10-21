@@ -180,6 +180,9 @@ public static class ServiceCollectionExtensions
         // Register notification service (Story 1.7)
         services.AddScoped<Services.INotificationService, Services.NotificationService>();
 
+        // Register KYC workflow service (Story 1.10)
+        services.AddScoped<Services.IKycWorkflowService, Services.KycWorkflowService>();
+
         // Register CommunicationsService HTTP client (Story 1.7)
         services.AddRefitClient<Integration.ICommunicationsClient>()
             .ConfigureHttpClient(c =>

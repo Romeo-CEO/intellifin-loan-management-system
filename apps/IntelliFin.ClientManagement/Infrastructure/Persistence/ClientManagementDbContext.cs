@@ -34,6 +34,11 @@ public class ClientManagementDbContext : DbContext
     /// </summary>
     public DbSet<CommunicationConsent> CommunicationConsents => Set<CommunicationConsent>();
 
+    /// <summary>
+    /// KYC statuses (Story 1.10)
+    /// </summary>
+    public DbSet<KycStatus> KycStatuses => Set<KycStatus>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -43,6 +48,7 @@ public class ClientManagementDbContext : DbContext
         modelBuilder.ApplyConfiguration(new ClientVersionConfiguration());
         modelBuilder.ApplyConfiguration(new ClientDocumentConfiguration());
         modelBuilder.ApplyConfiguration(new CommunicationConsentConfiguration());
+        modelBuilder.ApplyConfiguration(new KycStatusConfiguration());
         
         // Future entity configurations will be added here as needed
     }

@@ -198,4 +198,10 @@ public class Client
     /// Collection of communication consent preferences for this client (Story 1.7)
     /// </summary>
     public ICollection<CommunicationConsent> Consents { get; set; } = new List<CommunicationConsent>();
+
+    /// <summary>
+    /// KYC (Know Your Customer) compliance status for this client (Story 1.10)
+    /// One-to-one relationship tracking KYC verification progress
+    /// </summary>
+    public KycStatus? KycStatus { get; set; }
 }
