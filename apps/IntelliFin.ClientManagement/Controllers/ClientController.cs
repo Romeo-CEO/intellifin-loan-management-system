@@ -48,7 +48,7 @@ public class ClientController : ControllerBase
 
         var result = await _clientService.CreateClientAsync(request, userId);
 
-        return result.Match(
+        return result.Match<IActionResult>(
             onSuccess: client => CreatedAtAction(
                 nameof(GetClientById),
                 new { id = client.Id },
