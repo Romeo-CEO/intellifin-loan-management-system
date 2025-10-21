@@ -33,7 +33,23 @@ public class ClientServiceTests : IAsyncLifetime
 
         var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         var logger = loggerFactory.CreateLogger<ClientService>();
-        _service = new ClientService(_context, logger);
+        var versioningLogger = loggerFactory.CreateLogger<ClientVersioningService>();
+        
+        // Create mock audit service
+        var mockAuditService = new Mock<IAuditService>();
+        mockAuditService
+            .Setup(x => x.LogAuditEventAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<object>()))
+            .Returns(Task.CompletedTask);
+        
+        // Create versioning service
+        var versioningService = new ClientVersioningService(_context, versioningLogger);
+        
+        _service = new ClientService(_context, logger, versioningService, mockAuditService.Object);
     }
 
     public async Task DisposeAsync()
