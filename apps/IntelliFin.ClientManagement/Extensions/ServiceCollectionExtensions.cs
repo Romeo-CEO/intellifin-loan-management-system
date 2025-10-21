@@ -145,8 +145,13 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Add audit client
+        // Add audit client and batching services
         services.AddAuditClient(configuration);
+        services.Configure<IntelliFin.ClientManagement.Services.AuditBatchingOptions>(
+            configuration.GetSection("AuditBatching"));
+        services.AddSingleton<IntelliFin.ClientManagement.Services.IAuditQueue, IntelliFin.ClientManagement.Services.AuditQueue>();
+        services.AddScoped<IntelliFin.ClientManagement.Services.IAuditService, IntelliFin.ClientManagement.Services.AuditService>();
+        services.AddHostedService<IntelliFin.ClientManagement.Services.AuditBatchingHostedService>();
 
         // Add HttpContextAccessor for correlation ID enricher
         services.AddHttpContextAccessor();
@@ -169,8 +174,13 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Infrastructure services will be added here in future stories
-        // Example: Document storage, message bus, cache, etc.
+        // AdminService health check
+        services.AddHealthChecks()
+            .AddCheck<IntelliFin.ClientManagement.Infrastructure.HealthChecks.AdminServiceHealthCheck>(
+                name: "adminservice",
+                failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
+                tags: new[] { "external", "adminservice" }
+            );
 
         return services;
     }
