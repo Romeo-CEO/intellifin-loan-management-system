@@ -56,6 +56,9 @@ try
     // Add infrastructure services
     builder.Services.AddClientManagementInfrastructure(builder.Configuration);
 
+    // Add Camunda workers
+    builder.Services.AddCamundaWorkers(builder.Configuration);
+
     // Add API services
     builder.Services.AddOpenApi();
     builder.Services.AddControllers();
@@ -99,6 +102,10 @@ try
     app.MapHealthChecks("/health/db", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
     {
         Predicate = check => check.Tags.Contains("database")
+    });
+    app.MapHealthChecks("/health/camunda", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("camunda")
     });
 
     // Map default route

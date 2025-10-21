@@ -1,6 +1,9 @@
 using FluentValidation;
+using IntelliFin.ClientManagement.Infrastructure.Configuration;
+using IntelliFin.ClientManagement.Infrastructure.HealthChecks;
 using IntelliFin.ClientManagement.Infrastructure.Persistence;
 using IntelliFin.ClientManagement.Infrastructure.Vault;
+using IntelliFin.ClientManagement.Workflows.CamundaWorkers;
 using IntelliFin.Shared.Audit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -202,6 +205,58 @@ public static class ServiceCollectionExtensions
     {
         // Infrastructure services will be added here in future stories
         // Example: Document storage, message bus, cache, etc.
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers Camunda/Zeebe worker infrastructure and health checks
+    /// </summary>
+    public static IServiceCollection AddCamundaWorkers(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Bind configuration
+        services.Configure<CamundaOptions>(
+            configuration.GetSection(CamundaOptions.SectionName));
+
+        var camundaOptions = configuration
+            .GetSection(CamundaOptions.SectionName)
+            .Get<CamundaOptions>();
+
+        if (camundaOptions?.Enabled != true)
+        {
+            // Camunda disabled - skip worker registration
+            return services;
+        }
+
+        // Register worker handlers
+        services.AddScoped<ICamundaJobHandler, HealthCheckWorker>();
+
+        // Register worker configurations
+        var workerRegistrations = new List<CamundaWorkerRegistration>
+        {
+            new CamundaWorkerRegistration
+            {
+                TopicName = "client.health.check",
+                JobType = "io.intellifin.health.check",
+                HandlerType = typeof(HealthCheckWorker),
+                MaxJobsToActivate = 10,
+                TimeoutSeconds = 30
+            }
+        };
+
+        // Register as singleton for hosted service access
+        services.AddSingleton<IEnumerable<CamundaWorkerRegistration>>(workerRegistrations);
+
+        // Register hosted service
+        services.AddHostedService<CamundaWorkerHostedService>();
+
+        // Register health check
+        services.AddHealthChecks()
+            .AddCheck<CamundaHealthCheck>(
+                "camunda",
+                tags: new[] { "ready", "camunda" });
 
         return services;
     }
