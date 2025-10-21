@@ -143,12 +143,12 @@ public class ClientConfiguration : IEntityTypeConfiguration<Client>
             .IsRequired()
             .HasMaxLength(100);
 
-        builder.Property(c => c.VersionNumber)
+        builder.Property(cv => cv.VersionNumber)
             .IsRequired()
             .HasDefaultValue(1);
 
         // Check Constraint
-        builder.HasCheckConstraint("CK_Clients_VersionNumber", "[VersionNumber] >= 1");
+        builder.ToTable(t => t.HasCheckConstraint("CK_Clients_VersionNumber", "[VersionNumber] >= 1"));
 
         // Indexes for common queries
         builder.HasIndex(c => c.Status)
