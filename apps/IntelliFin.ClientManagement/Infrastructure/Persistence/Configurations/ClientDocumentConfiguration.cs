@@ -1,4 +1,5 @@
 using IntelliFin.ClientManagement.Domain.Entities;
+using IntelliFin.ClientManagement.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -57,7 +58,8 @@ public class ClientDocumentConfiguration : IEntityTypeConfiguration<ClientDocume
         builder.Property(d => d.UploadStatus)
             .IsRequired()
             .HasMaxLength(50)
-            .HasDefaultValue(DocumentUploadStatus.Uploaded);
+            .HasConversion<string>() // Convert enum to string for database storage
+            .HasDefaultValue(UploadStatus.Uploaded);
 
         builder.Property(d => d.UploadedAt)
             .IsRequired();

@@ -1,4 +1,5 @@
 using IntelliFin.ClientManagement.Domain.Entities;
+using IntelliFin.ClientManagement.Domain.Enums;
 using IntelliFin.ClientManagement.Infrastructure.Persistence;
 using IntelliFin.ClientManagement.Integration;
 using IntelliFin.ClientManagement.Integration.DTOs;
@@ -123,7 +124,7 @@ public class DocumentLifecycleServiceTests : IAsyncLifetime
         var document = await _context!.ClientDocuments.FirstOrDefaultAsync(d => d.Id == documentId);
         document.Should().NotBeNull();
         document!.ClientId.Should().Be(_testClientId);
-        document.UploadStatus.Should().Be(DocumentUploadStatus.Uploaded);
+        document.UploadStatus.Should().Be(UploadStatus.Uploaded);
         document.RetentionUntil.Should().BeAfter(DateTime.UtcNow.AddYears(6)); // 7-year retention
 
         // Verify audit event logged
@@ -236,7 +237,7 @@ public class DocumentLifecycleServiceTests : IAsyncLifetime
             ContentType = "application/pdf",
             FileSizeBytes = 1024,
             FileHashSha256 = "abc123",
-            UploadStatus = DocumentUploadStatus.Uploaded,
+            UploadStatus = UploadStatus.Uploaded,
             UploadedAt = DateTime.UtcNow,
             UploadedBy = "test-user",
             RetentionUntil = DateTime.UtcNow.AddYears(7),
@@ -288,7 +289,7 @@ public class DocumentLifecycleServiceTests : IAsyncLifetime
             ContentType = "application/pdf",
             FileSizeBytes = 1024,
             FileHashSha256 = "abc123",
-            UploadStatus = DocumentUploadStatus.Uploaded,
+            UploadStatus = UploadStatus.Uploaded,
             UploadedAt = DateTime.UtcNow,
             UploadedBy = "test-user",
             RetentionUntil = DateTime.UtcNow.AddYears(7),

@@ -1,3 +1,5 @@
+using IntelliFin.ClientManagement.Domain.Enums;
+
 namespace IntelliFin.ClientManagement.Domain.Entities;
 
 /// <summary>
@@ -63,9 +65,10 @@ public class ClientDocument
     // ========== Dual-Control Workflow ==========
 
     /// <summary>
-    /// Upload status (Uploaded, PendingVerification, Verified, Rejected)
+    /// Upload and verification status
+    /// Tracks document lifecycle from upload through dual-control verification
     /// </summary>
-    public string UploadStatus { get; set; } = "Uploaded";
+    public UploadStatus UploadStatus { get; set; } = UploadStatus.Uploaded;
 
     /// <summary>
     /// Timestamp when document was uploaded
@@ -152,16 +155,6 @@ public class ClientDocument
     public Client Client { get; set; } = null!;
 }
 
-/// <summary>
-/// Upload status enumeration values
-/// </summary>
-public static class DocumentUploadStatus
-{
-    public const string Uploaded = "Uploaded";
-    public const string PendingVerification = "PendingVerification";
-    public const string Verified = "Verified";
-    public const string Rejected = "Rejected";
-}
 
 /// <summary>
 /// Document type enumeration values

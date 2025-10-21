@@ -1,4 +1,5 @@
 using IntelliFin.ClientManagement.Common;
+using IntelliFin.ClientManagement.Controllers.DTOs;
 using IntelliFin.ClientManagement.Integration.DTOs;
 using Microsoft.AspNetCore.Http;
 
@@ -56,4 +57,19 @@ public interface IDocumentLifecycleService
     /// <param name="clientId">Client unique identifier</param>
     /// <returns>List of document metadata</returns>
     Task<Result<List<DocumentMetadataResponse>>> ListDocumentsAsync(Guid clientId);
+
+    /// <summary>
+    /// Verifies or rejects a document (dual-control verification)
+    /// Enforces dual-control: verifying user must be different from uploader
+    /// </summary>
+    /// <param name="clientId">Client unique identifier</param>
+    /// <param name="documentId">Document unique identifier</param>
+    /// <param name="request">Verification request (approved/rejected)</param>
+    /// <param name="userId">User performing verification (must be different from uploader)</param>
+    /// <returns>Updated document metadata</returns>
+    Task<Result<DocumentMetadataResponse>> VerifyDocumentAsync(
+        Guid clientId,
+        Guid documentId,
+        VerifyDocumentRequest request,
+        string userId);
 }

@@ -1,5 +1,8 @@
 using IntelliFin.ClientManagement.Common;
+using IntelliFin.ClientManagement.Controllers.DTOs;
 using IntelliFin.ClientManagement.Domain.Entities;
+using IntelliFin.ClientManagement.Domain.Enums;
+using IntelliFin.ClientManagement.Domain.Exceptions;
 using IntelliFin.ClientManagement.Infrastructure.Persistence;
 using IntelliFin.ClientManagement.Integration;
 using IntelliFin.ClientManagement.Integration.DTOs;
@@ -112,7 +115,7 @@ public class DocumentLifecycleService : IDocumentLifecycleService
                 ContentType = file.ContentType,
                 FileSizeBytes = file.Length,
                 FileHashSha256 = fileHash,
-                UploadStatus = DocumentUploadStatus.Uploaded,
+                UploadStatus = UploadStatus.Uploaded, // Initial status - awaiting verification
                 UploadedAt = DateTime.UtcNow,
                 UploadedBy = userId,
                 RetentionUntil = DateTime.UtcNow.AddYears(RetentionYears), // BoZ 7-year retention
@@ -270,6 +273,107 @@ public class DocumentLifecycleService : IDocumentLifecycleService
         }
     }
 
+    public async Task<Result<DocumentMetadataResponse>> VerifyDocumentAsync(
+        Guid clientId,
+        Guid documentId,
+        VerifyDocumentRequest request,
+        string userId)
+    {
+        try
+        {
+            // Load document
+            var document = await _context.ClientDocuments
+                .FirstOrDefaultAsync(d => d.Id == documentId && d.ClientId == clientId);
+
+            if (document == null)
+            {
+                _logger.LogWarning("Document not found for verification: DocumentId={DocumentId}, ClientId={ClientId}",
+                    documentId, clientId);
+                return Result<DocumentMetadataResponse>.Failure(
+                    $"Document with ID {documentId} not found for client {clientId}");
+            }
+
+            // Validate document is in Uploaded status
+            if (document.UploadStatus != UploadStatus.Uploaded)
+            {
+                _logger.LogWarning(
+                    "Cannot verify document in {Status} status: DocumentId={DocumentId}",
+                    document.UploadStatus, documentId);
+                return Result<DocumentMetadataResponse>.Failure(
+                    $"Document cannot be verified in {document.UploadStatus} status. Only documents in Uploaded status can be verified.");
+            }
+
+            // CRITICAL: Dual-control enforcement - verifier must be different from uploader
+            if (document.UploadedBy.Equals(userId, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning(
+                    "Dual-control violation: User {UserId} attempted to verify document they uploaded: DocumentId={DocumentId}",
+                    userId, documentId);
+                
+                throw new DualControlViolationException(userId, document.UploadedBy, documentId);
+            }
+
+            // Update document based on approval/rejection
+            var now = DateTime.UtcNow;
+
+            if (request.Approved)
+            {
+                // Approve document
+                document.UploadStatus = UploadStatus.Verified;
+                document.VerifiedBy = userId;
+                document.VerifiedAt = now;
+                document.RejectionReason = null; // Clear any previous rejection reason
+
+                _logger.LogInformation(
+                    "Document verified: DocumentId={DocumentId}, VerifiedBy={UserId}, UploadedBy={UploadedBy}",
+                    documentId, userId, document.UploadedBy);
+            }
+            else
+            {
+                // Reject document
+                document.UploadStatus = UploadStatus.Rejected;
+                document.RejectionReason = request.RejectionReason;
+                document.VerifiedBy = userId; // Track who rejected it
+                document.VerifiedAt = now;
+
+                _logger.LogInformation(
+                    "Document rejected: DocumentId={DocumentId}, RejectedBy={UserId}, Reason={Reason}",
+                    documentId, userId, request.RejectionReason);
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Log audit event (fire-and-forget)
+            await _auditService.LogAuditEventAsync(
+                action: request.Approved ? "DocumentVerified" : "DocumentRejected",
+                entityType: "ClientDocument",
+                entityId: documentId.ToString(),
+                actor: userId,
+                eventData: new
+                {
+                    DocumentId = documentId,
+                    ClientId = clientId,
+                    DocumentType = document.DocumentType,
+                    VerifiedBy = userId,
+                    UploadedBy = document.UploadedBy,
+                    Approved = request.Approved,
+                    RejectionReason = request.RejectionReason
+                });
+
+            return Result<DocumentMetadataResponse>.Success(MapToMetadataResponse(document));
+        }
+        catch (DualControlViolationException)
+        {
+            // Re-throw dual-control violations to be handled by controller
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error verifying document: DocumentId={DocumentId}", documentId);
+            return Result<DocumentMetadataResponse>.Failure($"Error verifying document: {ex.Message}");
+        }
+    }
+
     private static DocumentMetadataResponse MapToMetadataResponse(ClientDocument document)
     {
         return new DocumentMetadataResponse
@@ -284,7 +388,7 @@ public class DocumentLifecycleService : IDocumentLifecycleService
             ContentType = document.ContentType,
             FileSizeBytes = document.FileSizeBytes,
             FileHashSha256 = document.FileHashSha256,
-            UploadStatus = document.UploadStatus,
+            UploadStatus = document.UploadStatus.ToString(), // Convert enum to string for API
             UploadedAt = document.UploadedAt,
             UploadedBy = document.UploadedBy,
             VerifiedAt = document.VerifiedAt,

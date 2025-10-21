@@ -1,3 +1,5 @@
+using IntelliFin.ClientManagement.Controllers.DTOs;
+using IntelliFin.ClientManagement.Domain.Exceptions;
 using IntelliFin.ClientManagement.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -159,6 +161,77 @@ public class ClientDocumentController : ControllerBase
         }
 
         return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Verifies or rejects a document (dual-control verification)
+    /// </summary>
+    /// <param name="clientId">Client unique identifier</param>
+    /// <param name="documentId">Document unique identifier</param>
+    /// <param name="request">Verification request (approved/rejected with reason)</param>
+    /// <returns>Updated document metadata</returns>
+    [HttpPut("{documentId:guid}/verify")]
+    [ProducesResponseType(typeof(Integration.DTOs.DocumentMetadataResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> VerifyDocument(
+        Guid clientId,
+        Guid documentId,
+        [FromBody] VerifyDocumentRequest request)
+    {
+        var userId = GetUserId();
+
+        _logger.LogInformation(
+            "Document verification request: DocumentId={DocumentId}, ClientId={ClientId}, Approved={Approved}, User={UserId}",
+            documentId, clientId, request.Approved, userId);
+
+        try
+        {
+            var result = await _documentService.VerifyDocumentAsync(
+                clientId, documentId, request, userId);
+
+            if (result.IsFailure)
+            {
+                if (result.Error.Contains("not found"))
+                {
+                    return NotFound(new { error = result.Error });
+                }
+
+                if (result.Error.Contains("cannot be verified"))
+                {
+                    return Conflict(new 
+                    { 
+                        error = "Invalid operation",
+                        message = result.Error 
+                    });
+                }
+
+                return StatusCode(500, new { error = result.Error });
+            }
+
+            return Ok(result.Value);
+        }
+        catch (DualControlViolationException ex)
+        {
+            _logger.LogWarning(ex,
+                "Dual-control violation: User {UserId} attempted to verify their own upload",
+                userId);
+
+            return StatusCode(403, new
+            {
+                error = "Dual-control violation",
+                message = "You cannot verify a document you uploaded. A different officer must perform verification.",
+                details = new
+                {
+                    documentId = ex.DocumentId,
+                    uploadedBy = ex.UploadedBy,
+                    attemptedBy = ex.UserId
+                }
+            });
+        }
     }
 
     private string GetUserId()
