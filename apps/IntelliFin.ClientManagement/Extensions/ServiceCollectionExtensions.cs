@@ -158,8 +158,20 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Services.IClientVersioningService, Services.ClientVersioningService>();
         services.AddScoped<Services.IClientService, Services.ClientService>();
 
+        // Register document service (Story 1.6)
+        services.AddScoped<Services.IDocumentLifecycleService, Services.DocumentLifecycleService>();
+
+        // Register KycDocumentService HTTP client (Story 1.6)
+        services.AddRefitClient<Integration.IKycDocumentServiceClient>()
+            .ConfigureHttpClient(c =>
+            {
+                var baseUrl = configuration["KycDocumentService:BaseUrl"] ?? "http://kyc-document-service:5000";
+                c.BaseAddress = new Uri(baseUrl);
+                c.Timeout = TimeSpan.Parse(configuration["KycDocumentService:Timeout"] ?? "00:01:00");
+            })
+            .AddStandardResilienceHandler(); // Adds retry, timeout, circuit breaker
+
         // Future services will be added here:
-        // Story 1.6: DocumentService
         // Story 1.13: RiskScoringService
 
         return services;
