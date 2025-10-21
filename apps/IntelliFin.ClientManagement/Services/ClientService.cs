@@ -14,15 +14,18 @@ public class ClientService : IClientService
     private readonly ClientManagementDbContext _context;
     private readonly ILogger<ClientService> _logger;
     private readonly IClientVersioningService _versioningService;
+    private readonly IAuditService _auditService;
 
     public ClientService(
         ClientManagementDbContext context, 
         ILogger<ClientService> logger,
-        IClientVersioningService versioningService)
+        IClientVersioningService versioningService,
+        IAuditService auditService)
     {
         _context = context;
         _logger = logger;
         _versioningService = versioningService;
+        _auditService = auditService;
     }
 
     public async Task<Result<ClientResponse>> CreateClientAsync(CreateClientRequest request, string userId)
@@ -96,6 +99,15 @@ public class ClientService : IClientService
 
             _logger.LogInformation("Created client {ClientId} with NRC {Nrc} by user {UserId}", 
                 client.Id, client.Nrc, userId);
+
+            // Fire-and-forget audit event (do not block request)
+            _ = _auditService.LogAuditEventAsync(
+                action: "ClientCreated",
+                entityType: "Client",
+                entityId: client.Id.ToString(),
+                actor: userId,
+                eventData: new { nrc = client.Nrc, firstName = client.FirstName, lastName = client.LastName, branchId = client.BranchId }
+            );
 
             return Result<ClientResponse>.Success(MapToResponse(client));
         }
@@ -210,6 +222,15 @@ public class ClientService : IClientService
 
             _logger.LogInformation("Updated client {ClientId} to version {VersionNumber} by user {UserId}", 
                 client.Id, client.VersionNumber, userId);
+
+            // Fire-and-forget audit event for update
+            _ = _auditService.LogAuditEventAsync(
+                action: "ClientUpdated",
+                entityType: "Client",
+                entityId: client.Id.ToString(),
+                actor: userId,
+                eventData: new { versionNumber = client.VersionNumber }
+            );
 
             return Result<ClientResponse>.Success(MapToResponse(client));
         }
