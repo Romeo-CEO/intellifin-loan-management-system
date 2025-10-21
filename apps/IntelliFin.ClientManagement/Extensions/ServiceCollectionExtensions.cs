@@ -183,6 +183,9 @@ public static class ServiceCollectionExtensions
         // Register KYC workflow service (Story 1.10)
         services.AddScoped<Services.IKycWorkflowService, Services.KycWorkflowService>();
 
+        // Register AML screening service (Story 1.11)
+        services.AddScoped<Services.IAmlScreeningService, Services.ManualAmlScreeningService>();
+
         // Register CommunicationsService HTTP client (Story 1.7)
         services.AddRefitClient<Integration.ICommunicationsClient>()
             .ConfigureHttpClient(c =>
@@ -235,6 +238,9 @@ public static class ServiceCollectionExtensions
 
         // Register worker handlers
         services.AddScoped<ICamundaJobHandler, HealthCheckWorker>();
+        services.AddScoped<ICamundaJobHandler, KycDocumentCheckWorker>();
+        services.AddScoped<ICamundaJobHandler, AmlScreeningWorker>();
+        services.AddScoped<ICamundaJobHandler, RiskAssessmentWorker>();
 
         // Register worker configurations
         var workerRegistrations = new List<CamundaWorkerRegistration>
@@ -245,6 +251,30 @@ public static class ServiceCollectionExtensions
                 JobType = "io.intellifin.health.check",
                 HandlerType = typeof(HealthCheckWorker),
                 MaxJobsToActivate = 10,
+                TimeoutSeconds = 30
+            },
+            new CamundaWorkerRegistration
+            {
+                TopicName = "client.kyc.check-documents",
+                JobType = "io.intellifin.kyc.check-documents",
+                HandlerType = typeof(KycDocumentCheckWorker),
+                MaxJobsToActivate = 32,
+                TimeoutSeconds = 30
+            },
+            new CamundaWorkerRegistration
+            {
+                TopicName = "client.kyc.aml-screening",
+                JobType = "io.intellifin.kyc.aml-screening",
+                HandlerType = typeof(AmlScreeningWorker),
+                MaxJobsToActivate = 16,
+                TimeoutSeconds = 60
+            },
+            new CamundaWorkerRegistration
+            {
+                TopicName = "client.kyc.risk-assessment",
+                JobType = "io.intellifin.kyc.risk-assessment",
+                HandlerType = typeof(RiskAssessmentWorker),
+                MaxJobsToActivate = 32,
                 TimeoutSeconds = 30
             }
         };
