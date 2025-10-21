@@ -171,6 +171,22 @@ public static class ServiceCollectionExtensions
             })
             .AddStandardResilienceHandler(); // Adds retry, timeout, circuit breaker
 
+        // Register consent management service (Story 1.7)
+        services.AddScoped<Services.IConsentManagementService, Services.ConsentManagementService>();
+
+        // Register notification service (Story 1.7)
+        services.AddScoped<Services.INotificationService, Services.NotificationService>();
+
+        // Register CommunicationsService HTTP client (Story 1.7)
+        services.AddRefitClient<Integration.ICommunicationsClient>()
+            .ConfigureHttpClient(c =>
+            {
+                var baseUrl = configuration["CommunicationsService:BaseUrl"] ?? "http://communications-service:5000";
+                c.BaseAddress = new Uri(baseUrl);
+                c.Timeout = TimeSpan.Parse(configuration["CommunicationsService:Timeout"] ?? "00:00:30");
+            })
+            .AddStandardResilienceHandler(); // Adds retry, timeout, circuit breaker
+
         // Future services will be added here:
         // Story 1.13: RiskScoringService
 

@@ -29,6 +29,11 @@ public class ClientManagementDbContext : DbContext
     /// </summary>
     public DbSet<ClientDocument> ClientDocuments => Set<ClientDocument>();
 
+    /// <summary>
+    /// Communication consents (Story 1.7)
+    /// </summary>
+    public DbSet<CommunicationConsent> CommunicationConsents => Set<CommunicationConsent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -37,8 +42,8 @@ public class ClientManagementDbContext : DbContext
         modelBuilder.ApplyConfiguration(new ClientConfiguration());
         modelBuilder.ApplyConfiguration(new ClientVersionConfiguration());
         modelBuilder.ApplyConfiguration(new ClientDocumentConfiguration());
+        modelBuilder.ApplyConfiguration(new CommunicationConsentConfiguration());
         
-        // Future entity configurations will be added here:
-        // Story 1.7: Communications Integration will add CommunicationConsent entity
+        // Future entity configurations will be added here as needed
     }
 }
