@@ -39,6 +39,11 @@ public class ClientManagementDbContext : DbContext
     /// </summary>
     public DbSet<KycStatus> KycStatuses => Set<KycStatus>();
 
+    /// <summary>
+    /// AML screenings (Story 1.11)
+    /// </summary>
+    public DbSet<AmlScreening> AmlScreenings => Set<AmlScreening>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -49,6 +54,7 @@ public class ClientManagementDbContext : DbContext
         modelBuilder.ApplyConfiguration(new ClientDocumentConfiguration());
         modelBuilder.ApplyConfiguration(new CommunicationConsentConfiguration());
         modelBuilder.ApplyConfiguration(new KycStatusConfiguration());
+        modelBuilder.ApplyConfiguration(new AmlScreeningConfiguration());
         
         // Future entity configurations will be added here as needed
     }
