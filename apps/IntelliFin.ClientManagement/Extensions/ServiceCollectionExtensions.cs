@@ -220,6 +220,9 @@ public static class ServiceCollectionExtensions
             services.AddScoped<Services.IEventPublisher, Services.InMemoryEventPublisher>();
         }
 
+        // Register analytics service (Story 1.15)
+        services.AddScoped<Services.IAnalyticsService, Services.AnalyticsService>();
+
         // Register CommunicationsService HTTP client (Story 1.7)
         services.AddRefitClient<Integration.ICommunicationsClient>()
             .ConfigureHttpClient(c =>
