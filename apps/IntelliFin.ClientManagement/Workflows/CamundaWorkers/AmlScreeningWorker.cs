@@ -81,19 +81,32 @@ public class AmlScreeningWorker : ICamundaJobHandler
             kycStatus.AmlScreenedBy = "system-workflow";
             kycStatus.UpdatedAt = DateTime.UtcNow;
 
-            // If high risk, flag for EDD
-            if (result.Value!.OverallRiskLevel == "High")
+            // Determine if EDD escalation is required
+            var eddEscalation = DetermineEddEscalation(result.Value!, kycStatus);
+
+            if (eddEscalation.EscalateToEdd)
             {
                 kycStatus.RequiresEdd = true;
-                kycStatus.EddReason = result.Value.SanctionsHit ? "Sanctions" : "PEP";
+                kycStatus.EddReason = eddEscalation.Reason;
                 kycStatus.EddEscalatedAt = DateTime.UtcNow;
+
+                _logger.LogWarning(
+                    "EDD escalation triggered for client {ClientId}: {Reason}",
+                    clientId, eddEscalation.Reason);
             }
 
             await _context.SaveChangesAsync();
 
+            // Add EDD escalation to workflow variables
+            var workflowVariables = new Dictionary<string, object>(result.Value.Variables)
+            {
+                ["escalateToEdd"] = eddEscalation.EscalateToEdd,
+                ["eddReason"] = eddEscalation.Reason ?? string.Empty
+            };
+
             // Complete job with screening results
             await jobClient.NewCompleteJobCommand(job.Key)
-                .Variables(result.Value.Variables)
+                .Variables(workflowVariables)
                 .Send();
 
             _logger.LogInformation(
@@ -118,6 +131,63 @@ public class AmlScreeningWorker : ICamundaJobHandler
         }
     }
 
+    /// <summary>
+    /// Determines if EDD escalation is required based on screening results
+    /// </summary>
+    private EddEscalationDecision DetermineEddEscalation(AmlScreeningResult screeningResult, Domain.Entities.KycStatus kycStatus)
+    {
+        var reasons = new List<string>();
+        var escalate = false;
+
+        // Rule 1: Sanctions hit always triggers EDD (highest priority)
+        if (screeningResult.SanctionsHit)
+        {
+            escalate = true;
+            reasons.Add("Sanctions list match detected");
+            
+            _logger.LogWarning("EDD trigger: Sanctions hit for KycStatus {KycStatusId}", kycStatus.Id);
+        }
+
+        // Rule 2: High-risk PEP match triggers EDD
+        if (screeningResult.PepMatch && screeningResult.OverallRiskLevel == "High")
+        {
+            escalate = true;
+            reasons.Add("High-risk PEP match");
+            
+            _logger.LogWarning("EDD trigger: High-risk PEP for KycStatus {KycStatusId}", kycStatus.Id);
+        }
+
+        // Rule 3: Multiple medium-risk findings (≥2) trigger EDD
+        var mediumRiskCount = screeningResult.Screenings.Count(s => s.RiskLevel == "Medium");
+        if (mediumRiskCount >= 2)
+        {
+            escalate = true;
+            reasons.Add($"Multiple medium-risk findings ({mediumRiskCount})");
+            
+            _logger.LogWarning("EDD trigger: Multiple medium risks ({Count}) for KycStatus {KycStatusId}", 
+                mediumRiskCount, kycStatus.Id);
+        }
+
+        // Rule 4: Overall High risk level
+        if (screeningResult.OverallRiskLevel == "High")
+        {
+            escalate = true;
+            if (!reasons.Any()) // Only add if not already captured by other rules
+                reasons.Add("High overall AML risk level");
+        }
+
+        // Compile final reason
+        var finalReason = escalate 
+            ? string.Join("; ", reasons) 
+            : null;
+
+        return new EddEscalationDecision
+        {
+            EscalateToEdd = escalate,
+            Reason = finalReason
+        };
+    }
+
     private static string ExtractCorrelationId(IJob job)
     {
         try
@@ -130,4 +200,13 @@ public class AmlScreeningWorker : ICamundaJobHandler
             return $"job-{job.Key}";
         }
     }
+}
+
+/// <summary>
+/// EDD escalation decision result
+/// </summary>
+internal class EddEscalationDecision
+{
+    public bool EscalateToEdd { get; set; }
+    public string? Reason { get; set; }
 }

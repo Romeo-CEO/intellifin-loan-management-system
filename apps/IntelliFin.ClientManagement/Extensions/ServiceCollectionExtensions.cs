@@ -183,8 +183,9 @@ public static class ServiceCollectionExtensions
         // Register KYC workflow service (Story 1.10)
         services.AddScoped<Services.IKycWorkflowService, Services.KycWorkflowService>();
 
-        // Register AML screening service (Story 1.11)
+        // Register AML screening service (Story 1.11/1.12)
         services.AddScoped<Services.IAmlScreeningService, Services.ManualAmlScreeningService>();
+        services.AddScoped<Services.FuzzyNameMatcher>();
 
         // Register CommunicationsService HTTP client (Story 1.7)
         services.AddRefitClient<Integration.ICommunicationsClient>()
