@@ -97,6 +97,42 @@ public class AmlScreeningWorker : ICamundaJobHandler
 
             await _context.SaveChangesAsync();
 
+            // Publish EDD escalation event if triggered
+            if (eddEscalation.EscalateToEdd)
+            {
+                var client = await _context.Clients.FindAsync(clientId);
+                if (client != null)
+                {
+                    var eddEvent = new EddEscalatedEvent
+                    {
+                        ClientId = clientId,
+                        KycStatusId = kycStatus.Id,
+                        ClientName = $"{client.FirstName} {client.LastName}",
+                        EscalatedAt = DateTime.UtcNow,
+                        EddReason = eddEscalation.Reason ?? "High Risk",
+                        RiskLevel = result.Value.OverallRiskLevel,
+                        HasSanctionsHit = result.Value.SanctionsHit,
+                        IsPep = result.Value.PepMatch,
+                        ExpectedTimeframe = "5-7 business days",
+                        CorrelationId = correlationId,
+                        ProcessInstanceId = job.ProcessInstanceKey.ToString()
+                    };
+
+                    // Invoke event handler (fire-and-forget pattern)
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _eddEscalatedHandler.HandleAsync(eddEvent);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error handling EDD escalation event for client {ClientId}", clientId);
+                        }
+                    });
+                }
+            }
+
             // Add EDD escalation to workflow variables
             var workflowVariables = new Dictionary<string, object>(result.Value.Variables)
             {

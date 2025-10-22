@@ -166,6 +166,19 @@ public class EddStatusUpdateWorker : ICamundaJobHandler
             "EDD approved event: {@EddApprovedEvent}",
             approvedEvent);
 
+        // Invoke event handler (fire-and-forget pattern)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _eddApprovedHandler.HandleAsync(approvedEvent);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error handling EDD approved event for client {ClientId}", clientId);
+            }
+        });
+
         // Log audit event
         await _auditService.LogEventAsync(
             "EDD.Approved",
@@ -251,6 +264,19 @@ public class EddStatusUpdateWorker : ICamundaJobHandler
         _logger.LogWarning(
             "EDD rejected event: {@EddRejectedEvent}",
             rejectedEvent);
+
+        // Invoke event handler (fire-and-forget pattern)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _eddRejectedHandler.HandleAsync(rejectedEvent);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error handling EDD rejected event for client {ClientId}", clientId);
+            }
+        });
 
         // Log audit event
         await _auditService.LogEventAsync(

@@ -1,40 +1,47 @@
 using IntelliFin.ClientManagement.Common;
-using IntelliFin.ClientManagement.Integration.DTOs;
 
 namespace IntelliFin.ClientManagement.Services;
 
 /// <summary>
-/// Service interface for sending notifications via CommunicationsService
+/// Service for sending notifications to clients
+/// Handles consent checking, template personalization, and retry logic
 /// </summary>
 public interface INotificationService
 {
     /// <summary>
-    /// Sends a consent-based notification
-    /// Checks consent before sending; does not send if consent not granted
+    /// Sends a KYC status notification to a client
+    /// Checks consent before sending
     /// </summary>
     /// <param name="clientId">Client unique identifier</param>
     /// <param name="templateId">Notification template ID</param>
-    /// <param name="consentType">Type of consent required (Marketing, Operational)</param>
-    /// <param name="channel">Communication channel (SMS, Email, InApp, Call)</param>
-    /// <param name="personalizationData">Template personalization data</param>
-    /// <param name="userId">User requesting the notification (for audit)</param>
-    /// <returns>Notification response or null if consent not granted</returns>
-    Task<Result<SendNotificationResponse?>> SendConsentBasedNotificationAsync(
+    /// <param name="personalizations">Template personalization data</param>
+    /// <param name="correlationId">Correlation ID for tracking</param>
+    Task<Result<NotificationResult>> SendKycStatusNotificationAsync(
         Guid clientId,
         string templateId,
-        string consentType,
-        string channel,
-        Dictionary<string, string> personalizationData,
-        string userId);
+        Dictionary<string, object> personalizations,
+        string? correlationId = null);
 
     /// <summary>
-    /// Sends a notification without consent check
-    /// Use only for regulatory/legally required notifications
+    /// Checks if client has consented to receive notifications
+    /// </summary>
+    /// <param name="clientId">Client unique identifier</param>
+    /// <param name="channel">Notification channel (SMS, Email, etc.)</param>
+    Task<bool> CheckNotificationConsentAsync(Guid clientId, NotificationChannel channel);
+
+    /// <summary>
+    /// Sends notification with retry logic
     /// </summary>
     /// <param name="request">Notification request</param>
-    /// <param name="userId">User requesting the notification (for audit)</param>
-    /// <returns>Notification response</returns>
-    Task<Result<SendNotificationResponse>> SendNotificationAsync(
-        SendNotificationRequest request,
-        string userId);
+    Task<Result<NotificationResult>> SendNotificationWithRetryAsync(NotificationRequest request);
+}
+
+/// <summary>
+/// Notification channel enum
+/// </summary>
+public enum NotificationChannel
+{
+    SMS,
+    Email,
+    InApp
 }

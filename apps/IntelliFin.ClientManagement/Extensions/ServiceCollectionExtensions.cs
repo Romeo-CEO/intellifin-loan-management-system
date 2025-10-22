@@ -196,6 +196,17 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<Services.IRiskConfigProvider, Infrastructure.VaultClient.VaultRiskConfigProvider>();
         services.AddScoped<Services.RulesExecutionEngine>();
         services.AddScoped<Services.IRiskScoringService, Services.VaultRiskScoringService>();
+        
+        // Register notification services (Story 1.14)
+        services.AddScoped<Services.INotificationService, Services.KycNotificationService>();
+        services.AddScoped<Services.TemplatePersonalizer>();
+        
+        // Register event handlers (Story 1.14)
+        services.AddScoped<EventHandlers.IDomainEventHandler<Domain.Events.KycCompletedEvent>, EventHandlers.KycCompletedEventHandler>();
+        services.AddScoped<EventHandlers.IDomainEventHandler<Domain.Events.KycRejectedEvent>, EventHandlers.KycRejectedEventHandler>();
+        services.AddScoped<EventHandlers.IDomainEventHandler<Domain.Events.EddEscalatedEvent>, EventHandlers.EddEscalatedEventHandler>();
+        services.AddScoped<EventHandlers.IDomainEventHandler<Domain.Events.EddApprovedEvent>, EventHandlers.EddApprovedEventHandler>();
+        services.AddScoped<EventHandlers.IDomainEventHandler<Domain.Events.EddRejectedEvent>, EventHandlers.EddRejectedEventHandler>();
 
         // Register CommunicationsService HTTP client (Story 1.7)
         services.AddRefitClient<Integration.ICommunicationsClient>()
