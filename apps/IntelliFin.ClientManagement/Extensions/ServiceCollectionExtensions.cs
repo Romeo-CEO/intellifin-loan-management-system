@@ -246,6 +246,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICamundaJobHandler, AmlScreeningWorker>();
         services.AddScoped<ICamundaJobHandler, RiskAssessmentWorker>();
         services.AddScoped<ICamundaJobHandler, EddReportGenerationWorker>();
+        services.AddScoped<ICamundaJobHandler, EddStatusUpdateWorker>();
 
         // Register worker configurations
         var workerRegistrations = new List<CamundaWorkerRegistration>
@@ -289,6 +290,22 @@ public static class ServiceCollectionExtensions
                 HandlerType = typeof(EddReportGenerationWorker),
                 MaxJobsToActivate = 8,
                 TimeoutSeconds = 120 // Longer timeout for report generation
+            },
+            new CamundaWorkerRegistration
+            {
+                TopicName = "client.edd.update-status-approved",
+                JobType = "io.intellifin.edd.update-status-approved",
+                HandlerType = typeof(EddStatusUpdateWorker),
+                MaxJobsToActivate = 16,
+                TimeoutSeconds = 30
+            },
+            new CamundaWorkerRegistration
+            {
+                TopicName = "client.edd.update-status-rejected",
+                JobType = "io.intellifin.edd.update-status-rejected",
+                HandlerType = typeof(EddStatusUpdateWorker),
+                MaxJobsToActivate = 16,
+                TimeoutSeconds = 30
             }
         };
 

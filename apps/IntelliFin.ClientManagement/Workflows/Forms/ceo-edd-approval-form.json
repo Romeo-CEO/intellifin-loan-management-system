@@ -1,0 +1,159 @@
+{
+  "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+  "name": "CEO EDD Final Approval",
+  "id": "ceo-edd-approval",
+  "description": "Form for CEO to provide final approval decision on EDD case",
+  "version": 1,
+  "components": [
+    {
+      "text": "# Enhanced Due Diligence (EDD) Final Approval\n\n## CEO Decision Required",
+      "type": "text",
+      "id": "header"
+    },
+    {
+      "label": "Client Name",
+      "type": "textfield",
+      "id": "clientName",
+      "key": "clientName",
+      "disabled": true
+    },
+    {
+      "label": "EDD Escalation Reason",
+      "type": "textfield",
+      "id": "eddReason",
+      "key": "eddReason",
+      "disabled": true
+    },
+    {
+      "label": "Overall Risk Level",
+      "type": "textfield",
+      "id": "overallRiskLevel",
+      "key": "overallRiskLevel",
+      "disabled": true
+    },
+    {
+      "text": "---\n\n## Compliance Officer Recommendation",
+      "type": "text",
+      "id": "complianceSection"
+    },
+    {
+      "label": "Compliance Recommendation",
+      "type": "textfield",
+      "id": "complianceRecommendation",
+      "key": "complianceRecommendation",
+      "disabled": true,
+      "description": "Compliance officer's recommendation"
+    },
+    {
+      "label": "Compliance Review Notes",
+      "type": "textarea",
+      "id": "complianceComments",
+      "key": "complianceComments",
+      "disabled": true,
+      "rows": 4,
+      "description": "Compliance officer's detailed notes"
+    },
+    {
+      "text": "---\n\n## EDD Report & Screening Results",
+      "type": "text",
+      "id": "reportSection"
+    },
+    {
+      "label": "EDD Report",
+      "type": "button",
+      "id": "reportDownload",
+      "action": "download",
+      "properties": {
+        "objectKey": "reportObjectKey",
+        "label": "Download EDD Report"
+      }
+    },
+    {
+      "label": "Sanctions Hit",
+      "type": "checkbox",
+      "id": "sanctionsHit",
+      "key": "sanctionsHit",
+      "disabled": true
+    },
+    {
+      "label": "PEP Match",
+      "type": "checkbox",
+      "id": "pepMatch",
+      "key": "pepMatch",
+      "disabled": true
+    },
+    {
+      "text": "---\n\n## CEO Final Decision",
+      "type": "text",
+      "id": "ceoDecisionSection"
+    },
+    {
+      "label": "Final Decision",
+      "type": "checkbox",
+      "id": "ceoApproved",
+      "key": "ceoApproved",
+      "description": "Check to approve client onboarding with EDD monitoring"
+    },
+    {
+      "label": "Risk Acceptance Level",
+      "type": "select",
+      "id": "riskAcceptanceLevel",
+      "key": "riskAcceptanceLevel",
+      "validate": {
+        "required": "=ceoApproved = true"
+      },
+      "values": [
+        {
+          "label": "Standard - Normal monitoring procedures",
+          "value": "Standard"
+        },
+        {
+          "label": "Enhanced Monitoring - Increased transaction monitoring, lower thresholds",
+          "value": "EnhancedMonitoring"
+        },
+        {
+          "label": "Restricted Services - Limited product offerings, manual approvals",
+          "value": "RestrictedServices"
+        }
+      ],
+      "description": "Required if approving: Select appropriate monitoring level based on risk"
+    },
+    {
+      "label": "CEO Decision Rationale",
+      "type": "textarea",
+      "id": "ceoComments",
+      "key": "ceoComments",
+      "validate": {
+        "required": true,
+        "minLength": 20,
+        "maxLength": 2000
+      },
+      "rows": 5,
+      "description": "Detailed rationale for your decision (required, 20-2000 characters). If overriding compliance recommendation, provide clear justification."
+    },
+    {
+      "label": "Rejection Reason (if rejecting)",
+      "type": "textarea",
+      "id": "rejectionReason",
+      "key": "rejectionReason",
+      "conditional": {
+        "hide": "=ceoApproved = true"
+      },
+      "validate": {
+        "required": "=ceoApproved = false"
+      },
+      "description": "If rejecting, provide detailed reason for rejection"
+    },
+    {
+      "text": "---\n\n**Note:** This is a critical compliance decision. Your approval authorizes onboarding a high-risk client subject to enhanced monitoring requirements.",
+      "type": "text",
+      "id": "warningNote"
+    },
+    {
+      "type": "button",
+      "id": "submitButton",
+      "action": "submit",
+      "label": "Submit Final Decision"
+    }
+  ]
+}
