@@ -59,6 +59,15 @@ public class KycStatusConfiguration : IEntityTypeConfiguration<KycStatus>
         builder.Property(k => k.EddCeoApprovedBy)
             .HasMaxLength(256);
 
+        builder.Property(k => k.RiskAcceptanceLevel)
+            .HasMaxLength(50);
+
+        builder.Property(k => k.ComplianceComments)
+            .HasMaxLength(2000);
+
+        builder.Property(k => k.CeoComments)
+            .HasMaxLength(2000);
+
         // Required boolean flags with defaults
         builder.Property(k => k.HasNrc)
             .IsRequired()

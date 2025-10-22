@@ -144,6 +144,22 @@ public class KycStatus
     /// </summary>
     public DateTime? EddApprovedAt { get; set; }
 
+    /// <summary>
+    /// Risk acceptance level for EDD-approved clients
+    /// Values: Standard, EnhancedMonitoring, RestrictedServices
+    /// </summary>
+    public string? RiskAcceptanceLevel { get; set; }
+
+    /// <summary>
+    /// Compliance officer comments/notes from EDD review
+    /// </summary>
+    public string? ComplianceComments { get; set; }
+
+    /// <summary>
+    /// CEO comments/rationale from EDD approval
+    /// </summary>
+    public string? CeoComments { get; set; }
+
     // ========== Audit Fields ==========
 
     /// <summary>

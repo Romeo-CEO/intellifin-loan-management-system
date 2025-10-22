@@ -186,6 +186,9 @@ public static class ServiceCollectionExtensions
         // Register AML screening service (Story 1.11/1.12)
         services.AddScoped<Services.IAmlScreeningService, Services.ManualAmlScreeningService>();
         services.AddScoped<Services.FuzzyNameMatcher>();
+        
+        // Register EDD report generator (Story 1.12)
+        services.AddScoped<Services.EddReportGenerator>();
 
         // Register CommunicationsService HTTP client (Story 1.7)
         services.AddRefitClient<Integration.ICommunicationsClient>()
@@ -242,6 +245,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICamundaJobHandler, KycDocumentCheckWorker>();
         services.AddScoped<ICamundaJobHandler, AmlScreeningWorker>();
         services.AddScoped<ICamundaJobHandler, RiskAssessmentWorker>();
+        services.AddScoped<ICamundaJobHandler, EddReportGenerationWorker>();
 
         // Register worker configurations
         var workerRegistrations = new List<CamundaWorkerRegistration>
@@ -277,6 +281,14 @@ public static class ServiceCollectionExtensions
                 HandlerType = typeof(RiskAssessmentWorker),
                 MaxJobsToActivate = 32,
                 TimeoutSeconds = 30
+            },
+            new CamundaWorkerRegistration
+            {
+                TopicName = "client.edd.generate-report",
+                JobType = "io.intellifin.edd.generate-report",
+                HandlerType = typeof(EddReportGenerationWorker),
+                MaxJobsToActivate = 8,
+                TimeoutSeconds = 120 // Longer timeout for report generation
             }
         };
 
