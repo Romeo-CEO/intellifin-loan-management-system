@@ -189,6 +189,13 @@ public static class ServiceCollectionExtensions
         
         // Register EDD report generator (Story 1.12)
         services.AddScoped<Services.EddReportGenerator>();
+        
+        // Register Vault risk scoring services (Story 1.13)
+        services.Configure<Infrastructure.Configuration.VaultOptions>(
+            configuration.GetSection(Infrastructure.Configuration.VaultOptions.SectionName));
+        services.AddSingleton<Services.IRiskConfigProvider, Infrastructure.VaultClient.VaultRiskConfigProvider>();
+        services.AddScoped<Services.RulesExecutionEngine>();
+        services.AddScoped<Services.IRiskScoringService, Services.VaultRiskScoringService>();
 
         // Register CommunicationsService HTTP client (Story 1.7)
         services.AddRefitClient<Integration.ICommunicationsClient>()

@@ -1,4 +1,5 @@
 using IntelliFin.ClientManagement.Infrastructure.Persistence;
+using IntelliFin.ClientManagement.Services;
 using Microsoft.EntityFrameworkCore;
 using Zeebe.Client.Api.Responses;
 using Zeebe.Client.Api.Worker;
@@ -6,21 +7,23 @@ using Zeebe.Client.Api.Worker;
 namespace IntelliFin.ClientManagement.Workflows.CamundaWorkers;
 
 /// <summary>
-/// Camunda worker for performing basic risk assessment
-/// Calculates risk score based on documents, AML results, and client profile
-/// NOTE: Will be enhanced in Story 1.13 with Vault-based rules
+/// Camunda worker for performing Vault-based risk assessment
+/// Uses Vault-managed business rules for dynamic risk scoring
 /// </summary>
 public class RiskAssessmentWorker : ICamundaJobHandler
 {
     private readonly ILogger<RiskAssessmentWorker> _logger;
     private readonly ClientManagementDbContext _context;
+    private readonly IRiskScoringService _riskScoringService;
 
     public RiskAssessmentWorker(
         ILogger<RiskAssessmentWorker> logger,
-        ClientManagementDbContext context)
+        ClientManagementDbContext context,
+        IRiskScoringService riskScoringService)
     {
         _logger = logger;
         _context = context;
+        _riskScoringService = riskScoringService;
     }
 
     public string GetTopicName() => "client.kyc.risk-assessment";
@@ -53,30 +56,34 @@ public class RiskAssessmentWorker : ICamundaJobHandler
             var amlRiskLevel = job.Variables.GetValueOrDefault("amlRiskLevel")?.ToString() ?? "Clear";
 
             _logger.LogInformation(
-                "Starting risk assessment for client {ClientId}",
+                "Starting Vault-based risk assessment for client {ClientId}",
                 clientId);
 
-            // Load client for additional risk factors
-            var client = await _context.Clients.FindAsync(clientId);
-            if (client == null)
+            // Compute risk using Vault-managed rules
+            var riskResult = await _riskScoringService.ComputeRiskAsync(
+                clientId,
+                "system-workflow",
+                correlationId);
+
+            if (riskResult.IsFailure)
             {
-                throw new InvalidOperationException($"Client not found: {clientId}");
+                throw new Exception($"Risk computation failed: {riskResult.Error}");
             }
 
-            // Calculate risk score
-            var riskScore = CalculateRiskScore(documentComplete, amlRiskLevel, client);
-            var riskRating = MapScoreToRating(riskScore);
+            var riskProfile = riskResult.Value!;
 
             _logger.LogInformation(
-                "Risk assessment completed for client {ClientId}: Score={RiskScore}, Rating={RiskRating}",
-                clientId, riskScore, riskRating);
+                "Risk assessment completed for client {ClientId}: Score={RiskScore}, Rating={RiskRating}, Rules={Version}",
+                clientId, riskProfile.RiskScore, riskProfile.RiskRating, riskProfile.RiskRulesVersion);
 
             // Complete job with risk assessment results
             await jobClient.NewCompleteJobCommand(job.Key)
                 .Variables(new Dictionary<string, object>
                 {
-                    ["riskScore"] = riskScore,
-                    ["riskRating"] = riskRating
+                    ["riskScore"] = riskProfile.RiskScore,
+                    ["riskRating"] = riskProfile.RiskRating,
+                    ["riskRulesVersion"] = riskProfile.RiskRulesVersion,
+                    ["riskProfileId"] = riskProfile.Id.ToString()
                 })
                 .Send();
         }
@@ -92,55 +99,6 @@ public class RiskAssessmentWorker : ICamundaJobHandler
                 .ErrorMessage($"Risk assessment failed: {ex.Message}")
                 .Send();
         }
-    }
-
-    /// <summary>
-    /// Calculates basic risk score (0-100)
-    /// NOTE: Simplified version - will be enhanced with Vault-based rules in Story 1.13
-    /// </summary>
-    private static int CalculateRiskScore(bool documentComplete, string amlRiskLevel, Domain.Entities.Client client)
-    {
-        int score = 0;
-
-        // Document completeness factor (20% weight)
-        if (!documentComplete)
-        {
-            score += 20;
-        }
-
-        // AML risk factor (50% weight)
-        score += amlRiskLevel switch
-        {
-            "Clear" => 0,
-            "Low" => 10,
-            "Medium" => 25,
-            "High" => 50,
-            _ => 0
-        };
-
-        // Client profile factors (30% weight)
-        // Age factor: Younger clients may have less financial history
-        var age = DateTime.UtcNow.Year - client.DateOfBirth.Year;
-        if (age < 25) score += 10;
-
-        // Simple heuristics (will be replaced with Vault rules)
-        // For now, just use basic scoring
-
-        // Cap score at 100
-        return Math.Min(score, 100);
-    }
-
-    /// <summary>
-    /// Maps risk score to rating category
-    /// </summary>
-    private static string MapScoreToRating(int score)
-    {
-        return score switch
-        {
-            <= 25 => "Low",
-            <= 50 => "Medium",
-            _ => "High"
-        };
     }
 
     private static string ExtractCorrelationId(IJob job)

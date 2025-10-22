@@ -44,6 +44,8 @@ public class ClientManagementDbContext : DbContext
     /// </summary>
     public DbSet<AmlScreening> AmlScreenings => Set<AmlScreening>();
 
+    public DbSet<RiskProfile> RiskProfiles => Set<RiskProfile>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -55,6 +57,7 @@ public class ClientManagementDbContext : DbContext
         modelBuilder.ApplyConfiguration(new CommunicationConsentConfiguration());
         modelBuilder.ApplyConfiguration(new KycStatusConfiguration());
         modelBuilder.ApplyConfiguration(new AmlScreeningConfiguration());
+        modelBuilder.ApplyConfiguration(new RiskProfileConfiguration());
         
         // Future entity configurations will be added here as needed
     }
