@@ -1,6 +1,8 @@
 using IntelliFin.ClientManagement.Domain.Enums;
 using IntelliFin.ClientManagement.Domain.Events;
 using IntelliFin.ClientManagement.Infrastructure.Persistence;
+using IntelliFin.ClientManagement.Services;
+using IntelliFin.Shared.Audit;
 using Microsoft.EntityFrameworkCore;
 using Zeebe.Client.Api.Responses;
 using Zeebe.Client.Api.Worker;
@@ -10,21 +12,25 @@ namespace IntelliFin.ClientManagement.Workflows.CamundaWorkers;
 /// <summary>
 /// Camunda worker for updating KYC status when EDD is approved or rejected
 /// Handles both approval and rejection scenarios
+/// Publishes domain events via IEventPublisher (Story 1.14)
 /// </summary>
 public class EddStatusUpdateWorker : ICamundaJobHandler
 {
     private readonly ILogger<EddStatusUpdateWorker> _logger;
     private readonly ClientManagementDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly IEventPublisher _eventPublisher;
 
     public EddStatusUpdateWorker(
         ILogger<EddStatusUpdateWorker> logger,
         ClientManagementDbContext context,
-        IAuditService auditService)
+        IAuditService auditService,
+        IEventPublisher eventPublisher)
     {
         _logger = logger;
         _context = context;
         _auditService = auditService;
+        _eventPublisher = eventPublisher;
     }
 
     // This worker handles both approved and rejected status updates
@@ -166,16 +172,19 @@ public class EddStatusUpdateWorker : ICamundaJobHandler
             "EDD approved event: {@EddApprovedEvent}",
             approvedEvent);
 
-        // Invoke event handler (fire-and-forget pattern)
+        // Publish event (will use MassTransit if enabled, otherwise in-memory)
         _ = Task.Run(async () =>
         {
             try
             {
-                await _eddApprovedHandler.HandleAsync(approvedEvent);
+                await _eventPublisher.PublishAsync(
+                    approvedEvent,
+                    "client.edd.approved",
+                    correlationId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error handling EDD approved event for client {ClientId}", clientId);
+                _logger.LogError(ex, "Error publishing EDD approved event for client {ClientId}", clientId);
             }
         });
 
@@ -265,16 +274,19 @@ public class EddStatusUpdateWorker : ICamundaJobHandler
             "EDD rejected event: {@EddRejectedEvent}",
             rejectedEvent);
 
-        // Invoke event handler (fire-and-forget pattern)
+        // Publish event (will use MassTransit if enabled, otherwise in-memory)
         _ = Task.Run(async () =>
         {
             try
             {
-                await _eddRejectedHandler.HandleAsync(rejectedEvent);
+                await _eventPublisher.PublishAsync(
+                    rejectedEvent,
+                    "client.edd.rejected",
+                    correlationId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error handling EDD rejected event for client {ClientId}", clientId);
+                _logger.LogError(ex, "Error publishing EDD rejected event for client {ClientId}", clientId);
             }
         });
 

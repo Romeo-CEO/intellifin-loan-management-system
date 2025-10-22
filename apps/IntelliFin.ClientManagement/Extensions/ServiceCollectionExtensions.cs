@@ -207,6 +207,18 @@ public static class ServiceCollectionExtensions
         services.AddScoped<EventHandlers.IDomainEventHandler<Domain.Events.EddEscalatedEvent>, EventHandlers.EddEscalatedEventHandler>();
         services.AddScoped<EventHandlers.IDomainEventHandler<Domain.Events.EddApprovedEvent>, EventHandlers.EddApprovedEventHandler>();
         services.AddScoped<EventHandlers.IDomainEventHandler<Domain.Events.EddRejectedEvent>, EventHandlers.EddRejectedEventHandler>();
+        
+        // Register event publisher (Story 1.14b)
+        // Will be MassTransitEventPublisher if RabbitMQ enabled, otherwise InMemoryEventPublisher
+        var rabbitMqOptions = configuration.GetSection("RabbitMQ").Get<Infrastructure.Configuration.RabbitMqOptions>();
+        if (rabbitMqOptions?.Enabled == true)
+        {
+            services.AddScoped<Services.IEventPublisher, Services.MassTransitEventPublisher>();
+        }
+        else
+        {
+            services.AddScoped<Services.IEventPublisher, Services.InMemoryEventPublisher>();
+        }
 
         // Register CommunicationsService HTTP client (Story 1.7)
         services.AddRefitClient<Integration.ICommunicationsClient>()

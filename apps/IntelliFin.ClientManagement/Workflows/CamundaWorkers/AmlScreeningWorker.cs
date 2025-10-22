@@ -1,3 +1,4 @@
+using IntelliFin.ClientManagement.Domain.Events;
 using IntelliFin.ClientManagement.Infrastructure.Persistence;
 using IntelliFin.ClientManagement.Services;
 using Microsoft.EntityFrameworkCore;
@@ -9,21 +10,25 @@ namespace IntelliFin.ClientManagement.Workflows.CamundaWorkers;
 /// <summary>
 /// Camunda worker for performing AML (Anti-Money Laundering) screening
 /// Checks client against sanctions lists, PEP databases, and watchlists
+/// Publishes EddEscalatedEvent when EDD is required (Story 1.14)
 /// </summary>
 public class AmlScreeningWorker : ICamundaJobHandler
 {
     private readonly ILogger<AmlScreeningWorker> _logger;
     private readonly ClientManagementDbContext _context;
     private readonly IAmlScreeningService _amlService;
+    private readonly IEventPublisher _eventPublisher;
 
     public AmlScreeningWorker(
         ILogger<AmlScreeningWorker> logger,
         ClientManagementDbContext context,
-        IAmlScreeningService amlService)
+        IAmlScreeningService amlService,
+        IEventPublisher eventPublisher)
     {
         _logger = logger;
         _context = context;
         _amlService = amlService;
+        _eventPublisher = eventPublisher;
     }
 
     public string GetTopicName() => "client.kyc.aml-screening";
@@ -118,16 +123,19 @@ public class AmlScreeningWorker : ICamundaJobHandler
                         ProcessInstanceId = job.ProcessInstanceKey.ToString()
                     };
 
-                    // Invoke event handler (fire-and-forget pattern)
+                    // Publish event (will use MassTransit if enabled, otherwise in-memory)
                     _ = Task.Run(async () =>
                     {
                         try
                         {
-                            await _eddEscalatedHandler.HandleAsync(eddEvent);
+                            await _eventPublisher.PublishAsync(
+                                eddEvent,
+                                "client.kyc.edd-escalated",
+                                correlationId);
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError(ex, "Error handling EDD escalation event for client {ClientId}", clientId);
+                            _logger.LogError(ex, "Error publishing EDD escalation event for client {ClientId}", clientId);
                         }
                     });
                 }

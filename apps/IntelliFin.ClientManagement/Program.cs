@@ -59,6 +59,9 @@ try
     // Add Camunda workers
     builder.Services.AddCamundaWorkers(builder.Configuration);
 
+    // Add MassTransit messaging (Story 1.14b)
+    builder.Services.AddMassTransitMessaging(builder.Configuration);
+
     // Add API services
     builder.Services.AddOpenApi();
     builder.Services.AddControllers();
