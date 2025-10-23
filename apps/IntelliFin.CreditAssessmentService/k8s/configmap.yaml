@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: credit-assessment-service-config
+  labels:
+    app: credit-assessment-service
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  Vault__Address: "https://vault.intellifin.africa"
+  Vault__Role: "credit-assessment-service"
+  RabbitMq__Host: "rabbitmq.intellifin.internal"

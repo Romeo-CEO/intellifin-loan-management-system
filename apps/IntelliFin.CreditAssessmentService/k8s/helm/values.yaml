@@ -1,0 +1,35 @@
+replicaCount: 2
+image:
+  repository: intellifin/credit-assessment-service
+  tag: latest
+  pullPolicy: IfNotPresent
+serviceAccount:
+  create: true
+  name: credit-assessment-service
+service:
+  type: ClusterIP
+  port: 8080
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+vault:
+  address: https://vault.intellifin.africa
+  role: credit-assessment-service
+rabbitmq:
+  host: rabbitmq.intellifin.internal
+  username: credit_assessment
+  password: CHANGE_ME
+postgres:
+  connectionString: Host=postgres;Port=5432;Database=intellifin_lms;Username=lms_user;Password=CHANGE_ME
+environment: Production
+metrics:
+  enabled: true
+  path: /metrics
+  port: 8080
+featureFlags:
+  enableStandaloneAssessment: true
+  enableVaultRuleEngine: true
