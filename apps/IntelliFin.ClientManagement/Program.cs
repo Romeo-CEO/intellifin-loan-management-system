@@ -62,6 +62,20 @@ try
     // Add MassTransit messaging (Story 1.14b)
     builder.Services.AddMassTransitMessaging(builder.Configuration);
 
+    // Add response compression (Story 1.17)
+    builder.Services.AddResponseCompression(options =>
+    {
+        options.EnableForHttps = true;
+        options.MimeTypes = new[]
+        {
+            "application/json",
+            "text/json",
+            "text/plain",
+            "application/xml",
+            "text/xml"
+        };
+    });
+
     // Add API services
     builder.Services.AddOpenApi();
     builder.Services.AddControllers();
@@ -70,6 +84,9 @@ try
 
     // Configure middleware pipeline (ORDER IS CRITICAL)
     
+    // 0. Response compression (Story 1.17 - before other middleware)
+    app.UseResponseCompression();
+
     // 1. Correlation ID (first - tracks all requests)
     app.UseCorrelationId();
 

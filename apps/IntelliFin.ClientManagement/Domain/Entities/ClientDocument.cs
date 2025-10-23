@@ -108,8 +108,9 @@ public class ClientDocument
     public DateTime? ExpiryDate { get; set; }
 
     /// <summary>
-    /// Bank of Zambia 7-year retention policy - document cannot be deleted before this date
-    /// Calculated as UploadedAt + 7 years
+    /// Bank of Zambia 10-year retention policy - document cannot be deleted before this date
+    /// Calculated as UploadedAt + 10 years
+    /// Updated to 10 years to align with latest BoZ requirements (Story 1.16)
     /// </summary>
     public DateTime RetentionUntil { get; set; }
 
@@ -122,6 +123,31 @@ public class ClientDocument
     /// Timestamp when document was archived
     /// </summary>
     public DateTime? ArchivedAt { get; set; }
+
+    /// <summary>
+    /// User ID of officer who archived the document
+    /// </summary>
+    public string? ArchivedBy { get; set; }
+
+    /// <summary>
+    /// Reason for archival (Automatic, Manual, PolicyChange, etc.)
+    /// </summary>
+    public string? ArchivalReason { get; set; }
+
+    /// <summary>
+    /// Flag indicating if document can be restored from archive
+    /// </summary>
+    public bool CanRestore { get; set; } = true;
+
+    /// <summary>
+    /// Timestamp when document was restored from archive (if applicable)
+    /// </summary>
+    public DateTime? RestoredAt { get; set; }
+
+    /// <summary>
+    /// User ID of officer who restored the document
+    /// </summary>
+    public string? RestoredBy { get; set; }
 
     // ========== OCR Metadata (Future) ==========
 

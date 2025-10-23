@@ -223,6 +223,12 @@ public static class ServiceCollectionExtensions
         // Register analytics service (Story 1.15)
         services.AddScoped<Services.IAnalyticsService, Services.AnalyticsService>();
 
+        // Register document retention service (Story 1.16)
+        services.AddScoped<Services.IDocumentRetentionService, Services.DocumentRetentionService>();
+
+        // Register document retention background service (Story 1.16)
+        services.AddHostedService<Services.DocumentRetentionBackgroundService>();
+
         // Register CommunicationsService HTTP client (Story 1.7)
         services.AddRefitClient<Integration.ICommunicationsClient>()
             .ConfigureHttpClient(c =>
