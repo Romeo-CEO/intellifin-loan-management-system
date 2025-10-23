@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: credit-assessment-service-config
+  labels:
+    app: credit-assessment-service
+data:
+  ASPNETCORE_ENVIRONMENT: "{{ .Values.environment }}"
+  Vault__Address: "{{ .Values.vault.address }}"
+  Vault__Role: "{{ .Values.vault.role }}"
+  RabbitMq__Host: "{{ .Values.rabbitmq.host }}"

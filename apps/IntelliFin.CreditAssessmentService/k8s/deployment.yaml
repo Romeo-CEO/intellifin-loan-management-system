@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: credit-assessment-service
+  labels:
+    app: credit-assessment-service
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: credit-assessment-service
+  template:
+    metadata:
+      labels:
+        app: credit-assessment-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName: credit-assessment-service
+      containers:
+        - name: credit-assessment-service
+          image: intellifin/credit-assessment-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: credit-assessment-service-config
+                  key: ASPNETCORE_ENVIRONMENT
+            - name: ConnectionStrings__LmsDatabase
+              valueFrom:
+                secretKeyRef:
+                  name: credit-assessment-service-secrets
+                  key: lmsDatabase
+            - name: Vault__Address
+              valueFrom:
+                configMapKeyRef:
+                  name: credit-assessment-service-config
+                  key: Vault__Address
+            - name: Vault__Token
+              valueFrom:
+                secretKeyRef:
+                  name: credit-assessment-service-secrets
+                  key: vaultToken
+            - name: Vault__Role
+              valueFrom:
+                configMapKeyRef:
+                  name: credit-assessment-service-config
+                  key: Vault__Role
+            - name: RabbitMq__Host
+              valueFrom:
+                configMapKeyRef:
+                  name: credit-assessment-service-config
+                  key: RabbitMq__Host
+            - name: RabbitMq__Username
+              valueFrom:
+                secretKeyRef:
+                  name: credit-assessment-service-secrets
+                  key: rabbitUser
+            - name: RabbitMq__Password
+              valueFrom:
+                secretKeyRef:
+                  name: credit-assessment-service-secrets
+                  key: rabbitPassword
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          volumeMounts:
+            - name: vault-token
+              mountPath: /var/run/secrets/intellifin
+              readOnly: true
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: vault-token
+          secret:
+            secretName: credit-assessment-service-secrets
+            items:
+              - key: vaultToken
+                path: vault-token
