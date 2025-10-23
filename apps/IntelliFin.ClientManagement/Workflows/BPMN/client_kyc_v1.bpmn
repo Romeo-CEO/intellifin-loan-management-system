@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_1"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  
+  <bpmn:process id="client_kyc_v1" name="Client KYC Verification" isExecutable="true">
+    
+    <!-- Start Event -->
+    <bpmn:startEvent id="StartEvent_KycInitiated" name="KYC Initiated">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <!-- Check Document Completeness -->
+    <bpmn:serviceTask id="Task_CheckDocuments" name="Check Document Completeness">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="io.intellifin.kyc.check-documents" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <!-- Gateway: Documents Complete? -->
+    <bpmn:exclusiveGateway id="Gateway_DocumentsComplete" name="Documents Complete?">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Complete</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Incomplete</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    
+    <!-- AML Screening -->
+    <bpmn:serviceTask id="Task_AmlScreening" name="AML Screening">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="io.intellifin.kyc.aml-screening" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Complete</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <!-- Gateway: AML Result -->
+    <bpmn:exclusiveGateway id="Gateway_AmlResult" name="AML Risk Level?">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_AmlClear</bpmn:outgoing>
+      <bpmn:outgoing>Flow_AmlHigh</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    
+    <!-- Risk Assessment -->
+    <bpmn:serviceTask id="Task_RiskAssessment" name="Risk Assessment">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="io.intellifin.kyc.risk-assessment" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_AmlClear</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <!-- End Event: Approved -->
+    <bpmn:endEvent id="EndEvent_Approved" name="KYC Approved">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <!-- End Event: Incomplete Documents -->
+    <bpmn:endEvent id="EndEvent_Incomplete" name="Pending Documents">
+      <bpmn:incoming>Flow_Incomplete</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <!-- End Event: EDD Required -->
+    <bpmn:endEvent id="EndEvent_EddRequired" name="EDD Required">
+      <bpmn:incoming>Flow_AmlHigh</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_KycInitiated" targetRef="Task_CheckDocuments" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_CheckDocuments" targetRef="Gateway_DocumentsComplete" />
+    
+    <bpmn:sequenceFlow id="Flow_Complete" name="Yes" sourceRef="Gateway_DocumentsComplete" targetRef="Task_AmlScreening">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=documentComplete = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_Incomplete" name="No" sourceRef="Gateway_DocumentsComplete" targetRef="EndEvent_Incomplete">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=documentComplete = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_AmlScreening" targetRef="Gateway_AmlResult" />
+    
+    <bpmn:sequenceFlow id="Flow_AmlClear" name="Clear/Low" sourceRef="Gateway_AmlResult" targetRef="Task_RiskAssessment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=amlRiskLevel != "High"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_AmlHigh" name="High" sourceRef="Gateway_AmlResult" targetRef="EndEvent_EddRequired">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=amlRiskLevel = "High"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_RiskAssessment" targetRef="EndEvent_Approved" />
+    
+  </bpmn:process>
+  
+</bpmn:definitions>

@@ -24,6 +24,28 @@ public class ClientManagementDbContext : DbContext
     /// </summary>
     public DbSet<ClientVersion> ClientVersions => Set<ClientVersion>();
 
+    /// <summary>
+    /// Client documents (Story 1.6)
+    /// </summary>
+    public DbSet<ClientDocument> ClientDocuments => Set<ClientDocument>();
+
+    /// <summary>
+    /// Communication consents (Story 1.7)
+    /// </summary>
+    public DbSet<CommunicationConsent> CommunicationConsents => Set<CommunicationConsent>();
+
+    /// <summary>
+    /// KYC statuses (Story 1.10)
+    /// </summary>
+    public DbSet<KycStatus> KycStatuses => Set<KycStatus>();
+
+    /// <summary>
+    /// AML screenings (Story 1.11)
+    /// </summary>
+    public DbSet<AmlScreening> AmlScreenings => Set<AmlScreening>();
+
+    public DbSet<RiskProfile> RiskProfiles => Set<RiskProfile>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -31,9 +53,12 @@ public class ClientManagementDbContext : DbContext
         // Apply entity configurations
         modelBuilder.ApplyConfiguration(new ClientConfiguration());
         modelBuilder.ApplyConfiguration(new ClientVersionConfiguration());
+        modelBuilder.ApplyConfiguration(new ClientDocumentConfiguration());
+        modelBuilder.ApplyConfiguration(new CommunicationConsentConfiguration());
+        modelBuilder.ApplyConfiguration(new KycStatusConfiguration());
+        modelBuilder.ApplyConfiguration(new AmlScreeningConfiguration());
+        modelBuilder.ApplyConfiguration(new RiskProfileConfiguration());
         
-        // Future entity configurations will be added here:
-        // Story 1.6: KycDocument Integration will add ClientDocument entity
-        // Story 1.7: Communications Integration will add CommunicationConsent entity
+        // Future entity configurations will be added here as needed
     }
 }

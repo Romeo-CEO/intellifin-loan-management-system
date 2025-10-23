@@ -187,8 +187,21 @@ public class Client
     /// </summary>
     public int VersionNumber { get; set; } = 1;
 
-    // Navigation properties (for future stories)
-    // Story 1.4: Versioning
-    // Story 1.6: Documents
-    // Story 1.7: Communication consents
+    // Navigation properties
+    
+    /// <summary>
+    /// Collection of documents uploaded for this client (Story 1.6)
+    /// </summary>
+    public ICollection<ClientDocument> Documents { get; set; } = new List<ClientDocument>();
+
+    /// <summary>
+    /// Collection of communication consent preferences for this client (Story 1.7)
+    /// </summary>
+    public ICollection<CommunicationConsent> Consents { get; set; } = new List<CommunicationConsent>();
+
+    /// <summary>
+    /// KYC (Know Your Customer) compliance status for this client (Story 1.10)
+    /// One-to-one relationship tracking KYC verification progress
+    /// </summary>
+    public KycStatus? KycStatus { get; set; }
 }
