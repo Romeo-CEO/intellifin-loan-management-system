@@ -1,4 +1,4 @@
-﻿using IntelliFin.Shared.DomainModels.Entities;
+using IntelliFin.Shared.DomainModels.Entities;
 using IntelliFin.Shared.DomainModels.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -47,6 +47,11 @@ public class LmsDbContext : DbContext
     public DbSet<GLEntry> GLEntries => Set<GLEntry>();
     public DbSet<GLEntryLine> GLEntryLines => Set<GLEntryLine>();
     public DbSet<GLBalance> GLBalances => Set<GLBalance>();
+    
+    // Credit Assessment Enhancements (Story 1.2)
+    public DbSet<CreditAssessmentAudit> CreditAssessmentAudits => Set<CreditAssessmentAudit>();
+    public DbSet<RuleEvaluation> RuleEvaluations => Set<RuleEvaluation>();
+    public DbSet<AssessmentConfigVersion> AssessmentConfigVersions => Set<AssessmentConfigVersion>();
     
     // System-Assisted Manual Verification
     public DbSet<DocumentVerification> DocumentVerifications => Set<DocumentVerification>();
@@ -260,13 +265,27 @@ public class LmsDbContext : DbContext
             b.Property(x => x.PaymentCapacity).HasColumnType("decimal(18,2)");
             b.Property(x => x.ScoreExplanation).HasColumnType("nvarchar(max)");
             b.Property(x => x.AssessedBy).HasMaxLength(200);
+            
+            // Story 1.2 Enhancements
+            b.Property(x => x.DecisionCategory).HasMaxLength(50);
+            b.Property(x => x.TriggeredRules).HasColumnType("nvarchar(max)"); // Will be JSONB in PostgreSQL, JSON in SQL Server
+            b.Property(x => x.ManualOverrideReason).HasColumnType("nvarchar(max)");
+            b.Property(x => x.InvalidReason).HasMaxLength(500);
+            b.Property(x => x.VaultConfigVersion).HasMaxLength(50);
+            b.Property(x => x.IsValid).HasDefaultValue(true);
+            
             b.HasOne(x => x.LoanApplication)
              .WithMany(l => l.CreditAssessments)
              .HasForeignKey(x => x.LoanApplicationId)
              .OnDelete(DeleteBehavior.Restrict);
+            
+            // Indexes
             b.HasIndex(x => x.LoanApplicationId);
             b.HasIndex(x => x.RiskGrade);
             b.HasIndex(x => x.AssessedAt);
+            b.HasIndex(x => x.AssessedByUserId);
+            b.HasIndex(x => x.IsValid);
+            b.HasIndex(x => x.DecisionCategory);
         });
 
         modelBuilder.Entity<CreditFactor>(b =>
@@ -296,6 +315,68 @@ public class LmsDbContext : DbContext
              .WithMany(c => c.RiskIndicators)
              .HasForeignKey(x => x.CreditAssessmentId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Credit Assessment Audit (Story 1.2)
+        modelBuilder.Entity<CreditAssessmentAudit>(b =>
+        {
+            b.ToTable("CreditAssessmentAudits");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.EventType).HasMaxLength(100).IsRequired();
+            b.Property(x => x.EventPayload).HasColumnType("nvarchar(max)").IsRequired();
+            b.Property(x => x.CorrelationId).HasMaxLength(200);
+            b.Property(x => x.Timestamp).IsRequired();
+            
+            b.HasOne(x => x.Assessment)
+             .WithMany()
+             .HasForeignKey(x => x.AssessmentId)
+             .OnDelete(DeleteBehavior.Cascade);
+            
+            b.HasIndex(x => x.AssessmentId);
+            b.HasIndex(x => x.EventType);
+            b.HasIndex(x => x.Timestamp);
+            b.HasIndex(x => x.CorrelationId);
+        });
+
+        // Rule Evaluations (Story 1.2)
+        modelBuilder.Entity<RuleEvaluation>(b =>
+        {
+            b.ToTable("RuleEvaluations");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.RuleId).HasMaxLength(50).IsRequired();
+            b.Property(x => x.RuleName).HasMaxLength(255).IsRequired();
+            b.Property(x => x.Score).HasColumnType("decimal(10,2)").IsRequired();
+            b.Property(x => x.Weight).HasColumnType("decimal(5,4)").IsRequired();
+            b.Property(x => x.WeightedScore).HasColumnType("decimal(10,2)").IsRequired();
+            b.Property(x => x.InputValues).HasColumnType("nvarchar(max)").IsRequired();
+            b.Property(x => x.Explanation).HasMaxLength(2000);
+            b.Property(x => x.EvaluatedAt).IsRequired();
+            
+            b.HasOne(x => x.Assessment)
+             .WithMany()
+             .HasForeignKey(x => x.AssessmentId)
+             .OnDelete(DeleteBehavior.Cascade);
+            
+            b.HasIndex(x => x.AssessmentId);
+            b.HasIndex(x => new { x.AssessmentId, x.RuleId });
+            b.HasIndex(x => x.EvaluatedAt);
+        });
+
+        // Assessment Config Versions (Story 1.2)
+        modelBuilder.Entity<AssessmentConfigVersion>(b =>
+        {
+            b.ToTable("AssessmentConfigVersions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Version).HasMaxLength(50).IsRequired();
+            b.Property(x => x.ConfigSnapshot).HasColumnType("nvarchar(max)").IsRequired();
+            b.Property(x => x.LoadedBy).HasMaxLength(200).IsRequired();
+            b.Property(x => x.LoadedAt).IsRequired();
+            b.Property(x => x.IsActive).HasDefaultValue(false);
+            b.Property(x => x.ChangeNotes).HasMaxLength(1000);
+            
+            b.HasIndex(x => x.Version).IsUnique();
+            b.HasIndex(x => x.IsActive);
+            b.HasIndex(x => x.LoadedAt);
         });
 
         modelBuilder.Entity<ApplicationField>(b =>

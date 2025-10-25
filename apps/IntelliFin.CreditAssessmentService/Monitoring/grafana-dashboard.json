@@ -1,0 +1,53 @@
+{
+  "dashboard": {
+    "title": "IntelliFin Credit Assessment Service",
+    "tags": ["intellifin", "credit-assessment"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_received_total{service=\"credit-assessment\"}[5m])",
+            "legendFormat": "{{method}} {{endpoint}}"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Response Latency (p95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service=\"credit-assessment\"}[5m]))",
+            "legendFormat": "p95"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Assessment Decisions",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (decision) (credit_assessments_total{service=\"credit-assessment\"})",
+            "legendFormat": "{{decision}}"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "External API Latency",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "http_client_request_duration_seconds{service=\"credit-assessment\"}",
+            "legendFormat": "{{api}}"
+          }
+        ]
+      }
+    ]
+  }
+}

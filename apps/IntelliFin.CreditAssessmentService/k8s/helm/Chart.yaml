@@ -1,0 +1,15 @@
+apiVersion: v2
+name: credit-assessment-service
+description: IntelliFin Credit Assessment Service - Intelligent Credit Scoring and Risk Assessment
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - intellifin
+  - credit-assessment
+  - risk-scoring
+  - microfinance
+home: https://github.com/intellifin/credit-assessment-service
+maintainers:
+  - name: IntelliFin DevOps Team
+    email: devops@intellifin.com

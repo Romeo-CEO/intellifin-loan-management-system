@@ -1,0 +1,66 @@
+# Prometheus Alerting Rules
+# Story 1.19: Monitoring, Alerting, and Observability
+
+groups:
+  - name: credit_assessment_alerts
+    interval: 30s
+    rules:
+      - alert: CreditAssessmentServiceDown
+        expr: up{service="credit-assessment"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: credit-assessment
+        annotations:
+          summary: "Credit Assessment Service is down"
+          description: "The Credit Assessment Service has been down for more than 1 minute"
+
+      - alert: HighAssessmentLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service="credit-assessment",endpoint="/api/v1/credit-assessment/assess"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: credit-assessment
+        annotations:
+          summary: "High assessment latency detected"
+          description: "p95 latency is {{ $value }}s (threshold: 5s)"
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_received_total{service="credit-assessment",status=~"5.."}[5m]) / rate(http_requests_received_total{service="credit-assessment"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: credit-assessment
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+      - alert: TransUnionAPIFailures
+        expr: rate(http_client_requests_total{service="credit-assessment",api="transunion",status!~"2.."}[5m]) / rate(http_client_requests_total{service="credit-assessment",api="transunion"}[5m]) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          service: credit-assessment
+        annotations:
+          summary: "TransUnion API experiencing high failure rate"
+          description: "TransUnion failure rate: {{ $value | humanizePercentage }} (threshold: 10%)"
+
+      - alert: HighManualOverrideRate
+        expr: rate(credit_manual_overrides_total{service="credit-assessment"}[1h]) / rate(credit_assessments_total{service="credit-assessment"}[1h]) > 0.20
+        for: 15m
+        labels:
+          severity: warning
+          service: credit-assessment
+        annotations:
+          summary: "High manual override rate"
+          description: "Manual override rate: {{ $value | humanizePercentage }} (threshold: 20%)"
+
+      - alert: DatabaseConnectionIssues
+        expr: rate(database_connection_errors_total{service="credit-assessment"}[5m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+          service: credit-assessment
+        annotations:
+          summary: "Database connection errors detected"
+          description: "Database connectivity issues for Credit Assessment Service"

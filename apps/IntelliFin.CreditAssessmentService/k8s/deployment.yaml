@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: credit-assessment-service
+  namespace: intellifin
+  labels:
+    app: credit-assessment-service
+    component: backend
+    tier: services
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: credit-assessment-service
+  template:
+    metadata:
+      labels:
+        app: credit-assessment-service
+        component: backend
+        tier: services
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: credit-assessment-service
+      containers:
+      - name: credit-assessment-service
+        image: intellifin/credit-assessment-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"
+        - name: ASPNETCORE_URLS
+          value: "http://+:8080"
+        - name: ConnectionStrings__LmsDatabase
+          valueFrom:
+            secretKeyRef:
+              name: credit-assessment-secrets
+              key: database-connection-string
+        - name: ConnectionStrings__Redis
+          valueFrom:
+            configMapKeyRef:
+              name: credit-assessment-config
+              key: redis-connection-string
+        - name: RabbitMQ__Host
+          valueFrom:
+            configMapKeyRef:
+              name: credit-assessment-config
+              key: rabbitmq-host
+        - name: RabbitMQ__Username
+          valueFrom:
+            secretKeyRef:
+              name: credit-assessment-secrets
+              key: rabbitmq-username
+        - name: RabbitMQ__Password
+          valueFrom:
+            secretKeyRef:
+              name: credit-assessment-secrets
+              key: rabbitmq-password
+        - name: Vault__Address
+          valueFrom:
+            configMapKeyRef:
+              name: credit-assessment-config
+              key: vault-address
+        - name: Vault__Token
+          valueFrom:
+            secretKeyRef:
+              name: credit-assessment-secrets
+              key: vault-token
+        - name: Camunda__ZeebeGatewayAddress
+          valueFrom:
+            configMapKeyRef:
+              name: credit-assessment-config
+              key: camunda-zeebe-gateway
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+      securityContext:
+        fsGroup: 1001
