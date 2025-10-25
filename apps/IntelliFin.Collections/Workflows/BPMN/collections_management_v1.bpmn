@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  id="CollectionsManagement"
+                  targetNamespace="http://intellifin.collections">
+  
+  <bpmn:process id="collections_management_process" name="Collections Management Process" isExecutable="true">
+    
+    <!-- Start Event: Loan Becomes Overdue -->
+    <bpmn:startEvent id="StartEvent_LoanOverdue" name="Loan Becomes Overdue">
+      <bpmn:outgoing>Flow_ToCheckDPD</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Service Task: Check Days Past Due -->
+    <bpmn:serviceTask id="Task_CheckDPD" name="Check Days Past Due">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="check-dpd" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToCheckDPD</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Exclusive Gateway: Route Based on DPD -->
+    <bpmn:exclusiveGateway id="Gateway_DPDRouting" name="Route by DPD">
+      <bpmn:incoming>Flow_ToGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_To1to7Days</bpmn:outgoing>
+      <bpmn:outgoing>Flow_To30Days</bpmn:outgoing>
+      <bpmn:outgoing>Flow_To60Days</bpmn:outgoing>
+      <bpmn:outgoing>Flow_To90DaysPlus</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Service Task: Send Reminder SMS (1-7 days) -->
+    <bpmn:serviceTask id="Task_SendReminder" name="Send Reminder SMS">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="send-reminder-sms" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_To1to7Days</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReminderToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task: Create Call Task (30 days) -->
+    <bpmn:serviceTask id="Task_CreateCallTask" name="Create Collections Call Task">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="create-call-task" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_To30Days</bpmn:incoming>
+      <bpmn:outgoing>Flow_CallToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task: Escalate to Manager (60 days) -->
+    <bpmn:serviceTask id="Task_EscalateToManager" name="Escalate to Collections Manager">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="escalate-to-manager" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_To60Days</bpmn:incoming>
+      <bpmn:outgoing>Flow_EscalateToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task: Legal Action Review (90+ days) -->
+    <bpmn:serviceTask id="Task_LegalReview" name="Initiate Legal Action Review">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="legal-action-review" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_To90DaysPlus</bpmn:incoming>
+      <bpmn:outgoing>Flow_LegalToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="EndEvent_CollectionsAction" name="Collections Action Complete">
+      <bpmn:incoming>Flow_ReminderToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_CallToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_EscalateToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_LegalToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToCheckDPD" sourceRef="StartEvent_LoanOverdue" targetRef="Task_CheckDPD" />
+    <bpmn:sequenceFlow id="Flow_ToGateway" sourceRef="Task_CheckDPD" targetRef="Gateway_DPDRouting" />
+    
+    <bpmn:sequenceFlow id="Flow_To1to7Days" name="1-7 days DPD" sourceRef="Gateway_DPDRouting" targetRef="Task_SendReminder">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=daysPastDue &gt;= 1 and daysPastDue &lt;= 7</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_To30Days" name="30 days DPD" sourceRef="Gateway_DPDRouting" targetRef="Task_CreateCallTask">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=daysPastDue &gt;= 30 and daysPastDue &lt; 60</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_To60Days" name="60 days DPD" sourceRef="Gateway_DPDRouting" targetRef="Task_EscalateToManager">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=daysPastDue &gt;= 60 and daysPastDue &lt; 90</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_To90DaysPlus" name="90+ days DPD" sourceRef="Gateway_DPDRouting" targetRef="Task_LegalReview">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=daysPastDue &gt;= 90</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_ReminderToEnd" sourceRef="Task_SendReminder" targetRef="EndEvent_CollectionsAction" />
+    <bpmn:sequenceFlow id="Flow_CallToEnd" sourceRef="Task_CreateCallTask" targetRef="EndEvent_CollectionsAction" />
+    <bpmn:sequenceFlow id="Flow_EscalateToEnd" sourceRef="Task_EscalateToManager" targetRef="EndEvent_CollectionsAction" />
+    <bpmn:sequenceFlow id="Flow_LegalToEnd" sourceRef="Task_LegalReview" targetRef="EndEvent_CollectionsAction" />
+
+  </bpmn:process>
+  
+</bpmn:definitions>
