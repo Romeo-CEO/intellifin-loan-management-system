@@ -1,26 +1,30 @@
 using IntelliFin.CreditAssessmentService.Models.Requests;
 using IntelliFin.CreditAssessmentService.Models.Responses;
+using IntelliFin.CreditAssessmentService.Services.Integration;
 using IntelliFin.Shared.DomainModels.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace IntelliFin.CreditAssessmentService.Services.Core;
 
 /// <summary>
-/// Core credit assessment service implementation (stub for Story 1.3, full logic in Story 1.4).
+/// Core credit assessment service implementation.
 /// </summary>
 public class CreditAssessmentService : ICreditAssessmentService
 {
     private readonly LmsDbContext _dbContext;
     private readonly IRiskCalculationEngine _riskEngine;
+    private readonly IAdminServiceClient _auditClient;
     private readonly ILogger<CreditAssessmentService> _logger;
 
     public CreditAssessmentService(
         LmsDbContext dbContext,
         IRiskCalculationEngine riskEngine,
+        IAdminServiceClient auditClient,
         ILogger<CreditAssessmentService> logger)
     {
         _dbContext = dbContext;
         _riskEngine = riskEngine;
+        _auditClient = auditClient;
         _logger = logger;
     }
 
@@ -29,9 +33,31 @@ public class CreditAssessmentService : ICreditAssessmentService
         Guid? userId = null,
         CancellationToken cancellationToken = default)
     {
+        var correlationId = Guid.NewGuid().ToString();
+        
         _logger.LogInformation(
-            "Starting credit assessment for loan application {LoanApplicationId}, client {ClientId}",
-            request.LoanApplicationId, request.ClientId);
+            "Starting credit assessment for loan application {LoanApplicationId}, client {ClientId}, correlation {CorrelationId}",
+            request.LoanApplicationId, request.ClientId, correlationId);
+
+        // Log assessment initiation to audit trail
+        await _auditClient.LogAuditEventAsync(new Integration.AuditEvent
+        {
+            EventType = "CreditAssessmentInitiated",
+            EntityType = "CreditAssessment",
+            EntityId = Guid.NewGuid(), // Will be updated with actual ID
+            UserId = userId,
+            Action = "InitiateAssessment",
+            Timestamp = DateTime.UtcNow,
+            CorrelationId = correlationId,
+            Details = new Dictionary<string, object>
+            {
+                ["LoanApplicationId"] = request.LoanApplicationId,
+                ["ClientId"] = request.ClientId,
+                ["RequestedAmount"] = request.RequestedAmount,
+                ["TermMonths"] = request.TermMonths,
+                ["ProductType"] = request.ProductType
+            }
+        });
 
         // Gather assessment data
         var assessmentData = new AssessmentData
@@ -93,8 +119,28 @@ public class CreditAssessmentService : ICreditAssessmentService
         };
 
         _logger.LogInformation(
-            "Completed stub assessment {AssessmentId} with decision {Decision}",
-            assessment.AssessmentId, assessment.Decision);
+            "Completed assessment {AssessmentId} with decision {Decision}, correlation {CorrelationId}",
+            assessment.AssessmentId, assessment.Decision, correlationId);
+
+        // Log assessment completion to audit trail
+        await _auditClient.LogAuditEventAsync(new Integration.AuditEvent
+        {
+            EventType = "CreditAssessmentCompleted",
+            EntityType = "CreditAssessment",
+            EntityId = assessment.AssessmentId,
+            UserId = userId,
+            Action = "CompleteAssessment",
+            Timestamp = DateTime.UtcNow,
+            CorrelationId = correlationId,
+            Details = new Dictionary<string, object>
+            {
+                ["Decision"] = assessment.Decision,
+                ["RiskGrade"] = assessment.RiskGrade,
+                ["CompositeScore"] = assessment.CompositeScore,
+                ["DebtToIncomeRatio"] = assessment.DebtToIncomeRatio,
+                ["AffordableAmount"] = assessment.AffordableAmount
+            }
+        });
 
         return await Task.FromResult(assessment);
     }

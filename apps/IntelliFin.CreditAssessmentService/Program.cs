@@ -1,6 +1,8 @@
 using IntelliFin.Shared.Observability;
 using IntelliFin.Shared.DomainModels.Data;
 using IntelliFin.CreditAssessmentService.Services.Core;
+using IntelliFin.CreditAssessmentService.EventHandlers;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -147,6 +149,52 @@ try
             options.InstanceName = "IntelliFin.CreditAssessment:";
         });
     }
+
+    // Add MassTransit with RabbitMQ
+    builder.Services.AddMassTransit(x =>
+    {
+        // Register consumers
+        x.AddConsumer<KycStatusEventHandler>();
+
+        x.UsingRabbitMq((context, cfg) =>
+        {
+            var rabbitMqHost = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
+            var rabbitMqPort = builder.Configuration.GetValue<int>("RabbitMQ:Port", 5672);
+            var rabbitMqUsername = builder.Configuration["RabbitMQ:Username"] ?? "guest";
+            var rabbitMqPassword = builder.Configuration["RabbitMQ:Password"] ?? "guest";
+            var rabbitMqVirtualHost = builder.Configuration["RabbitMQ:VirtualHost"] ?? "/";
+
+            cfg.Host(rabbitMqHost, rabbitMqPort, rabbitMqVirtualHost, h =>
+            {
+                h.Username(rabbitMqUsername);
+                h.Password(rabbitMqPassword);
+            });
+
+            // Configure message retry
+            cfg.UseMessageRetry(r => r.Intervals(
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(10)
+            ));
+
+            // Configure receive endpoint for KYC events
+            cfg.ReceiveEndpoint("credit-assessment-kyc-events", e =>
+            {
+                e.ConfigureConsumer<KycStatusEventHandler>(context);
+                
+                // Error handling
+                e.UseMessageRetry(r => r.Intervals(
+                    TimeSpan.FromSeconds(2),
+                    TimeSpan.FromSeconds(5),
+                    TimeSpan.FromSeconds(10)
+                ));
+                
+                e.UseInMemoryOutbox();
+            });
+
+            cfg.ConfigureEndpoints(context);
+        });
+    });
 
     // Add HTTP clients for external service integrations
     builder.Services.AddHttpClient();
