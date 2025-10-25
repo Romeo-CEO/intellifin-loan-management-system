@@ -1,9 +1,17 @@
 using IntelliFin.Shared.Observability;
 using IntelliFin.Shared.DomainModels.Data;
+using IntelliFin.CreditAssessmentService.Services.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using Prometheus;
 using Serilog;
 using Serilog.Formatting.Compact;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using System.Reflection;
+using System.Text;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -30,6 +38,10 @@ try
     // Add services to the container
     builder.Services.AddOpenApi();
     builder.Services.AddControllers();
+    
+    // Add FluentValidation
+    builder.Services.AddFluentValidationAutoValidation();
+    builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
     // Add Entity Framework with PostgreSQL (shared LmsDbContext)
     var connectionString = builder.Configuration.GetConnectionString("LmsDatabase") 
@@ -37,6 +49,88 @@ try
 
     builder.Services.AddDbContext<LmsDbContext>(options =>
         options.UseNpgsql(connectionString));
+
+    // Register application services
+    builder.Services.AddScoped<ICreditAssessmentService, CreditAssessmentService>();
+    builder.Services.AddScoped<IRiskCalculationEngine, RiskCalculationEngine>();
+    builder.Services.AddSingleton<IntelliFin.CreditAssessmentService.Services.Configuration.IVaultConfigService, IntelliFin.CreditAssessmentService.Services.Configuration.VaultConfigService>();
+
+    // Add JWT Authentication
+    var jwtSettings = builder.Configuration.GetSection("Jwt");
+    var jwtSecret = jwtSettings["Secret"] ?? "development-secret-key-change-in-production";
+    var jwtIssuer = jwtSettings["Issuer"] ?? "IntelliFin.IdentityService";
+    var jwtAudience = jwtSettings["Audience"] ?? "IntelliFin.Services";
+
+    builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            ClockSkew = TimeSpan.FromMinutes(5)
+        };
+    });
+
+    builder.Services.AddAuthorization();
+
+    // Add Swagger/OpenAPI with JWT support
+    builder.Services.AddSwaggerGen(c =>
+    {
+        c.SwaggerDoc("v1", new OpenApiInfo
+        {
+            Title = "IntelliFin Credit Assessment Service API",
+            Version = "v1",
+            Description = "Intelligent credit scoring and risk assessment engine for IntelliFin Loan Management System",
+            Contact = new OpenApiContact
+            {
+                Name = "IntelliFin Development Team",
+                Email = "devops@intellifin.com"
+            }
+        });
+
+        // Add JWT Bearer authentication to Swagger
+        c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        {
+            Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+            Name = "Authorization",
+            In = ParameterLocation.Header,
+            Type = SecuritySchemeType.ApiKey,
+            Scheme = "Bearer"
+        });
+
+        c.AddSecurityRequirement(new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Type = ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                Array.Empty<string>()
+            }
+        });
+
+        // Include XML comments for API documentation
+        var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+        var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+        if (File.Exists(xmlPath))
+        {
+            c.IncludeXmlComments(xmlPath);
+        }
+    });
 
     // Add health checks
     builder.Services.AddHealthChecks()
@@ -54,8 +148,40 @@ try
         });
     }
 
-    // Add HTTP clients for external service integrations (to be implemented in later stories)
+    // Add HTTP clients for external service integrations
     builder.Services.AddHttpClient();
+    
+    // Client Management HTTP Client
+    builder.Services.AddHttpClient<IClientManagementClient, IntelliFin.CreditAssessmentService.Services.Integration.ClientManagementClient>(client =>
+    {
+        var baseUrl = builder.Configuration.GetSection("ExternalServices:ClientManagement:BaseUrl").Value ?? "http://localhost:5001";
+        client.BaseAddress = new Uri(baseUrl);
+        client.Timeout = TimeSpan.FromSeconds(30);
+    });
+    
+    // TransUnion HTTP Client
+    builder.Services.AddHttpClient<ITransUnionClient, IntelliFin.CreditAssessmentService.Services.Integration.TransUnionClient>(client =>
+    {
+        var baseUrl = builder.Configuration.GetSection("ExternalServices:TransUnion:BaseUrl").Value ?? "https://api.transunion.co.zm";
+        client.BaseAddress = new Uri(baseUrl);
+        client.Timeout = TimeSpan.FromSeconds(60);
+    });
+    
+    // PMEC HTTP Client
+    builder.Services.AddHttpClient<IPmecClient, IntelliFin.CreditAssessmentService.Services.Integration.PmecClient>(client =>
+    {
+        var baseUrl = builder.Configuration.GetSection("ExternalServices:PMEC:BaseUrl").Value ?? "https://pmec-api.gov.zm";
+        client.BaseAddress = new Uri(baseUrl);
+        client.Timeout = TimeSpan.FromSeconds(45);
+    });
+    
+    // AdminService HTTP Client
+    builder.Services.AddHttpClient<IAdminServiceClient, IntelliFin.CreditAssessmentService.Services.Integration.AdminServiceClient>(client =>
+    {
+        var baseUrl = builder.Configuration.GetSection("ExternalServices:AdminService:BaseUrl").Value ?? "http://localhost:5002";
+        client.BaseAddress = new Uri(baseUrl);
+        client.Timeout = TimeSpan.FromSeconds(10);
+    });
 
     var app = builder.Build();
 
@@ -63,6 +189,12 @@ try
     if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi();
+        app.UseSwagger();
+        app.UseSwaggerUI(c =>
+        {
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Credit Assessment API v1");
+            c.RoutePrefix = "swagger";
+        });
     }
 
     // Use Serilog request logging
@@ -74,6 +206,10 @@ try
 
     app.UseHttpsRedirection();
     app.UseRouting();
+    
+    // Authentication and Authorization
+    app.UseAuthentication();
+    app.UseAuthorization();
 
     // Health check endpoints
     app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
