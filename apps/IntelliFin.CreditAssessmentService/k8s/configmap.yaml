@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: credit-assessment-config
+  namespace: intellifin
+  labels:
+    app: credit-assessment-service
+data:
+  redis-connection-string: "redis-master.intellifin.svc.cluster.local:6379"
+  rabbitmq-host: "rabbitmq.intellifin.svc.cluster.local"
+  vault-address: "http://vault.intellifin.svc.cluster.local:8200"
+  camunda-zeebe-gateway: "zeebe-gateway.intellifin.svc.cluster.local:26500"
+  
+  # External service URLs
+  client-management-url: "http://client-management-service.intellifin.svc.cluster.local"
+  admin-service-url: "http://admin-service.intellifin.svc.cluster.local"
+  
+  # Assessment configuration
+  cache-enabled: "true"
+  assessment-cache-ttl-hours: "24"
+  max-concurrent-assessments: "100"
+  enable-explainability: "true"

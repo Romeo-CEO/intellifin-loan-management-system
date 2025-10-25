@@ -1,0 +1,122 @@
+replicaCount: 2
+
+image:
+  repository: intellifin/credit-assessment-service
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "credit-assessment-service"
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+
+podSecurityContext:
+  fsGroup: 1001
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+    - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: credit-assessment.intellifin.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 3
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Application-specific configuration
+config:
+  aspnetcoreEnvironment: "Production"
+  redis:
+    connectionString: "redis-master.intellifin.svc.cluster.local:6379"
+  rabbitmq:
+    host: "rabbitmq.intellifin.svc.cluster.local"
+    port: 5672
+    virtualHost: "/"
+  vault:
+    address: "http://vault.intellifin.svc.cluster.local:8200"
+  camunda:
+    zeebeGatewayAddress: "zeebe-gateway.intellifin.svc.cluster.local:26500"
+  externalServices:
+    clientManagement:
+      baseUrl: "http://client-management-service.intellifin.svc.cluster.local"
+    adminService:
+      baseUrl: "http://admin-service.intellifin.svc.cluster.local"
+  assessment:
+    cacheEnabled: true
+    assessmentCacheTtlHours: 24
+    maxConcurrentAssessments: 100
+    enableExplainability: true
+
+# Secrets (should be provided via external secret management)
+secrets:
+  databaseConnectionString: ""
+  rabbitmqUsername: ""
+  rabbitmqPassword: ""
+  vaultToken: ""
+  transunionApiKey: ""
+  pmecApiKey: ""
