@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  id="WriteOffApproval"
+                  targetNamespace="http://intellifin.collections">
+  
+  <bpmn:process id="write_off_approval_process" name="Write-Off Approval Process (Dual Control)" isExecutable="true">
+    
+    <!-- Start Event -->
+    <bpmn:startEvent id="StartEvent_WriteOffRequest" name="Write-Off Requested">
+      <bpmn:outgoing>Flow_ToValidation</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Service Task: Validate Write-Off Request -->
+    <bpmn:serviceTask id="Task_ValidateRequest" name="Validate Write-Off Request">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="validate-writeoff-request" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToValidation</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToFirstApproval</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- User Task: First Approval (Head of Credit) -->
+    <bpmn:userTask id="Task_FirstApproval" name="Head of Credit Approval">
+      <bpmn:extensionElements>
+        <zeebe:assignmentDefinition assignee="head-of-credit" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToFirstApproval</bpmn:incoming>
+      <bpmn:outgoing>Flow_FirstApprovalCheck</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Exclusive Gateway: First Approval Decision -->
+    <bpmn:exclusiveGateway id="Gateway_FirstApprovalDecision" name="First Approved?">
+      <bpmn:incoming>Flow_FirstApprovalCheck</bpmn:incoming>
+      <bpmn:outgoing>Flow_FirstApproved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_FirstRejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- User Task: Second Approval (Senior Finance Manager) -->
+    <bpmn:userTask id="Task_SecondApproval" name="Senior Finance Manager Approval">
+      <bpmn:extensionElements>
+        <zeebe:assignmentDefinition assignee="senior-finance-manager" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_FirstApproved</bpmn:incoming>
+      <bpmn:outgoing>Flow_SecondApprovalCheck</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Exclusive Gateway: Second Approval Decision -->
+    <bpmn:exclusiveGateway id="Gateway_SecondApprovalDecision" name="Second Approved?">
+      <bpmn:incoming>Flow_SecondApprovalCheck</bpmn:incoming>
+      <bpmn:outgoing>Flow_SecondApproved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_SecondRejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Service Task: Execute Write-Off -->
+    <bpmn:serviceTask id="Task_ExecuteWriteOff" name="Execute Write-Off">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="execute-writeoff" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_SecondApproved</bpmn:incoming>
+      <bpmn:outgoing>Flow_ExecuteToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task: Notify Rejection -->
+    <bpmn:serviceTask id="Task_NotifyRejection" name="Notify Rejection">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="notify-writeoff-rejection" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_FirstRejected</bpmn:incoming>
+      <bpmn:incoming>Flow_SecondRejected</bpmn:incoming>
+      <bpmn:outgoing>Flow_RejectToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="EndEvent_WriteOffApproved" name="Write-Off Approved">
+      <bpmn:incoming>Flow_ExecuteToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_WriteOffRejected" name="Write-Off Rejected">
+      <bpmn:incoming>Flow_RejectToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToValidation" sourceRef="StartEvent_WriteOffRequest" targetRef="Task_ValidateRequest" />
+    <bpmn:sequenceFlow id="Flow_ToFirstApproval" sourceRef="Task_ValidateRequest" targetRef="Task_FirstApproval" />
+    <bpmn:sequenceFlow id="Flow_FirstApprovalCheck" sourceRef="Task_FirstApproval" targetRef="Gateway_FirstApprovalDecision" />
+    
+    <bpmn:sequenceFlow id="Flow_FirstApproved" name="Approved" sourceRef="Gateway_FirstApprovalDecision" targetRef="Task_SecondApproval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=firstApproved = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_FirstRejected" name="Rejected" sourceRef="Gateway_FirstApprovalDecision" targetRef="Task_NotifyRejection">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=firstApproved = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_SecondApprovalCheck" sourceRef="Task_SecondApproval" targetRef="Gateway_SecondApprovalDecision" />
+    
+    <bpmn:sequenceFlow id="Flow_SecondApproved" name="Approved" sourceRef="Gateway_SecondApprovalDecision" targetRef="Task_ExecuteWriteOff">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=secondApproved = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_SecondRejected" name="Rejected" sourceRef="Gateway_SecondApprovalDecision" targetRef="Task_NotifyRejection">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=secondApproved = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_ExecuteToEnd" sourceRef="Task_ExecuteWriteOff" targetRef="EndEvent_WriteOffApproved" />
+    <bpmn:sequenceFlow id="Flow_RejectToEnd" sourceRef="Task_NotifyRejection" targetRef="EndEvent_WriteOffRejected" />
+
+  </bpmn:process>
+  
+</bpmn:definitions>
