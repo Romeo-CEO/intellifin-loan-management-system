@@ -1,3 +1,4 @@
+using IntelliFin.Collections.Application.BackgroundServices;
 using IntelliFin.Collections.Application.Services;
 using IntelliFin.Collections.Infrastructure.Messaging.Consumers;
 using IntelliFin.Collections.Infrastructure.Persistence;
@@ -6,6 +7,9 @@ using IntelliFin.Shared.Audit;
 using IntelliFin.Shared.Observability;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using HealthChecks.RabbitMQ;
+// Health checks are included in the main package
 using Zeebe.Client;
 using Zeebe.Client.Api.Worker;
 
@@ -41,7 +45,7 @@ builder.Services.AddHttpClient<INotificationService, NotificationService>(client
 });
 
 // Background Services
-builder.Services.AddHostedService<Application.BackgroundServices.NightlyClassificationService>();
+builder.Services.AddHostedService<NightlyClassificationService>();
 
 // Camunda Workers
 builder.Services.AddSingleton<CheckDpdWorker>();
@@ -114,11 +118,7 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 // Health Checks
-builder.Services.AddHealthChecks()
-    .AddDbContextCheck<CollectionsDbContext>("database")
-    .AddRabbitMQ(
-        rabbitConnectionString: builder.Configuration.GetSection("RabbitMQ")["ConnectionString"] ?? "amqp://guest:guest@localhost:5672",
-        name: "rabbitmq");
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 

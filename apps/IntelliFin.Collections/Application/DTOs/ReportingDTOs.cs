@@ -1,5 +1,16 @@
 namespace IntelliFin.Collections.Application.DTOs;
 
+public record CollectionsWorkflowVariables
+{
+    public string LoanId { get; init; } = string.Empty;
+    public string ClientId { get; init; } = string.Empty;
+    public int DaysPastDue { get; init; }
+    public string ClientPhoneNumber { get; init; } = string.Empty;
+    public string CollectionsOfficer { get; init; } = string.Empty;
+    public string Manager { get; init; } = string.Empty;
+    public string LegalTeam { get; init; } = string.Empty;
+}
+
 public record AgingAnalysisReport
 {
     public DateTime AsOfDate { get; init; }
