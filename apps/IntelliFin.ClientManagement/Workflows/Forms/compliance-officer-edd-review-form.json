@@ -1,0 +1,152 @@
+{
+  "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+  "name": "Compliance Officer EDD Review",
+  "id": "compliance-officer-edd-review",
+  "description": "Form for compliance officer to review EDD report and make preliminary decision",
+  "version": 1,
+  "components": [
+    {
+      "text": "# Enhanced Due Diligence (EDD) Review\n\n## Compliance Officer Preliminary Review",
+      "type": "text",
+      "id": "header"
+    },
+    {
+      "label": "Client Name",
+      "type": "textfield",
+      "id": "clientName",
+      "key": "clientName",
+      "disabled": true,
+      "description": "Full name of the client under EDD review"
+    },
+    {
+      "label": "EDD Escalation Reason",
+      "type": "textfield",
+      "id": "eddReason",
+      "key": "eddReason",
+      "disabled": true,
+      "description": "Reason EDD was triggered"
+    },
+    {
+      "label": "Overall Risk Level",
+      "type": "textfield",
+      "id": "overallRiskLevel",
+      "key": "overallRiskLevel",
+      "disabled": true,
+      "description": "Risk level determined by automated screening"
+    },
+    {
+      "text": "---\n\n## EDD Report",
+      "type": "text",
+      "id": "reportSection"
+    },
+    {
+      "label": "EDD Report",
+      "type": "button",
+      "id": "reportDownload",
+      "action": "download",
+      "properties": {
+        "objectKey": "reportObjectKey",
+        "label": "Download EDD Report"
+      },
+      "description": "Click to download the complete EDD report"
+    },
+    {
+      "text": "---\n\n## AML Screening Results",
+      "type": "text",
+      "id": "amlSection"
+    },
+    {
+      "label": "Sanctions Hit",
+      "type": "checkbox",
+      "id": "sanctionsHit",
+      "key": "sanctionsHit",
+      "disabled": true
+    },
+    {
+      "label": "PEP Match",
+      "type": "checkbox",
+      "id": "pepMatch",
+      "key": "pepMatch",
+      "disabled": true
+    },
+    {
+      "text": "---\n\n## Document Verification",
+      "type": "text",
+      "id": "documentSection"
+    },
+    {
+      "label": "Documents Complete",
+      "type": "checkbox",
+      "id": "documentComplete",
+      "key": "documentComplete",
+      "disabled": true
+    },
+    {
+      "text": "---\n\n## Compliance Decision",
+      "type": "text",
+      "id": "decisionSection"
+    },
+    {
+      "label": "Recommendation",
+      "type": "select",
+      "id": "complianceRecommendation",
+      "key": "complianceRecommendation",
+      "validate": {
+        "required": true
+      },
+      "values": [
+        {
+          "label": "Approve for CEO Review",
+          "value": "Approve"
+        },
+        {
+          "label": "Reject Client",
+          "value": "Reject"
+        },
+        {
+          "label": "Request Additional Information",
+          "value": "RequestInfo"
+        }
+      ],
+      "description": "Your preliminary recommendation"
+    },
+    {
+      "label": "Approve for CEO Review",
+      "type": "checkbox",
+      "id": "complianceApproved",
+      "key": "complianceApproved",
+      "description": "Check to approve and send to CEO for final decision"
+    },
+    {
+      "label": "Compliance Review Notes",
+      "type": "textarea",
+      "id": "complianceComments",
+      "key": "complianceComments",
+      "validate": {
+        "required": true,
+        "minLength": 10,
+        "maxLength": 2000
+      },
+      "description": "Detailed notes on your review and decision rationale (required, 10-2000 characters)"
+    },
+    {
+      "label": "Rejection Reason (if rejecting)",
+      "type": "textarea",
+      "id": "rejectionReason",
+      "key": "rejectionReason",
+      "conditional": {
+        "hide": "=complianceApproved = true"
+      },
+      "validate": {
+        "required": "=complianceApproved = false"
+      },
+      "description": "If rejecting, provide detailed reason"
+    },
+    {
+      "type": "button",
+      "id": "submitButton",
+      "action": "submit",
+      "label": "Submit Decision"
+    }
+  ]
+}

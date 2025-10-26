@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_EDD"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  
+  <bpmn:process id="client_edd_v1" name="Enhanced Due Diligence (EDD)" isExecutable="true">
+    
+    <!-- Start Event -->
+    <bpmn:startEvent id="StartEvent_EddTriggered" name="EDD Triggered">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <!-- Service Task: Generate EDD Report -->
+    <bpmn:serviceTask id="ServiceTask_GenerateEddReport" name="Generate EDD Report">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="io.intellifin.edd.generate-report" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <!-- Human Task: Compliance Officer Review -->
+    <bpmn:userTask id="UserTask_ComplianceReview" name="Compliance Officer Review">
+      <bpmn:extensionElements>
+        <zeebe:assignmentDefinition assignee="role:compliance-officer" />
+        <zeebe:formDefinition formKey="compliance-officer-edd-review" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:userTask>
+    
+    <!-- Gateway: Compliance Decision -->
+    <bpmn:exclusiveGateway id="Gateway_ComplianceDecision" name="Compliance Approved?">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_ComplianceApprove</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ComplianceReject</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    
+    <!-- Human Task: CEO Approval -->
+    <bpmn:userTask id="UserTask_CeoApproval" name="CEO Final Approval">
+      <bpmn:extensionElements>
+        <zeebe:assignmentDefinition assignee="role:ceo" />
+        <zeebe:formDefinition formKey="ceo-edd-approval" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ComplianceApprove</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:userTask>
+    
+    <!-- Gateway: CEO Decision -->
+    <bpmn:exclusiveGateway id="Gateway_CeoDecision" name="CEO Approved?">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_CeoApprove</bpmn:outgoing>
+      <bpmn:outgoing>Flow_CeoReject</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    
+    <!-- Service Task: Update KYC Status (Approved) -->
+    <bpmn:serviceTask id="ServiceTask_UpdateKycApproved" name="Update KYC Status (Approved)">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="io.intellifin.edd.update-status-approved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_CeoApprove</bpmn:incoming>
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <!-- Service Task: Update KYC Status (Rejected by Compliance) -->
+    <bpmn:serviceTask id="ServiceTask_UpdateKycRejectedCompliance" name="Update KYC Status (Rejected - Compliance)">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="io.intellifin.edd.update-status-rejected" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ComplianceReject</bpmn:incoming>
+      <bpmn:outgoing>Flow_6</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <!-- Service Task: Update KYC Status (Rejected by CEO) -->
+    <bpmn:serviceTask id="ServiceTask_UpdateKycRejectedCeo" name="Update KYC Status (Rejected - CEO)">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="io.intellifin.edd.update-status-rejected" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_CeoReject</bpmn:incoming>
+      <bpmn:outgoing>Flow_7</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <!-- End Event: EDD Approved -->
+    <bpmn:endEvent id="EndEvent_EddApproved" name="EDD Approved">
+      <bpmn:incoming>Flow_5</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <!-- End Event: Rejected by Compliance -->
+    <bpmn:endEvent id="EndEvent_RejectedCompliance" name="Rejected (Compliance)">
+      <bpmn:incoming>Flow_6</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <!-- End Event: Rejected by CEO -->
+    <bpmn:endEvent id="EndEvent_RejectedCeo" name="Rejected (CEO)">
+      <bpmn:incoming>Flow_7</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_EddTriggered" targetRef="ServiceTask_GenerateEddReport" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="ServiceTask_GenerateEddReport" targetRef="UserTask_ComplianceReview" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="UserTask_ComplianceReview" targetRef="Gateway_ComplianceDecision" />
+    
+    <bpmn:sequenceFlow id="Flow_ComplianceApprove" name="Approve" sourceRef="Gateway_ComplianceDecision" targetRef="UserTask_CeoApproval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=complianceApproved = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_ComplianceReject" name="Reject" sourceRef="Gateway_ComplianceDecision" targetRef="ServiceTask_UpdateKycRejectedCompliance">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=complianceApproved = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="UserTask_CeoApproval" targetRef="Gateway_CeoDecision" />
+    
+    <bpmn:sequenceFlow id="Flow_CeoApprove" name="Approve" sourceRef="Gateway_CeoDecision" targetRef="ServiceTask_UpdateKycApproved">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=ceoApproved = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_CeoReject" name="Reject" sourceRef="Gateway_CeoDecision" targetRef="ServiceTask_UpdateKycRejectedCeo">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=ceoApproved = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="ServiceTask_UpdateKycApproved" targetRef="EndEvent_EddApproved" />
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="ServiceTask_UpdateKycRejectedCompliance" targetRef="EndEvent_RejectedCompliance" />
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="ServiceTask_UpdateKycRejectedCeo" targetRef="EndEvent_RejectedCeo" />
+    
+  </bpmn:process>
+  
+  <!-- Process Variables Documentation -->
+  <!-- 
+  Input Variables:
+    - clientId (String): Client unique identifier
+    - kycStatusId (String): KYC status identifier
+    - escalationReason (String): Reason for EDD escalation
+    - correlationId (String): Correlation ID for tracking
+    
+  Working Variables:
+    - eddReportGenerated (Boolean): Report generation success
+    - reportObjectKey (String): MinIO object key for report
+    - complianceApproved (Boolean): Compliance officer decision
+    - complianceComments (String): Compliance officer notes
+    - complianceRecommendation (String): Approve, Reject, or Request Info
+    - ceoApproved (Boolean): CEO final decision
+    - ceoComments (String): CEO decision rationale
+    - riskAcceptanceLevel (String): Standard, Enhanced Monitoring, or Restricted Services
+    
+  Output Variables:
+    - eddApproved (Boolean): Final EDD approval status
+    - rejectionReason (String): Reason for rejection (if applicable)
+    - approvedBy (String): User ID of approver
+    - rejectionStage (String): Compliance or CEO (if rejected)
+  -->
+  
+</bpmn:definitions>
