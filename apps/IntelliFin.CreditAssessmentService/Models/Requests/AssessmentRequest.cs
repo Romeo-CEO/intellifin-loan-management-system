@@ -54,4 +54,33 @@ public class AssessmentRequest
     /// Assessment context: Initial, Renewal, Modification.
     /// </summary>
     public string? AssessmentContext { get; set; } = "Initial";
+
+    /// <summary>
+    /// Client's monthly income (required for assessment).
+    /// In production, this would be fetched from Client Management or PMEC.
+    /// </summary>
+    [Required]
+    [Range(0, double.MaxValue, ErrorMessage = "Monthly income must be greater than 0")]
+    public decimal MonthlyIncome { get; set; }
+
+    /// <summary>
+    /// Client's existing monthly debt obligations.
+    /// In production, this would be fetched from TransUnion.
+    /// </summary>
+    [Range(0, double.MaxValue, ErrorMessage = "Existing debt cannot be negative")]
+    public decimal ExistingDebt { get; set; }
+
+    /// <summary>
+    /// Client's credit bureau score.
+    /// In production, this would be fetched from TransUnion.
+    /// </summary>
+    [Range(0, 1000, ErrorMessage = "Credit score must be between 0 and 1000")]
+    public int? CreditScore { get; set; }
+
+    /// <summary>
+    /// Client's employment tenure in months.
+    /// In production, this would be fetched from PMEC or Client Management.
+    /// </summary>
+    [Range(0, int.MaxValue, ErrorMessage = "Employment months cannot be negative")]
+    public int EmploymentMonths { get; set; }
 }

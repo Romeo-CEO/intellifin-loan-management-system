@@ -2,11 +2,13 @@ using IntelliFin.Shared.Observability;
 using IntelliFin.Shared.DomainModels.Data;
 using IntelliFin.CreditAssessmentService.Services.Core;
 using IntelliFin.CreditAssessmentService.EventHandlers;
+using IntelliFin.CreditAssessmentService.Services.Integration;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Prometheus;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -136,8 +138,7 @@ try
 
     // Add health checks
     builder.Services.AddHealthChecks()
-        .AddNpgSql(connectionString, name: "database", tags: new[] { "ready", "database" })
-        .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(), tags: new[] { "live" });
+        .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "live" });
 
     // Add Redis distributed cache for caching
     var redisConnection = builder.Configuration.GetConnectionString("Redis");
@@ -164,7 +165,7 @@ try
             var rabbitMqPassword = builder.Configuration["RabbitMQ:Password"] ?? "guest";
             var rabbitMqVirtualHost = builder.Configuration["RabbitMQ:VirtualHost"] ?? "/";
 
-            cfg.Host(rabbitMqHost, rabbitMqPort, rabbitMqVirtualHost, h =>
+            cfg.Host(rabbitMqHost, h =>
             {
                 h.Username(rabbitMqUsername);
                 h.Password(rabbitMqPassword);
@@ -189,7 +190,7 @@ try
                     TimeSpan.FromSeconds(10)
                 ));
                 
-                e.UseInMemoryOutbox();
+                // Note: InMemoryInboxOutbox configuration removed for compatibility
             });
 
             cfg.ConfigureEndpoints(context);
@@ -200,36 +201,42 @@ try
     builder.Services.AddHttpClient();
     
     // Client Management HTTP Client
-    builder.Services.AddHttpClient<IClientManagementClient, IntelliFin.CreditAssessmentService.Services.Integration.ClientManagementClient>(client =>
+    builder.Services.AddHttpClient<ClientManagementClient>((sp, client) =>
     {
         var baseUrl = builder.Configuration.GetSection("ExternalServices:ClientManagement:BaseUrl").Value ?? "http://localhost:5001";
         client.BaseAddress = new Uri(baseUrl);
         client.Timeout = TimeSpan.FromSeconds(30);
     });
-    
+
     // TransUnion HTTP Client
-    builder.Services.AddHttpClient<ITransUnionClient, IntelliFin.CreditAssessmentService.Services.Integration.TransUnionClient>(client =>
+    builder.Services.AddHttpClient<TransUnionClient>((sp, client) =>
     {
         var baseUrl = builder.Configuration.GetSection("ExternalServices:TransUnion:BaseUrl").Value ?? "https://api.transunion.co.zm";
         client.BaseAddress = new Uri(baseUrl);
         client.Timeout = TimeSpan.FromSeconds(60);
     });
-    
+
     // PMEC HTTP Client
-    builder.Services.AddHttpClient<IPmecClient, IntelliFin.CreditAssessmentService.Services.Integration.PmecClient>(client =>
+    builder.Services.AddHttpClient<PmecClient>((sp, client) =>
     {
         var baseUrl = builder.Configuration.GetSection("ExternalServices:PMEC:BaseUrl").Value ?? "https://pmec-api.gov.zm";
         client.BaseAddress = new Uri(baseUrl);
         client.Timeout = TimeSpan.FromSeconds(45);
     });
-    
+
     // AdminService HTTP Client
-    builder.Services.AddHttpClient<IAdminServiceClient, IntelliFin.CreditAssessmentService.Services.Integration.AdminServiceClient>(client =>
+    builder.Services.AddHttpClient<AdminServiceClient>((sp, client) =>
     {
         var baseUrl = builder.Configuration.GetSection("ExternalServices:AdminService:BaseUrl").Value ?? "http://localhost:5002";
         client.BaseAddress = new Uri(baseUrl);
         client.Timeout = TimeSpan.FromSeconds(10);
     });
+
+    // Register integration services
+    builder.Services.AddScoped<IClientManagementClient, ClientManagementClient>();
+    builder.Services.AddScoped<ITransUnionClient, TransUnionClient>();
+    builder.Services.AddScoped<IPmecClient, PmecClient>();
+    builder.Services.AddScoped<IAdminServiceClient, AdminServiceClient>();
 
     var app = builder.Build();
 

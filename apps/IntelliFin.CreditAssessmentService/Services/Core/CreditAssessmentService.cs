@@ -65,10 +65,10 @@ public class CreditAssessmentService : ICreditAssessmentService
             RequestedAmount = request.RequestedAmount,
             TermMonths = request.TermMonths,
             ProductType = request.ProductType,
-            MonthlyIncome = 15000, // TODO: Get from Client Management (Story 1.5)
-            ExistingDebt = 2000,   // TODO: Get from TransUnion (Story 1.6)
-            CreditScore = 680,     // TODO: Get from TransUnion (Story 1.6)
-            EmploymentMonths = 24, // TODO: Get from PMEC (Story 1.7)
+            MonthlyIncome = request.MonthlyIncome,
+            ExistingDebt = request.ExistingDebt,
+            CreditScore = request.CreditScore,
+            EmploymentMonths = request.EmploymentMonths,
             AdditionalData = request.AdditionalData ?? new()
         };
 
