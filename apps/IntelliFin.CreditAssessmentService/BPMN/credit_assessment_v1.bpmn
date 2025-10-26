@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  id="Definitions_1"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  
+  <bpmn:process id="credit_assessment_v1" name="Credit Assessment Process v1" isExecutable="true">
+    
+    <bpmn:startEvent id="StartEvent_1" name="Assessment Requested">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <bpmn:serviceTask id="Task_PerformAssessment" name="Perform Credit Assessment">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="credit-assessment" />
+        <zeebe:taskHeaders>
+          <zeebe:header key="timeout" value="30000" />
+        </zeebe:taskHeaders>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <bpmn:exclusiveGateway id="Gateway_CheckDecision" name="Check Decision">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Approved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ManualReview</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    
+    <bpmn:endEvent id="End_Approved" name="Approved">
+      <bpmn:incoming>Flow_Approved</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:userTask id="Task_ManualReview" name="Credit Officer Manual Review">
+      <bpmn:incoming>Flow_ManualReview</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:userTask>
+    
+    <bpmn:endEvent id="End_Rejected" name="Rejected">
+      <bpmn:incoming>Flow_Rejected</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:endEvent id="End_Reviewed" name="Reviewed">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Task_PerformAssessment" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_PerformAssessment" targetRef="Gateway_CheckDecision" />
+    <bpmn:sequenceFlow id="Flow_Approved" name="Approved" sourceRef="Gateway_CheckDecision" targetRef="End_Approved">
+      <bpmn:conditionExpression>${decision == "Approved"}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ManualReview" name="Manual Review" sourceRef="Gateway_CheckDecision" targetRef="Task_ManualReview">
+      <bpmn:conditionExpression>${decision == "ManualReview" || decision == "Conditional"}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Rejected" name="Rejected" sourceRef="Gateway_CheckDecision" targetRef="End_Rejected">
+      <bpmn:conditionExpression>${decision == "Rejected"}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_ManualReview" targetRef="End_Reviewed" />
+    
+  </bpmn:process>
+  
+</bpmn:definitions>
