@@ -6,8 +6,10 @@ namespace IntelliFin.LoanOriginationService.Services;
 public class LoanProductService : ILoanProductService
 {
     private readonly ILogger<LoanProductService> _logger;
+    private readonly IVaultProductConfigService? _vaultConfigService;
+    private readonly bool _useVault;
     
-    // In-memory product catalog - in production use database
+    // Legacy in-memory product catalog - used when Vault is not available
     private static readonly ConcurrentDictionary<string, LoanProduct> _products = new()
     {
         ["PL001"] = new()
@@ -114,30 +116,73 @@ public class LoanProductService : ILoanProductService
         }
     };
 
-    public LoanProductService(ILogger<LoanProductService> logger)
+    public LoanProductService(
+        ILogger<LoanProductService> logger,
+        IVaultProductConfigService? vaultConfigService = null)
     {
         _logger = logger;
+        _vaultConfigService = vaultConfigService;
+        _useVault = vaultConfigService != null;
+        
+        if (_useVault)
+        {
+            _logger.LogInformation("LoanProductService initialized with Vault configuration");
+        }
+        else
+        {
+            _logger.LogWarning("LoanProductService initialized with legacy in-memory configuration");
+        }
     }
 
-    public Task<LoanProduct?> GetProductAsync(string productCode, CancellationToken cancellationToken = default)
+    public async Task<LoanProduct?> GetProductAsync(string productCode, CancellationToken cancellationToken = default)
     {
         try
         {
+            // Use Vault if available, otherwise fall back to in-memory
+            if (_useVault && _vaultConfigService != null)
+            {
+                var config = await _vaultConfigService.GetProductConfigAsync(productCode, cancellationToken);
+                return MapVaultConfigToProduct(config, productCode);
+            }
+            
+            // Legacy fallback
             _products.TryGetValue(productCode, out var product);
-            return Task.FromResult(product);
+            return product;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving product {ProductCode}", productCode);
-            return Task.FromResult<LoanProduct?>(null);
+            return null;
         }
+    }
+    
+    /// <summary>
+    /// Maps Vault configuration to LoanProduct model for backward compatibility
+    /// </summary>
+    private LoanProduct MapVaultConfigToProduct(LoanProductConfig config, string productCode)
+    {
+        return new LoanProduct
+        {
+            Code = productCode,
+            Name = config.ProductName,
+            Description = config.ProductName,
+            MinAmount = config.MinAmount,
+            MaxAmount = config.MaxAmount,
+            MinTermMonths = config.MinTermMonths,
+            MaxTermMonths = config.MaxTermMonths,
+            BaseInterestRate = config.BaseInterestRate,
+            IsActive = true,
+            RequiredFields = new List<ApplicationField>(), // Fields would be in Vault if needed
+            ValidationRules = new List<BusinessRule>() // Rules would be in Vault if needed
+        };
     }
 
     public Task<IEnumerable<LoanProduct>> GetActiveProductsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            return Task.FromResult(_products.Values.Where(p => p.IsActive).OrderBy(p => p.Name));
+            IEnumerable<LoanProduct> products = _products.Values.Where(p => p.IsActive).OrderBy(p => p.Name).ToList();
+            return Task.FromResult(products);
         }
         catch (Exception ex)
         {

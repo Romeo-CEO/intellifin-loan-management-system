@@ -37,6 +37,31 @@ public interface ILoanProductService
 
 public interface IWorkflowService
 {
+    /// <summary>
+    /// Starts a new loan origination workflow instance in Camunda with all required variables.
+    /// </summary>
+    /// <param name="applicationId">Unique identifier for the loan application</param>
+    /// <param name="clientId">Unique identifier for the client</param>
+    /// <param name="loanAmount">Requested loan amount</param>
+    /// <param name="riskGrade">Risk grade assigned to the application (A, B, C, D, F)</param>
+    /// <param name="productCode">Loan product code</param>
+    /// <param name="termMonths">Loan term in months</param>
+    /// <param name="createdBy">User ID who created the application</param>
+    /// <param name="loanNumber">Generated loan number</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Workflow instance key as a string</returns>
+    Task<string> StartLoanOriginationWorkflowAsync(
+        Guid applicationId,
+        Guid clientId,
+        decimal loanAmount,
+        string riskGrade,
+        string productCode,
+        int termMonths,
+        string createdBy,
+        string loanNumber,
+        CancellationToken cancellationToken = default);
+
+    [Obsolete("Use StartLoanOriginationWorkflowAsync instead. This method has limited variable support.")]
     Task<string> StartApprovalWorkflowAsync(Guid applicationId, CancellationToken cancellationToken = default);
     
     [Obsolete("Human task completion is now handled directly by Camunda Tasklist API. This method is deprecated.")]

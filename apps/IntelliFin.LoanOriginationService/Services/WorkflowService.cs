@@ -16,6 +16,68 @@ public class WorkflowService : IWorkflowService
         _zeebeClient = zeebeClient;
     }
 
+    /// <summary>
+    /// Starts a new loan origination workflow instance in Camunda with all required variables.
+    /// Includes dual control exclusion variables (createdBy, assessedBy) for segregation of duties.
+    /// </summary>
+    public async Task<string> StartLoanOriginationWorkflowAsync(
+        Guid applicationId,
+        Guid clientId,
+        decimal loanAmount,
+        string riskGrade,
+        string productCode,
+        int termMonths,
+        string createdBy,
+        string loanNumber,
+        string? assessedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "Starting loan origination workflow for application {ApplicationId}, client {ClientId}, amount {LoanAmount}, risk grade {RiskGrade}",
+                applicationId, clientId, loanAmount, riskGrade);
+
+            // Create process variables object with all required fields
+            // Including dual control exclusion variables (Story 1.7)
+            var variables = new
+            {
+                applicationId = applicationId.ToString(),
+                clientId = clientId.ToString(),
+                loanAmount,
+                riskGrade,
+                productCode,
+                termMonths,
+                createdBy,
+                assessedBy = assessedBy ?? "", // Set to empty string if null
+                loanNumber
+            };
+
+            // Start workflow instance
+            var processInstance = await _zeebeClient.NewCreateProcessInstanceCommand()
+                .BpmnProcessId("loanOriginationProcess")
+                .LatestVersion()
+                .Variables(JsonSerializer.Serialize(variables))
+                .Send(cancellationToken);
+
+            var workflowInstanceKey = processInstance.ProcessInstanceKey.ToString();
+
+            _logger.LogInformation(
+                "Successfully started loan origination workflow. ApplicationId: {ApplicationId}, WorkflowInstanceKey: {WorkflowInstanceKey}, ProcessDefinitionKey: {ProcessDefinitionKey}",
+                applicationId, workflowInstanceKey, processInstance.ProcessDefinitionKey);
+
+            return workflowInstanceKey;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error starting loan origination workflow for application {ApplicationId}. Client: {ClientId}, Amount: {LoanAmount}",
+                applicationId, clientId, loanAmount);
+            throw;
+        }
+    }
+
+    [Obsolete("Use StartLoanOriginationWorkflowAsync instead. This method has limited variable support.")]
     public async Task<string> StartApprovalWorkflowAsync(Guid applicationId, CancellationToken cancellationToken = default)
     {
         try
@@ -78,5 +140,42 @@ public class WorkflowService : IWorkflowService
     {
         _logger.LogWarning("AdvanceWorkflowAsync is obsolete and should not be called.");
         return Task.FromResult(false);
+    }
+    
+    /// <summary>
+    /// Updates workflow variables for dual control scenarios.
+    /// Sets the firstApproverId variable to exclude the first approver from the second approval step.
+    /// </summary>
+    /// <param name="workflowInstanceKey">The workflow instance key/ID.</param>
+    /// <param name="firstApproverId">The user ID of the first approver.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public async Task SetFirstApproverIdAsync(
+        string workflowInstanceKey, 
+        string firstApproverId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "Setting firstApproverId variable for workflow {WorkflowInstanceKey}: {FirstApproverId}",
+                workflowInstanceKey, firstApproverId);
+            
+            var variables = new { firstApproverId };
+            
+            await _zeebeClient.NewSetVariablesCommand(long.Parse(workflowInstanceKey))
+                .Variables(JsonSerializer.Serialize(variables))
+                .Send(cancellationToken);
+            
+            _logger.LogInformation(
+                "Successfully set firstApproverId for workflow {WorkflowInstanceKey}",
+                workflowInstanceKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error setting firstApproverId for workflow {WorkflowInstanceKey}",
+                workflowInstanceKey);
+            throw;
+        }
     }
 }

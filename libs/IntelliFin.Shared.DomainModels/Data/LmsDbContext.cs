@@ -19,6 +19,7 @@ public class LmsDbContext : DbContext
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<LoanApplication> LoanApplications => Set<LoanApplication>();
     public DbSet<LoanProduct> LoanProducts => Set<LoanProduct>();
+    public DbSet<LoanNumberSequence> LoanNumberSequences => Set<LoanNumberSequence>();
     public DbSet<GLAccount> GLAccounts => Set<GLAccount>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
@@ -95,6 +96,19 @@ public class LmsDbContext : DbContext
             b.Property(x => x.DeclineReason).HasMaxLength(500);
             b.Property(x => x.ApprovedBy).HasMaxLength(200);
             b.Property(x => x.CreatedAtUtc).IsRequired();
+            
+            // Versioning and audit fields
+            b.Property(x => x.LoanNumber).HasMaxLength(50);
+            b.Property(x => x.Version).HasDefaultValue(1).IsRequired();
+            b.Property(x => x.IsCurrentVersion).HasDefaultValue(true).IsRequired();
+            b.Property(x => x.RiskGrade).HasMaxLength(10);
+            b.Property(x => x.EffectiveAnnualRate).HasColumnType("decimal(5,2)");
+            b.Property(x => x.AgreementFileHash).HasMaxLength(256); // SHA256 hash
+            b.Property(x => x.AgreementMinioPath).HasMaxLength(500);
+            b.Property(x => x.CreatedBy).HasMaxLength(200);
+            b.Property(x => x.LastModifiedBy).HasMaxLength(200);
+            b.Property(x => x.LastModifiedAtUtc);
+            
             b.HasOne(x => x.Client)
              .WithMany(c => c.LoanApplications)
              .HasForeignKey(x => x.ClientId)
@@ -104,8 +118,13 @@ public class LmsDbContext : DbContext
              .HasForeignKey(x => x.ProductCode)
              .HasPrincipalKey(p => p.Code)
              .OnDelete(DeleteBehavior.Restrict);
+            
+            // Indexes
             b.HasIndex(x => new { x.ClientId, x.CreatedAtUtc });
             b.HasIndex(x => x.Status);
+            b.HasIndex(x => x.LoanNumber).IsUnique().HasFilter("[LoanNumber] IS NOT NULL");
+            b.HasIndex(x => new { x.IsCurrentVersion, x.Status });
+            b.HasIndex(x => x.RiskGrade);
         });
 
         modelBuilder.Entity<LoanProduct>(b =>
@@ -125,6 +144,16 @@ public class LmsDbContext : DbContext
             b.Property(x => x.CreatedAtUtc).IsRequired();
             b.HasIndex(x => x.Code).IsUnique();
             b.HasIndex(x => x.Category);
+        });
+
+        modelBuilder.Entity<LoanNumberSequence>(b =>
+        {
+            b.ToTable("LoanNumberSequences");
+            b.HasKey(x => new { x.BranchCode, x.Year });
+            b.Property(x => x.BranchCode).HasMaxLength(10).IsRequired();
+            b.Property(x => x.Year).IsRequired();
+            b.Property(x => x.NextSequence).IsRequired();
+            b.Property(x => x.LastUpdatedUtc).IsRequired();
         });
 
         modelBuilder.Entity<GLAccount>(b =>

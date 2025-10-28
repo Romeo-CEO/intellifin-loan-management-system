@@ -8,9 +8,9 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<LmsDbConte
     public LmsDbContext CreateDbContext(string[] args)
     {
         var builder = new DbContextOptionsBuilder<LmsDbContext>();
-        // Default local dev connection (matches docker-compose)
+        // Default local dev connection
         var connectionString = Environment.GetEnvironmentVariable("LMS_SQL_CONNECTION")
-            ?? "Server=localhost,31433;Database=IntelliFinLms;User Id=sa;Password=Your_password123;TrustServerCertificate=True";
+            ?? "Server=MOFIN-MFL0320\\SQLEXPRESS;Database=IntelliFinLms_Dev;Integrated Security=True;TrustServerCertificate=True";
         builder.UseSqlServer(connectionString);
         return new LmsDbContext(builder.Options);
     }

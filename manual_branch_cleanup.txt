@@ -1,0 +1,56 @@
+# 🔒 MANUAL BRANCH CLEANUP COMMANDS
+# Copy and paste these into your local git terminal
+
+# Step 1: Verify current state
+echo "Current branch state:"
+git branch -a
+echo ""
+
+# Step 2: Check which branches are merged to master
+echo "Branches merged to master:"
+git branch -r --contains origin/master | grep -v "HEAD" | grep -v "backup/"
+echo ""
+
+echo "Branches NOT merged to master:"
+git branch -r | grep -v "HEAD" | grep -v "backup/" | grep -v "origin/master"
+echo ""
+
+# Step 3: Delete local branches that are merged (ONLY if confirmed)
+echo "Deleting local branches..."
+git branch -d cursor/integrate-admin-service-audit-logging-2890 2>/dev/null || echo "Branch not found locally"
+git branch -d feature/iam-remaining-work 2>/dev/null || echo "Branch not found locally"
+git branch -d feature/client-management 2>/dev/null || echo "Branch not found locally"
+echo ""
+
+# Step 4: Delete remote branches that are merged (ONLY if confirmed)
+echo "Deleting remote branches..."
+git push origin --delete cursor/integrate-admin-service-audit-logging-2890 2>/dev/null || echo "Remote branch not found"
+git push origin --delete feature/iam-remaining-work 2>/dev/null || echo "Remote branch not found"
+git push origin --delete feature/client-management 2>/dev/null || echo "Remote branch not found"
+echo ""
+
+# Step 5: Verify cleanup
+echo "Final branch state:"
+echo "Local branches:"
+git branch
+echo ""
+echo "Remote branches:"
+git branch -r | grep -v "HEAD" | grep -v "backup/"
+echo ""
+
+# Step 6: Verify important branches still exist
+echo "Verifying important branches still exist..."
+echo "Master branch:"
+git ls-remote --heads origin master | grep master && echo "✅ Master exists" || echo "❌ Master missing!"
+echo ""
+
+echo "Collections Recovery branch:"
+git ls-remote --heads origin feature/collections-recovery | grep feature/collections-recovery && echo "✅ Collections Recovery exists" || echo "❌ Collections Recovery missing!"
+echo ""
+
+echo "Backup branches:"
+git branch | grep backup/ || echo "No backup branches found"
+git branch -r | grep backup/ | sed 's|origin/||g' || echo "No remote backup branches found"
+echo ""
+
+echo "🎉 Cleanup verification complete!"

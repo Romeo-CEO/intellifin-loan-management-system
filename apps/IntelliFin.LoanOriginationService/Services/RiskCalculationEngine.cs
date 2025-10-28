@@ -260,7 +260,7 @@ public class RiskCalculationEngine : IRiskCalculationEngine
         });
     }
 
-    public Task<bool> PassesMinimumCriteriaAsync(
+    public async Task<bool> PassesMinimumCriteriaAsync(
         LoanApplication application, 
         CreditBureauData? bureauData, 
         CancellationToken cancellationToken = default)
@@ -272,11 +272,11 @@ public class RiskCalculationEngine : IRiskCalculationEngine
             {
                 _logger.LogInformation("Application {ApplicationId} fails minimum criteria: {Reason}", 
                     application.Id, rule.Reason);
-                return Task.FromResult(false);
+                return false;
             }
         }
 
-        return Task.FromResult(true);
+        return true;
     }
 
     public Task<decimal> CalculateScoreAsync(List<RiskFactor> factors, CancellationToken cancellationToken = default)

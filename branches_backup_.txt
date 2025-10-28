@@ -1,0 +1,24 @@
+  backup/complete-client-management-
+  backup/iam-work-
++ codex/implement-identity-service-scaffold-and-infrastructure
+  codex/implement-service-account-management
+  codex/implement-vault-backed-runtime-secrets
+* cursor/integrate-admin-service-audit-logging-2890
+  feature/client-management
+  feature/iam-remaining-work
+  feature/story-1.7-baseline-roles
+  feature/story-2.2-tenant-claims
+  fix/client-management-package-versions
+  master
+  remotes/origin/HEAD -> origin/master
+  remotes/origin/codex/implement-credit-assessment-microservice
+  remotes/origin/codex/implement-identity-service-scaffold-and-infrastructure
+  remotes/origin/codex/implement-service-account-management
+  remotes/origin/codex/implement-vault-backed-runtime-secrets
+  remotes/origin/cursor/implement-client-management-module-foundation-8d21
+  remotes/origin/cursor/integrate-admin-service-audit-logging-2890
+  remotes/origin/cursor/integrate-admin-service-audit-logging-e10d
+  remotes/origin/feature/client-management
+  remotes/origin/feature/iam-remaining-work
+  remotes/origin/feature/story-2.2-tenant-claims
+  remotes/origin/master

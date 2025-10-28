@@ -1,4 +1,5 @@
 using IntelliFin.LoanOriginationService.Models;
+using IntelliFin.LoanOriginationService.Exceptions;
 using IntelliFin.Shared.DomainModels.Repositories;
 using System.Text.Json;
 
@@ -12,6 +13,9 @@ public class LoanApplicationService : ILoanApplicationService
     private readonly IWorkflowService _workflowService;
     private readonly IComplianceService _complianceService;
     private readonly ILoanApplicationRepository _applicationRepository;
+    private readonly ILoanVersioningService _versioningService;
+    private readonly IClientManagementClient? _clientManagementClient;
+    private readonly IDualControlValidator _dualControlValidator;
 
     public LoanApplicationService(
         ILogger<LoanApplicationService> logger,
@@ -19,7 +23,10 @@ public class LoanApplicationService : ILoanApplicationService
         ICreditAssessmentService creditAssessmentService,
         IWorkflowService workflowService,
         IComplianceService complianceService,
-        ILoanApplicationRepository applicationRepository)
+        ILoanApplicationRepository applicationRepository,
+        ILoanVersioningService versioningService,
+        IDualControlValidator dualControlValidator,
+        IClientManagementClient? clientManagementClient = null)
     {
         _logger = logger;
         _productService = productService;
@@ -27,6 +34,9 @@ public class LoanApplicationService : ILoanApplicationService
         _workflowService = workflowService;
         _complianceService = complianceService;
         _applicationRepository = applicationRepository;
+        _versioningService = versioningService;
+        _clientManagementClient = clientManagementClient;
+        _dualControlValidator = dualControlValidator;
     }
 
     public async Task<LoanApplicationResponse> CreateApplicationAsync(CreateLoanApplicationRequest request, CancellationToken cancellationToken = default)
@@ -35,6 +45,52 @@ public class LoanApplicationService : ILoanApplicationService
         {
             _logger.LogInformation("Creating loan application for client {ClientId}, product {ProductCode}", 
                 request.ClientId, request.ProductCode);
+
+            // Verify KYC status before allowing loan application
+            if (_clientManagementClient != null)
+            {
+                var verification = await _clientManagementClient.GetClientVerificationAsync(
+                    request.ClientId, cancellationToken);
+
+                // Check if KYC status is "Approved"
+                if (!verification.KycStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning(
+                        "KYC verification failed for client {ClientId}: Status={KycStatus}",
+                        request.ClientId,
+                        verification.KycStatus);
+                    
+                    throw new KycNotVerifiedException(request.ClientId, verification.KycStatus);
+                }
+
+                // Check if KYC has expired (>12 months old)
+                if (verification.KycApprovedAt.HasValue)
+                {
+                    var kycExpirationDate = verification.KycApprovedAt.Value.AddMonths(12);
+                    if (DateTime.UtcNow > kycExpirationDate)
+                    {
+                        _logger.LogWarning(
+                            "KYC verification expired for client {ClientId}: ApprovedAt={KycApprovedAt}, ExpiryDate={ExpiryDate}",
+                            request.ClientId,
+                            verification.KycApprovedAt.Value,
+                            kycExpirationDate);
+                        
+                        throw new KycExpiredException(request.ClientId, verification.KycApprovedAt.Value);
+                    }
+                }
+
+                _logger.LogInformation(
+                    "KYC verification passed for client {ClientId}: Status={KycStatus}, ApprovedAt={KycApprovedAt}",
+                    request.ClientId,
+                    verification.KycStatus,
+                    verification.KycApprovedAt);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Client Management Service not configured - skipping KYC verification for client {ClientId}",
+                    request.ClientId);
+            }
 
             // Validate product exists and is active
             var product = await _productService.GetProductAsync(request.ProductCode, cancellationToken);
@@ -54,6 +110,9 @@ public class LoanApplicationService : ILoanApplicationService
                 throw new ArgumentException($"Term must be between {product.MinTermMonths} and {product.MaxTermMonths} months");
             }
 
+            // Generate loan number
+            var loanNumber = await _versioningService.GenerateLoanNumberAsync("LUS", cancellationToken);
+
             // Create application entity
             var applicationEntity = new IntelliFin.Shared.DomainModels.Entities.LoanApplication
             {
@@ -66,7 +125,10 @@ public class LoanApplicationService : ILoanApplicationService
                 TermMonths = request.TermMonths,
                 Status = "Draft",
                 CreatedAtUtc = DateTime.UtcNow,
-                ApplicationDataJson = JsonSerializer.Serialize(request.ApplicationData ?? new Dictionary<string, object>())
+                ApplicationDataJson = JsonSerializer.Serialize(request.ApplicationData ?? new Dictionary<string, object>()),
+                LoanNumber = loanNumber,
+                Version = 1,
+                IsCurrentVersion = true
             };
 
             // Validate application data against product requirements
@@ -286,6 +348,9 @@ public class LoanApplicationService : ILoanApplicationService
     {
         try
         {
+            // Validate dual control before proceeding (Story 1.7)
+            await _dualControlValidator.ValidateApprovalAsync(applicationId, approvedBy, cancellationToken);
+            
             var application = await _applicationRepository.GetByIdAsync(applicationId, cancellationToken);
             if (application == null)
             {
@@ -433,6 +498,7 @@ public class LoanApplicationService : ILoanApplicationService
         return new LoanApplicationResponse
         {
             Id = application.Id,
+            LoanNumber = application.LoanNumber,
             ProductName = application.ProductName ?? product?.Name ?? application.ProductCode,
             RequestedAmount = application.RequestedAmount,
             TermMonths = application.TermMonths,

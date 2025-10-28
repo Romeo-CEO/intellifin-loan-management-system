@@ -1,0 +1,25 @@
+*   [33m4a36a70[m[33m ([m[1;35mrefs/stash[m[33m)[m WIP on (no branch): 86ccb85 feat: Implement KYC verification workflow with Camunda workers
+[31m|[m[32m\[m  
+[31m|[m * [33mff797c8[m index on (no branch): 86ccb85 feat: Implement KYC verification workflow with Camunda workers
+[31m|[m[31m/[m  
+[31m|[m * [33ma4fd6f3[m[33m ([m[1;31morigin/codex/implement-credit-assessment-microservice[m[33m)[m feat: complete credit assessment microservice
+[31m|[m *   [33m591541b[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m feat(credit-assessment): merge credit assessment user stories from feature/client-management
+[31m|[m [34m|[m[35m\[m  
+[31m|[m [34m|[m [35m|[m * [33mb86719b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mcursor/integrate-admin-service-audit-logging-2890[m[33m, [m[1;31morigin/cursor/integrate-admin-service-audit-logging-2890[m[33m)[m feat: Implement document retention and mobile optimization
+[31m|[m [34m|[m [35m|[m * [33me276a38[m feat: Implement performance analytics API and service
+[31m|[m [34m|[m [35m|[m * [33mbb765de[m feat: Integrate MassTransit for event-driven notifications
+[31m|[m [34m|[m [35m|[m * [33m1b23a75[m feat: Implement event-driven notifications for KYC and EDD status
+[31m|[m [34m|[m [35m|[m * [33m530c911[m feat: Implement Vault risk scoring engine
+[31m|[m [34m|[m [35m|[m * [33m5e032f2[m feat: Implement EDD status update worker and forms
+[31m|[m [34m|[m [35m|[m * [33m8d780d2[m feat: Implement EDD workflow and report generation
+[31m|[m [34m|[m [35m|[m * [33m4d73dfd[m feat: Implement fuzzy name matching for AML screening
+[31m|[m [34m|[m[31m_[m[35m|[m[31m/[m  
+[31m|[m[31m/[m[34m|[m [35m|[m   
+* [34m|[m [35m|[m [33m86ccb85[m feat: Implement KYC verification workflow with Camunda workers
+* [34m|[m [35m|[m [33md0da54f[m Checkpoint before follow-up message
+* [34m|[m [35m|[m [33m7cfd4b6[m feat: Add AmlScreening entity and status update for Story 1.11
+* [34m|[m [35m|[m [33mcac4a3c[m feat: Implement KYC status tracking and state machine
+* [34m|[m [35m|[m [33m6e8fa1f[m feat: Add Camunda worker infrastructure
+* [34m|[m [35m|[m [33m37b85c5[m feat: Implement dual-control document verification
+* [34m|[m [35m|[m [33m3445daa[m feat: Implement communication consent and notifications
+* [34m|[m [35m|[m [33mea423bc[m feat: Integrate KYC document upload and retrieval

@@ -1,0 +1,110 @@
+*   4a36a70 (refs/stash) WIP on (no branch): 86ccb85 feat: Implement KYC verification workflow with Camunda workers
+|\  
+| * ff797c8 index on (no branch): 86ccb85 feat: Implement KYC verification workflow with Camunda workers
+|/  
+| * a4fd6f3 (origin/codex/implement-credit-assessment-microservice) feat: complete credit assessment microservice
+| *   591541b (origin/master, origin/HEAD, master) feat(credit-assessment): merge credit assessment user stories from feature/client-management
+| |\  
+| | | * b86719b (HEAD -> cursor/integrate-admin-service-audit-logging-2890, origin/cursor/integrate-admin-service-audit-logging-2890, backup/iam-work-, backup/complete-client-management-) feat: Implement document retention and mobile optimization
+| | | * e276a38 feat: Implement performance analytics API and service
+| | | * bb765de feat: Integrate MassTransit for event-driven notifications
+| | | * 1b23a75 feat: Implement event-driven notifications for KYC and EDD status
+| | | * 530c911 feat: Implement Vault risk scoring engine
+| | | * 5e032f2 feat: Implement EDD status update worker and forms
+| | | * 8d780d2 feat: Implement EDD workflow and report generation
+| | | * 4d73dfd feat: Implement fuzzy name matching for AML screening
+| |_|/  
+|/| |   
+* | | 86ccb85 feat: Implement KYC verification workflow with Camunda workers
+* | | d0da54f Checkpoint before follow-up message
+* | | 7cfd4b6 feat: Add AmlScreening entity and status update for Story 1.11
+* | | cac4a3c feat: Implement KYC status tracking and state machine
+* | | 6e8fa1f feat: Add Camunda worker infrastructure
+* | | 37b85c5 feat: Implement dual-control document verification
+* | | 3445daa feat: Implement communication consent and notifications
+* | | ea423bc feat: Integrate KYC document upload and retrieval
+* | | 8fa3baa Checkpoint before follow-up message
+* | | bdd69c1 feat: Integrate AdminService audit logging
+| | | * bd2602e (origin/cursor/integrate-admin-service-audit-logging-e10d) feat: Implement audit logging and batching
+| |_|/  
+|/| |   
+* | | 35a637a (origin/feature/client-management, feature/client-management) docs: Add merge summary for Client Management Stories 1.1-1.4
+* | |   aa76706 fix: Apply package version fixes to Client Management
+|\ \ \  
+| * | | cd879d8 (fix/client-management-package-versions) fix: Update package versions to resolve build issues
+* | | | b8f721a feat(client-management): Merge Stories 1.1-1.4 implementation
+|\| | | 
+| |_|/  
+|/| |   
+| * | a8b2f78 (origin/cursor/implement-client-management-module-foundation-8d21) feat: Implement client versioning (SCD-2)
+| * | f782775 feat: Implement Client CRUD operations (Story 1.3)
+| * | 95eff29 feat: Implement shared libraries and DI configuration
+| * | 02594eb feat: Implement Client Management service foundation
+* | | eea7c0b feat(credit-assessment): add comprehensive user stories for epic 1 (stories 1.1-1.20)
+|/ /  
+* / 4b1948a docs(client-management): Add implementation kickoff briefing
+|/  
+*   d66bec0 Merge feature/iam-remaining-work: Complete IAM Enhancement (15/16 stories)
+|\  
+| * c38866c (origin/feature/iam-remaining-work, feature/iam-remaining-work) docs(iam): Add comprehensive implementation review for feature/iam-remaining-work
+| * a2b9746 feat(iam): Complete Story 2.2 & 6.2 - Tenant Claims & Self-Service Password Reset
+| * 5ffbec6 feat(iam-migration): add MigrationController and MigrationOrchestrationService; add RequireSystemAdmin policy; add IAM migration orchestrator script; add monitoring dashboard stub; add rollback runbook; wire DI
+| | * c7c16cc (origin/feature/story-2.2-tenant-claims, feature/story-2.2-tenant-claims) feat(iam-migration): add MigrationController and MigrationOrchestrationService; add RequireSystemAdmin policy; add IAM migration orchestrator script; add monitoring dashboard stub; add rollback runbook; wire DI
+| |/  
+| *   a7722ff Merge branch 'feature/story-1.7-baseline-roles' into feature/iam-remaining-work: enable IdentityService integration tests with in-memory EF and service stubs; conditional EF provider; test-host adjustments
+| |\  
+| | * d973168 (feature/story-1.7-baseline-roles) test(identity): enable integration tests with in-memory EF and in-memory service stubs; feat: conditional EF provider registration to avoid dual-provider conflicts in tests; chore: add EFCore.InMemory package and adjust test host; fix: use singletons for test doubles so lockout persists; docs: update implementation status
+| |/  
+| * 6fa7ee5 docs(iam): Add agent assignments and quick start guide
+| * b9e37d3 docs(iam): Add parallel development coordination guide
+| * 667dfb2 (codex/implement-vault-backed-runtime-secrets) docs(iam): Create missing stories 1.7, 6.1, 6.2 + Update PRD structure + Implementation status
+| *   8b82754 Merge codex/implement-service-account-management into codex/implement-vault-backed-runtime-secrets
+| |\  
+| | * c412fca (codex/implement-service-account-management) Complete Story 3.1: Service Account Management REST API + Fix Package Dependencies
+| | * 95a3b60 (origin/codex/implement-service-account-management) Add migration for service account authorization tables
+| | * b886848 Add token introspection and permission APIs
+| |/  
+|/|   
+| * 65e2059 WIP: Vault-backed runtime secrets and IAM enhancements
+| * a138531 (origin/codex/implement-vault-backed-runtime-secrets) Add Loki log exporter with PII redaction
+|/  
+| * e3dc719 (origin/codex/implement-identity-service-scaffold-and-infrastructure, codex/implement-identity-service-scaffold-and-infrastructure) Fix identity service scaffold issues
+| * 9a43fc4 feat(identity-service): scaffold infrastructure and observability
+|/  
+*   cb45caf Merge pull request #6 from Romeo-CEO/codex/implement-ssh-session-recording-in-minio
+|\  
+| * 27faf17 feat(incident-response): finalize alerting workflow integration
+|/  
+*   a23ce0c Merge pull request #5 from Romeo-CEO/codex/implement-step-up-mfa-integration
+|\  
+| * 8901e5e chore: restrict bastion session ingestion role
+| * 9970ee8 feat: finalize bastion session ingestion
+|/  
+*   f0aa177 Merge pull request #4 from Romeo-CEO/codex/implement-branch-scoped-jwt-claims
+|\  
+| * 29258fe Preserve audit events when persistence fails
+| * 54d6f01 Fix duplicate imports in Keycloak admin service interface
+|/  
+*   1322df7 Merge pull request #3 from Romeo-CEO/codex/migrate-asp.net-core-identity-to-keycloak
+|\  
+| * 94d963a feat: implement rotating refresh token support
+|/  
+*   ab9c902 Merge pull request #2 from Romeo-CEO/codex/implement-keycloak-deployment-and-realm-configuration
+|\  
+| * c6a1ec4 feat: provision keycloak identity platform
+* |   ccc7d8a Merge pull request #1 from Romeo-CEO/codex/implement-loan-application-created-notifications
+|\ \  
+| |/  
+|/|   
+| * b2326b7 Implement loan application notification pipeline
+* | dc85f0a docs(system-administration): add full domain docs (PRD, Architecture, stories, reports)
+* | 851c6fb docs(stories): add story 1.29/1.30 to file structure; mark 1.29/1.30 as Draft; link rows to individual files
+|/  
+* 85e1c41 add communications
+* d696668 added notifications plan
+* aa59abc feat: add initial domain models and configuration for identity and document services
+* 0437b39 feat: add initial domain models and configuration for identity and document services
+* e80c82e feat: add initial configuration and domain models for loan origination service
+* 1bf5f00 feat: implement sprint 2
+* d16dbfd feat: Complete Sprint 1 - Foundation Infrastructure
+* 31c99f4 initial
